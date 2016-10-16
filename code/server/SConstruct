@@ -1,3 +1,3 @@
-env = Environment()
+env = Environment(CCFLAGS=['-pthread','-Wall'])
 
-env.Program("server",["server.c","common.c","slog.c"])
+env.Program(target="server",source=["server.c","common.c","slog.c"],LIBS=['pthread'])

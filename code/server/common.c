@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 
 #include "common.h"
+#include "slog.h"
 
 /****************************************************************************/
 
@@ -48,7 +49,10 @@ int recv_txt(int sock)
 
   if (recv(sock, (void *)&txtlen_net, sizeof(txtlen_net), 0) < 0) return 0;
   txtlen = ntohl(txtlen_net);
-  if (txtlen > MAX_TXT_LENGTH) return 0;
+  if (txtlen > MAX_TXT_LENGTH) {
+	   serror("common","Message too long.\n");
+	   return 0;
+  }
 
   if (recv(sock, (void *)buf, txtlen, 0) < 0) return 0;
   buf[txtlen] = '\0'; /* C string terminator */
@@ -58,6 +62,31 @@ int recv_txt(int sock)
 }
 
 /****************************************************************************/
+
+/*
+ * Receives a text from socket and stores it to buffer.
+ * The stored text will be no longer than MAX_TXT_LENGTH.
+ * 
+ * If the text is received, returns 1.
+ */ 
+int recv_txt_buffer(int sock, char *buffer) {
+  int txtlen;
+  uint32_t txtlen_net;
+
+  if (recv(sock, (void *)&txtlen_net, sizeof(txtlen_net), 0) < 0) return 0;
+  txtlen = ntohl(txtlen_net);
+  printf("Receiving %d chars.\n",txtlen); 
+  if (txtlen > MAX_TXT_LENGTH) {
+	   serror("common","Message too long.\n");
+	   return 0;
+  }
+
+  if (recv(sock, (void *)buffer, txtlen, 0) < 0) return 0;
+  buffer[txtlen] = '\0'; /* C string terminator */
+
+  /*printf("received: %s\n", buffer);*/
+  return 1;
+}
 
 void send_greetings(int sock)
 {

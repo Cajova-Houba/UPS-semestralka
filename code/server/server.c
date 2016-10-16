@@ -70,8 +70,11 @@ int main(int argc, char **argv)
 	        	ntohs(incoming_addr.sin_port)
 		);
 		sinfo("server",logMsg);
-	}
 
+		/* new thread which will validate the nickname */
+	}
+	
+	/* game loop */
 	for(;;)
 	{
 		incoming_addr_len = sizeof(incoming_addr);

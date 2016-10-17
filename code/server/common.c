@@ -68,14 +68,24 @@ int recv_txt(int sock)
  * The stored text will be no longer than MAX_TXT_LENGTH.
  * 
  * If the text is received, returns 1.
+ * If the socket closes the connection, returns 2;
  */ 
 int recv_txt_buffer(int sock, char *buffer) {
   int txtlen;
   uint32_t txtlen_net;
+  int recv_status = 0;
 
-  if (recv(sock, (void *)&txtlen_net, sizeof(txtlen_net), 0) < 0) return 0;
+  recv_status = recv(sock, (void *)&txtlen_net, sizeof(txtlen_net), 0);
+  /*printf("Receive status: %d.\n",recv_status);*/
+  
+  /*socket closed*/
+  if (recv_status == 0) {
+	  return 2;
+  }
+  if (recv_status < 0) return 0;
   txtlen = ntohl(txtlen_net);
-  printf("Receiving %d chars.\n",txtlen); 
+  /*txtlen = txtlen_net;*/
+  /*printf("Receiving %d chars.\n",txtlen); */
   if (txtlen > MAX_TXT_LENGTH) {
 	   serror("common","Message too long.\n");
 	   return 0;

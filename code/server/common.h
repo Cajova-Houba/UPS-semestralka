@@ -1,11 +1,24 @@
 #ifndef __COMMON_H
 #define __COMMON_H
 
-#define SRV_PORT		65000
-#define MAX_TXT_LENGTH		50
-#define MAX_PLAYERS		2    
+#define SRV_PORT				65000
+#define MAX_TXT_LENGTH			50
+#define MAX_PLAYERS				2    
 
-/*void err(char *msg);*/
+/*
+ * Max length of a nickname.
+ */ 
+#define MAX_NICK_LENGTH			8
+
+/*
+ * Structure representing a player.
+ */
+typedef struct {
+	int id;
+	char *nick;
+	int socket;
+} Player;
+
 int send_txt(int sock, char *txt);
 int recv_txt(int sock);
 void send_greetings(int sock);

@@ -20,11 +20,6 @@
  */
 #define MAX_CONNECTIONS			10
 
-/*
- * Max length of a nickname.
- */ 
-#define MAX_NICK_LENGTH			8
-
 
 /*
  * Names for logger.
@@ -48,7 +43,7 @@ int curr_conn = 0;
   This number will be increased each time a new nick passes validation until
   it reaches its maximum (MAX_PLAYERS constant in common.h).	
 */
-int players = 0;
+int players_count = 0;
 
 /*
  * A semaphore for threads with players.
@@ -62,10 +57,9 @@ int players = 0;
 sem_t player_sem;
 
 /*
- * Sockets for two players.
- */ 
-int p1_sock = -1, p2_sock = -1;
-
+ * Two players.
+ */
+Player players[2];
 
 
 
@@ -76,25 +70,25 @@ int p1_sock = -1, p2_sock = -1;
  * =====================================================================
  */ 
 /*
- * Stores the actual value of players in variable.
+ * Stores the actual value of players_count in variable.
  * Critical section handled.
  */ 
 void getPlayers(int *variable) {
 	pthread_mutex_lock(&mutex_players);
 	
-	*variable = players;
+	*variable = players_count;
 	
 	pthread_mutex_unlock(&mutex_players);
 }
 
 /*
- * This function increments the players variable.
+ * This function increments the players_count variable.
  * Critical section handled.
  */ 
 void increment_players() {
 	pthread_mutex_lock(&mutex_players);
 	 
-	players++;
+	players_count++;
 	 
 	pthread_mutex_unlock(&mutex_players);
 }
@@ -146,49 +140,34 @@ void decrement_curr_conn() {
  * =====================================================================
  */ 
 /*
+ * Prints the player to the buffer.
+ */ 
+void print_player(Player *p, char *buffer) {
+	sprintf(buffer,"Player: {id=%d, nick=%s, socket=%d}",p->id,p->nick,p->socket);
+}
+
+/*
+ * Prints the player to the buffer and adds a new line symbol.
+ */ 
+void println_player(Player *p, char *buffer) {
+	sprintf(buffer,"Player: {id=%d, nick=%s, socket=%d}\n",p->id,p->nick,p->socket);
+}
+ 
+/*
  * This function checks the nick and if it's invalid return 0.
+ * It is expected that the nick is terminated with '\0'.
  * Possible error message can be stored.
  */  
-void *check_nick(void *arg)
+int check_nick(char *nick, char *err_msg)
 {
-	char *logMsg = (char*)malloc(sizeof(char)*255);
-	
-	char buffer[MAX_TXT_LENGTH + 1];
-	int recv_status = 0;
-	int socket = (int)arg;
 	int nicklen, i;
-	int nickValid = 1;
-	int tmp_players;
-	
-	sprintf(logMsg,"Waiting for text from socket: %d.\n",socket);
-	sinfo(PLAYER_THREAD_NAME,logMsg);
-	while(1) {
-		recv_status = recv_txt_buffer(socket, buffer);
-		if(recv_status == 2) {
-			sprintf(logMsg,"Socket %d closed connection.\n",socket);
-			sinfo(PLAYER_THREAD_NAME, logMsg);
-			
-			free(logMsg);
-			
-			/*
-			 * !!! critical section !!!
-			 */
-			decrement_curr_conn();  
-			return NULL;
-		} else if(recv_status == 1) {
-			break;
-		}
-	}
-	
-	sprintf(logMsg,"Text received: %s\n",buffer);
-	sinfo(PLAYER_THREAD_NAME,logMsg);
+
 	
 	/* check length */
-	nicklen = strlen(buffer);
+	nicklen = strlen(nick);
 	if(nicklen > MAX_NICK_LENGTH) {
-		sprintf(logMsg,"Nick '%s' too long.\n",buffer);
-		serror(PLAYER_THREAD_NAME, logMsg);
-		nickValid = 0;
+		sprintf(err_msg,"Nick '%s' too long.\n",nick);
+		return 0;
 	}
 	
 	/* check characters
@@ -196,38 +175,17 @@ void *check_nick(void *arg)
 	 * only A-Z (65-90), a-z (97-122)
 	 * 
 	 */
-	if(nickValid) {
-		sdebug(PLAYER_THREAD_NAME,"Nick length ok.\n");
-		for(i = 0; i < nicklen; i++) {
-			if(buffer[i] < 65 || 
-			(buffer[i] > 90 && buffer[i] < 97) || 
-			(buffer[i] > 122)) {
-				sprintf(logMsg,"Invalid character '%c' at position %i.\n",buffer[i],i+1);
-				serror(PLAYER_THREAD_NAME, logMsg);
-				nickValid = 0;
-				break;
-			}
+	for(i = 0; i < nicklen; i++) {
+		if(nick[i] < 65 || 
+		(nick[i] > 90 && nick[i] < 97) || 
+		(nick[i] > 122)) {
+			sprintf(err_msg,"Invalid character '%c' at position %i.\n",nick[i],i+1);
+			return 0;
 		}
-	} 
-	
-	/*
-	 * Nickaname passed validation,
-	 * register a new player.
-	 */
-	if(nickValid) {
-		sdebug(PLAYER_THREAD_NAME, "Nick characters ok.\n");
-		increment_players();
 	}
 	
-		
-	sinfo(PLAYER_THREAD_NAME,"End of thread.\n");
-	
-	free(logMsg);
-	/*
-	 * !!! critical section !!!
-	 */
-	 decrement_curr_conn();
-	return NULL;
+	/* nick valid */
+	return 1;
 }
 
 /*
@@ -236,24 +194,28 @@ void *check_nick(void *arg)
  */
 void *player_thread(void *arg) {
 	
-	char *logMsg = (char*)malloc(sizeof(char)*255);
+	char *log_msg = (char*)malloc(sizeof(char)*255);
 	
 	char buffer[MAX_TXT_LENGTH + 1];
 	int recv_status = 0;
 	int socket = (int)arg;
-	int nicklen, i;
-	int nickValid = 1;
+	int nick_valid = 0;
 	int tmp_players;
 	
-	sprintf(logMsg,"Waiting for text from socket: %d.\n",socket);
-	sinfo(PLAYER_THREAD_NAME,logMsg);
+	/*
+	 * Index in the array of players.
+	 */
+	int my_player;
+	
+	sprintf(log_msg,"Waiting for text from socket: %d.\n",socket);
+	sinfo(PLAYER_THREAD_NAME,log_msg);
 	while(1) {
 		recv_status = recv_txt_buffer(socket, buffer);
 		if(recv_status == 2) {
-			sprintf(logMsg,"Socket %d closed connection.\n",socket);
-			sinfo(PLAYER_THREAD_NAME, logMsg);
+			sprintf(log_msg,"Socket %d closed connection.\n",socket);
+			sinfo(PLAYER_THREAD_NAME, log_msg);
 			
-			free(logMsg);
+			free(log_msg);
 			
 			/*
 			 * !!! critical section !!!
@@ -265,39 +227,15 @@ void *player_thread(void *arg) {
 		}
 	}
 	
-	sprintf(logMsg,"Text received: %s\n",buffer);
-	sinfo(PLAYER_THREAD_NAME,logMsg);
+	sprintf(log_msg,"Text received: %s\n",buffer);
+	sinfo(PLAYER_THREAD_NAME,log_msg);
 	
-	/* check length */
-	nicklen = strlen(buffer);
-	if(nicklen > MAX_NICK_LENGTH) {
-		sprintf(logMsg,"Nick '%s' too long.\n",buffer);
-		serror(PLAYER_THREAD_NAME, logMsg);
-		nickValid = 0;
-	}
-	
-	/* check characters
-	 * 
-	 * only A-Z (65-90), a-z (97-122)
-	 * 
-	 */
-	if(nickValid) {
-		sdebug(PLAYER_THREAD_NAME,"Nick length ok.\n");
-		for(i = 0; i < nicklen; i++) {
-			if(buffer[i] < 65 || 
-			(buffer[i] > 90 && buffer[i] < 97) || 
-			(buffer[i] > 122)) {
-				sprintf(logMsg,"Invalid character '%c' at position %i.\n",buffer[i],i+1);
-				serror(PLAYER_THREAD_NAME, logMsg);
-				nickValid = 0;
-				break;
-			}
-		}
-	} 
+	/* check nick */
+	nick_valid = check_nick(buffer, log_msg);
 	
 	/* nick validation failed */
-	if(!nickValid) {
-		free(logMsg);
+	if(!nick_valid) {
+		free(log_msg);
 		decrement_curr_conn();
 		return NULL;
 	}
@@ -313,34 +251,39 @@ void *player_thread(void *arg) {
 	sdebug(PLAYER_THREAD_NAME, "Nick validation ok.\n");
 
 	/* check if the server isn't already full */
-	getPlayers(&tmp_players);
-	if(tmp_players == 2) {
+	getPlayers(&my_player);
+	if(my_player == 2) {
 		serror(PLAYER_THREAD_NAME,"Server full, sorry.\n");
-		free(logMsg);
+		free(log_msg);
 		decrement_curr_conn();
 		return NULL;
 	}
-	
 	increment_players();
 	if(sem_trywait(&player_sem) == -1) {
-		sinfo(PLAYER_THREAD_NAME,"Waking up another thread.\n");
 		/* one thread is already in queue - wake it up and lets play */
 		sem_post(&player_sem);
 		sinfo(PLAYER_THREAD_NAME, "THE GAME HAS STARTED!\n");
 	} else {
 		/* no thread has finished validation yet, wait for another thread */
-		sinfo(PLAYER_THREAD_NAME, "Going to sleep.\n");
+		sinfo(PLAYER_THREAD_NAME, "Waiting for other player.\n");
 		sem_wait(&player_sem);
 	}
 	
+	players[my_player].id = my_player;
+	players[my_player].nick = buffer;
+	players[my_player].socket = socket;
+	println_player(&players[my_player], log_msg);
+	sinfo(PLAYER_THREAD_NAME, log_msg);
+	
+	/* 
+	 * GAME HERE 
+	 */
 			
 	sinfo(PLAYER_THREAD_NAME,"End of thread.\n");
 	
-	free(logMsg);
-	/*
-	 * !!! critical section !!!
-	 */
-	 decrement_curr_conn();
+	free(log_msg);
+
+	decrement_curr_conn();
 	return NULL;
 } 
 

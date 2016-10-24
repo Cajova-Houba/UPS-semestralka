@@ -76,6 +76,15 @@ sem_t player_sem;
 sem_t cleaner_sem;
 
 /*
+ * A semaphore for maintaining a queue of threads waiting to be joined.
+ * 
+ * When the thread calls clean_function, it will call sem_wait() and the cleaner thread
+ * will call sem_post() when the original thread is joined.
+ * 
+ */
+sem_t cleaning_queue_sem;
+
+/*
  * Flag indicating that the game has started.
  */
 int game_started = 0;
@@ -179,13 +188,19 @@ void decrement_players() {
 }
 
 /*
- * This function stores the actual value of curr_conn in variable.
+ * This function stores the first free connection slot in the variable.
  * Critical section handled.
  */ 
 void get_curr_conn(int *variable) {
+	int i;
 	pthread_mutex_lock(&mutex_curr_conn);
 	
-	*variable = curr_conn;
+	for(i = 0; i < MAX_CONNECTIONS; i++) {
+		if(connections[i] == NULL) {
+			*variable = i;
+			break;
+		}
+	}
 	 
 	pthread_mutex_unlock(&mutex_curr_conn);
 }
@@ -229,12 +244,11 @@ void get_cleaner_index(int *variable) {
  * Sets the cleaner_index value and wakes the cleaner thread.
  */ 
 void clean_me(int thread_index) {
-	pthread_mutex_lock(&mutex_cleaner_index);
-	
+	sem_wait(&cleaning_queue_sem);	
+		
 	cleaner_index = thread_index;
 	sem_post(&cleaner_sem);
 	
-	pthread_mutex_unlock(&mutex_cleaner_index);
 }
 
 /*
@@ -262,8 +276,11 @@ void shutdown_cleaner() {
 /*
  * Thread function which will wait for signal to clean thread slots.
  */
-void *cleaner() {
+void *cleaner(void *arg) {
 	int thread_index;
+	char log_msg[50];
+	
+	sdebug(SERVER_NAME, "Starting cleaning thread.\n");
 	
 	while(1) {
 		/* wait for signal - conditional variable*/
@@ -275,8 +292,15 @@ void *cleaner() {
 			break;
 		}
 		
+		sprintf(log_msg, "Cleaning thread on index: %d.\n",thread_index);
+		sdebug(SERVER_NAME, log_msg);
 		pthread_join(connections[thread_index], NULL);
+		
+		/* call sem_post for the waiting queue*/
+		sem_post(&cleaning_queue_sem);
 	}
+	
+	sdebug(SERVER_NAME, "Cleaning thread is shuting down.\n");
 	
 	return NULL;
 }
@@ -344,9 +368,13 @@ void *player_thread(void *arg) {
 	
 	char buffer[MAX_TXT_LENGTH + 1];
 	int recv_status = 0;
-	int socket = (int)arg;
+	int socket = ((thread_arg *)arg)->socket;
+	int thread_num = ((thread_arg *)arg)->thread_number;
 	int nick_valid = 0;
 	int tmp_players;
+	
+	sprintf(log_msg, "Starting new thread with id=%d.\n",thread_num);
+	sinfo(PLAYER_THREAD_NAME, log_msg);
 	
 	/*
 	 * Index in the array of players.
@@ -358,7 +386,7 @@ void *player_thread(void *arg) {
 	if(my_player == 2) {
 		serror(PLAYER_THREAD_NAME,"Server full, sorry.\n");
 		free(log_msg);
-		decrement_curr_conn();
+		clean_me(thread_num);
 		return NULL;
 	}
 	
@@ -372,10 +400,7 @@ void *player_thread(void *arg) {
 			
 			free(log_msg);
 			
-			/*
-			 * !!! critical section !!!
-			 */
-			decrement_curr_conn();  
+			clean_me(thread_num);
 			return NULL;
 		} else if(recv_status == 1) {
 			break;
@@ -392,7 +417,7 @@ void *player_thread(void *arg) {
 	if(!nick_valid) {
 		serror(PLAYER_THREAD_NAME, log_msg);
 		free(log_msg);
-		decrement_curr_conn();
+		clean_me(thread_num);
 		return NULL;
 	}
 	
@@ -411,7 +436,7 @@ void *player_thread(void *arg) {
 	if(my_player == 2) {
 		serror(PLAYER_THREAD_NAME,"Server full, sorry.\n");
 		free(log_msg);
-		decrement_curr_conn();
+		clean_me(thread_num);
 		return NULL;
 	}
 	increment_players();
@@ -441,7 +466,7 @@ void *player_thread(void *arg) {
 	free(log_msg);
 
 	decrement_players();
-	decrement_curr_conn();
+	clean_me(thread_num);
 	return NULL;
 } 
 
@@ -484,8 +509,13 @@ int init_ms() {
 		return 0;
 	}
 	
-	if (sem_init(&cleaner_sem, 0, 1) < 0) {
+	if (sem_init(&cleaner_sem, 0, 0) < 0) {
 		serror(SERVER_NAME, "Cleaner semaphore initialization failed.\n");
+		return 0;
+	}
+	
+	if(sem_init(&cleaning_queue_sem, 0, 1) < 0) {
+		serror(SERVER_NAME, "Cleaning queue sempahore initialization failed.\n");
 		return 0;
 	}
 	
@@ -542,8 +572,15 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	
-	logMsg = (char*)malloc(sizeof(char)*255);
+	/*
+	 * Start the cleaning thread
+	 */ 
+	if(pthread_create(&cleaner_thread, NULL, cleaner, NULL)) {
+		serror(SERVER_NAME, "Error while initilizing the cleaner thread.\n");
+		return 1;
+	}
 	
+	logMsg = (char*)malloc(sizeof(char)*255);
 	/* listening loop - wait for players*/
 	while (1) 
 	{	
@@ -574,10 +611,7 @@ int main(int argc, char **argv)
 		
 		/*
 		 * TODO:
-		 * - get_curr_conn returns first free thread slot,
-		 * 	 inc_curr_conn
-		 * - new thread which will clean connection threads 
-		 * - cleaner will call dec_curr_conn
+		 * - get_curr_conn returns first free thread slot
 		 */
 		/* !!! critical section !!! */
 		get_curr_conn(&tmp_curr_conn);
@@ -595,7 +629,6 @@ int main(int argc, char **argv)
 			serror("server",logMsg);
 			continue;
 		}
-		increment_curr_conn();
 	}
 	
 	/* signal cleaner*/

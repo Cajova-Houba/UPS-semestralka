@@ -14,6 +14,7 @@
 #include "common.h"
 #include "seneterror.h"
 #include "slog.h"
+#include "nick_val.h"
 
 /* 
  * Max number of connections sending their nicknames.
@@ -206,30 +207,6 @@ void get_curr_conn(int *variable) {
 }
 
 /*
- * This function increments the curr_conn variable.
- * Critical section handled.
- */ 
-void increment_curr_conn() {
-	pthread_mutex_lock(&mutex_curr_conn);
-	 
-	curr_conn++;
-	 
-	pthread_mutex_unlock(&mutex_curr_conn);
-}
-
-/*
- * This function decrements the curr_conn variable.
- * Critical section handled.
- */ 
-void decrement_curr_conn() {
-	pthread_mutex_lock(&mutex_curr_conn);
-	 
-	curr_conn--;
-	 
-	pthread_mutex_unlock(&mutex_curr_conn);
-}
-
-/*
  * Stores actuall value of cleaner_index to the variable.
  */ 
 void get_cleaner_index(int *variable) {
@@ -244,11 +221,13 @@ void get_cleaner_index(int *variable) {
  * Sets the cleaner_index value and wakes the cleaner thread.
  */ 
 void clean_me(int thread_index) {
+	/* add me to the cleaning queue */
 	sem_wait(&cleaning_queue_sem);	
 		
 	cleaner_index = thread_index;
-	sem_post(&cleaner_sem);
 	
+	/* wake up, Mr. Cleaner */
+	sem_post(&cleaner_sem);	
 }
 
 /*
@@ -295,8 +274,9 @@ void *cleaner(void *arg) {
 		sprintf(log_msg, "Cleaning thread on index: %d.\n",thread_index);
 		sdebug(SERVER_NAME, log_msg);
 		pthread_join(connections[thread_index], NULL);
+		connections[thread_index] = NULL;
 		
-		/* call sem_post for the waiting queue*/
+		/* call sem_post for the waiting queue */
 		sem_post(&cleaning_queue_sem);
 	}
 	
@@ -320,41 +300,32 @@ void println_player(Player *p, char *buffer) {
 }
  
 /*
- * This function checks the nick and if it's invalid return 0.
- * It is expected that the nick is terminated with '\0'.
- * Possible error message can be stored.
+ * Calls function form nick_val to check nick.
  */  
 int check_nick(char *nick, char *err_msg)
 {
-	int nicklen, i;
-
+	int check_res;
 	
-	/* check length */
-	nicklen = strlen(nick);
-	if(nicklen > MAX_NICK_LENGTH) {
-		sprintf(err_msg,"Nick '%s' too long.\n",nick);
-		return 0;
-	}
+	check_res = check_nickname(nick, NULL);
 	
-	/* check characters
-	 * 
-	 * only A-Z (65-90), a-z (97-122)
-	 * 
-	 */
-	for(i = 0; i < nicklen; i++) {
-		if(nick[i] < 65 || 
-		(nick[i] > 90 && nick[i] < 97) || 
-		(nick[i] > 122)) {
-			sprintf(err_msg,"Invalid character '%c' at position %i.\n",nick[i],i+1);
+	switch(check_res) {
+		case NICK_TOO_SHORT:
+			sprintf(err_msg,"Nick '%s' is too short.\n",nick);
 			return 0;
-		}
+		case NICK_TOO_LONG:
+			sprintf(err_msg,"Nick '%s' is too long.\n",nick);
+			return 0;
+		case FIRST_CHAR_INV:
+			sprintf(err_msg,"Nick '%s' starts with invlid character.\n",nick);
+			return 0;
+		case CONTAINS_INV_CHAR:
+			sprintf(err_msg,"Nick '%s' contains invalid characters.\n",nick);
+			return 0;
+		case NICK_ALREADY_EXISTS:
+			sprintf(err_msg,"Nick '%s' already exists.\n",nick);
+			return 0;
 	}
 	
-	/*
-	 * Check nick duplicities 
-	 */
-	
-	/* nick valid */
 	return 1;
 }
 

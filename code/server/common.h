@@ -3,12 +3,7 @@
 
 #define SRV_PORT				65000
 #define MAX_TXT_LENGTH			50
-#define MAX_PLAYERS				2    
-
-/*
- * Max length of a nickname.
- */ 
-#define MAX_NICK_LENGTH			8
+#define MAX_PLAYERS				2     
 
 /*
  * Structure representing a player.

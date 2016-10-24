@@ -28,10 +28,20 @@
 #define PLAYER_THREAD_NAME	 	"server - player thread"
 
 /*
- * Mutexes for critical section.
+ * Structure which will be passed as an argument to a new thread.
+ */
+typedef struct {
+	int thread_number;
+	int socket;
+} thread_arg;
+
+/*
+ * Mutexes for critical sections.
  */ 
 pthread_mutex_t mutex_curr_conn;
 pthread_mutex_t mutex_players;
+pthread_mutex_t mutex_game_started;
+pthread_mutex_t mutex_cleaner_index;
 
 /*
  * A pointer to the arrays of nick validating threads.
@@ -57,11 +67,37 @@ int players_count = 0;
 sem_t player_sem;
 
 /*
+ * A semphore for cleaning.
+ * 
+ * The semaphore will be initialized to 0 so that the cleaning thread will go sleep immediately 
+ * after start. When some other thread finnishes, it will set the cleaner index and wake the cleaner
+ * up.
+ */ 
+sem_t cleaner_sem;
+
+/*
+ * Flag indicating that the game has started.
+ */
+int game_started = 0;
+
+/*
  * Two players.
  */
 Player players[2];
 
+/*
+ * Incoming connections. Two players will be choosed.
+ */ 
+pthread_t connections[MAX_CONNECTIONS];
 
+/*
+ * Index in the connections array. Thread which is to be joined
+ * will set this index and wake the cleaning thread.
+ * 
+ * If the cleaner_index is set to -1, cleaning loop will stop and the
+ * cleaning thread will end.
+ */ 
+int cleaner_index;
 
 
 /*
@@ -69,6 +105,43 @@ Player players[2];
  * FUNCTIONS FOR CRITICAL SECTION
  * =====================================================================
  */ 
+ 
+/*
+ * Stores the current value of game_started in variable.
+ * Critical section handled.
+ */ 
+void get_game_started(int *variable) {
+	pthread_mutex_lock(&mutex_game_started);
+	
+	*variable = game_started;
+	
+	pthread_mutex_unlock(&mutex_game_started);
+}
+
+/*
+ * Sets the game_started flag to 1.
+ * Critical section handled.
+ */
+void start_game() {
+	pthread_mutex_lock(&mutex_game_started);
+	
+	game_started = 1;
+	
+	pthread_mutex_unlock(&mutex_game_started);
+}
+
+/*
+ * Sets the game_started flag to 0.
+ * Critical section handled.
+ */ 
+void end_game() {
+	pthread_mutex_lock(&mutex_game_started);
+	
+	game_started = 0;
+	
+	pthread_mutex_unlock(&mutex_game_started);
+}
+ 
 /*
  * Stores the actual value of players_count in variable.
  * Critical section handled.
@@ -94,12 +167,24 @@ void increment_players() {
 }
 
 /*
+ * This function decrements the curr_conn variable.
+ * Critical section handled.
+ */ 
+void decrement_players() {
+	pthread_mutex_lock(&mutex_players);
+	 
+	players_count--;
+	 
+	pthread_mutex_unlock(&mutex_players);
+}
+
+/*
  * This function stores the actual value of curr_conn in variable.
  * Critical section handled.
  */ 
 void get_curr_conn(int *variable) {
 	pthread_mutex_lock(&mutex_curr_conn);
-	 
+	
 	*variable = curr_conn;
 	 
 	pthread_mutex_unlock(&mutex_curr_conn);
@@ -129,6 +214,41 @@ void decrement_curr_conn() {
 	pthread_mutex_unlock(&mutex_curr_conn);
 }
 
+/*
+ * Stores actuall value of cleaner_index to the variable.
+ */ 
+void get_cleaner_index(int *variable) {
+	pthread_mutex_lock(&mutex_cleaner_index);
+	
+	*variable = cleaner_index;
+	
+	pthread_mutex_unlock(&mutex_cleaner_index);
+}
+
+/*
+ * Sets the cleaner_index value and wakes the cleaner thread.
+ */ 
+void clean_me(int thread_index) {
+	pthread_mutex_lock(&mutex_cleaner_index);
+	
+	cleaner_index = thread_index;
+	sem_post(&cleaner_sem);
+	
+	pthread_mutex_unlock(&mutex_cleaner_index);
+}
+
+/*
+ * Sets the cleaner_index to -1 which means that the cleaning loop
+ * will be stopped. No need to call sem_post() after this function.
+ */ 
+void shutdown_cleaner() {
+	pthread_mutex_lock(&mutex_cleaner_index);
+	
+	cleaner_index = -1;
+	sem_post(&cleaner_sem);
+	
+	pthread_mutex_unlock(&mutex_cleaner_index);
+}
 
 
 
@@ -139,6 +259,28 @@ void decrement_curr_conn() {
  * THREAD FUNCTIONS
  * =====================================================================
  */ 
+/*
+ * Thread function which will wait for signal to clean thread slots.
+ */
+void *cleaner() {
+	int thread_index;
+	
+	while(1) {
+		/* wait for signal - conditional variable*/
+		sem_wait(&cleaner_sem);
+		
+		/* clean */
+		get_cleaner_index(&thread_index);
+		if(thread_index == -1) {
+			break;
+		}
+		
+		pthread_join(connections[thread_index], NULL);
+	}
+	
+	return NULL;
+}
+ 
 /*
  * Prints the player to the buffer.
  */ 
@@ -184,6 +326,10 @@ int check_nick(char *nick, char *err_msg)
 		}
 	}
 	
+	/*
+	 * Check nick duplicities 
+	 */
+	
 	/* nick valid */
 	return 1;
 }
@@ -206,6 +352,15 @@ void *player_thread(void *arg) {
 	 * Index in the array of players.
 	 */
 	int my_player;
+	
+	/* check if the server isn't already full */
+	getPlayers(&my_player);
+	if(my_player == 2) {
+		serror(PLAYER_THREAD_NAME,"Server full, sorry.\n");
+		free(log_msg);
+		decrement_curr_conn();
+		return NULL;
+	}
 	
 	sprintf(log_msg,"Waiting for text from socket: %d.\n",socket);
 	sinfo(PLAYER_THREAD_NAME,log_msg);
@@ -235,6 +390,7 @@ void *player_thread(void *arg) {
 	
 	/* nick validation failed */
 	if(!nick_valid) {
+		serror(PLAYER_THREAD_NAME, log_msg);
 		free(log_msg);
 		decrement_curr_conn();
 		return NULL;
@@ -263,6 +419,7 @@ void *player_thread(void *arg) {
 		/* one thread is already in queue - wake it up and lets play */
 		sem_post(&player_sem);
 		sinfo(PLAYER_THREAD_NAME, "THE GAME HAS STARTED!\n");
+		start_game();
 	} else {
 		/* no thread has finished validation yet, wait for another thread */
 		sinfo(PLAYER_THREAD_NAME, "Waiting for other player.\n");
@@ -283,6 +440,7 @@ void *player_thread(void *arg) {
 	
 	free(log_msg);
 
+	decrement_players();
 	decrement_curr_conn();
 	return NULL;
 } 
@@ -311,8 +469,23 @@ int init_ms() {
 		return 0;
 	}
 	
+	if (pthread_mutex_init(&mutex_players, NULL) != 0) {
+		serror(SERVER_NAME, "Game_started mutex initialization failed.\n");
+		return 0;
+	}
+	
+	if (pthread_mutex_init(&mutex_cleaner_index, NULL) != 0) {
+		serror(SERVER_NAME, "Cleaner_index mutex initialization failed.\n");
+		return 0;
+	}
+	
 	if (sem_init(&player_sem, 0, 1) < 0) {
 		serror("server","Players semaphore initialization failed.\n");
+		return 0;
+	}
+	
+	if (sem_init(&cleaner_sem, 0, 1) < 0) {
+		serror(SERVER_NAME, "Cleaner semaphore initialization failed.\n");
 		return 0;
 	}
 	
@@ -328,7 +501,8 @@ int main(int argc, char **argv)
 	int optval;
 	struct sockaddr_in addr, incoming_addr;
 	unsigned int incoming_addr_len;
-	pthread_t connections[MAX_CONNECTIONS];
+	pthread_t cleaner_thread;
+	thread_arg thread_args[MAX_CONNECTIONS];
 	int thread_err;
 	char *logMsg;
 	int tmp_players, tmp_curr_conn;
@@ -391,37 +565,44 @@ int main(int argc, char **argv)
 	        	ntohs(incoming_addr.sin_port)
 		);
 		sinfo("server",logMsg);
-		
-		/* check players */
-		getPlayers(&tmp_players);
-		if(tmp_players == 2) {
-			serror(SERVER_NAME, "Server is already full. Sorry.\n");
-			continue;
-		}
 
 		/* 
 		 * new thread which will validate the nickname 
 		 * and accept a new player.
 		 */
 		
+		
+		/*
+		 * TODO:
+		 * - get_curr_conn returns first free thread slot,
+		 * 	 inc_curr_conn
+		 * - new thread which will clean connection threads 
+		 * - cleaner will call dec_curr_conn
+		 */
 		/* !!! critical section !!! */
 		get_curr_conn(&tmp_curr_conn);
 		
 		if(tmp_curr_conn == MAX_CONNECTIONS - 1) {
-			sinfo("server","Server can't accept any new players.");
+			sinfo("server","Server can't accept any new connections.");
 			continue;
 		}
 		
-		thread_err = pthread_create(&connections[tmp_curr_conn], NULL, player_thread,(void *)incoming_sock);
+		thread_args[tmp_curr_conn].thread_number = tmp_curr_conn;
+		thread_args[tmp_curr_conn].socket = incoming_sock;
+		thread_err = pthread_create(&connections[tmp_curr_conn], NULL, player_thread,(void *)&thread_args[tmp_curr_conn]);
 		if(thread_err) {
 			sprintf(logMsg, "Error: %s\n",strerror(thread_err));
 			serror("server",logMsg);
 			continue;
 		}
 		increment_curr_conn();
-		pthread_detach(connections[tmp_curr_conn]);
 	}
 	
+	/* signal cleaner*/
+	
+	/* wait for cleaner */
+	shutdown_cleaner();
+	pthread_join(cleaner_thread, NULL);
 	free(logMsg);	
 	return 0;
 }

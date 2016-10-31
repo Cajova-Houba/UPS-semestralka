@@ -1,6 +1,6 @@
 #!/bin/bash
 
-paths=("readme.md" "gitAddAll.sh" "doc/*" "code/server/*.c" "code/server/*.h" "code/server/SConstruct")
+paths=("readme.md" "gitAddAll.sh" "doc/*" "code/server/*.c" "code/server/*.h" "code/server/SConstruct" "code/client/src/*" "code/client/pom.xml")
 
 for item in ${paths[*]}
 do

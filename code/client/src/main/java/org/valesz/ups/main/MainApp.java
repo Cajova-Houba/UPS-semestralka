@@ -9,6 +9,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
@@ -23,8 +24,17 @@ public class MainApp extends Application{
 
     public static final int DEF_WIDTH = 640;
     public static final int DEF_HEIGHT = 480;
+    public static final int DEF_LOGIN_WIDTH = 640;
+    public static final int DEF_LOGIN_HEIGHT = 240;
     public static final String DEF_TITLE = "Senet - klient";
+    public static final String GAME_TITLE = "Senet";
+    public static final Font DEF_FONT = Font.font("Tahoma", FontWeight.NORMAL, 20);
+    public static final Font DEF_SMALL_FONT = Font.font("Tahoma", FontWeight.NORMAL, 12);
+
+
     public static String VERSION = "verze";
+    private static Stage stage;
+    private static Scene mainScene, loginScene;
 
     public static void main(String[] args) {
         VERSION = MainApp.class.getPackage().getImplementationVersion();
@@ -32,15 +42,54 @@ public class MainApp extends Application{
     }
 
     public void start(Stage primaryStage) throws Exception {
+        this.stage = primaryStage;
         primaryStage.setTitle(DEF_TITLE);
 
-        Scene scene = initScene();
+        switchToLogin();
 
-        primaryStage.setScene(scene);
         primaryStage.show();
     }
 
-    private Scene initScene() {
+    /**
+     * Initializes main scene and returns it.
+     */
+    private static Scene initMainScene() {
+        GridPane grid = new GridPane();
+        grid.setAlignment(Pos.CENTER);
+        grid.setHgap(0);
+        grid.setVgap(0);
+        grid.setPadding(new Insets(0,0,0,0));
+
+        /* side panel */
+        VBox sidePane = new VBox();
+        Text gameTitle = new Text(GAME_TITLE);
+        gameTitle.setFont(DEF_FONT);
+        sidePane.getChildren().add(gameTitle);
+
+        Text p1 = new Text("Player 1");
+        p1.setFont(DEF_SMALL_FONT);
+        sidePane.getChildren().add(p1);
+        Text p2 = new Text("Player 2");
+        p2.setFont(DEF_SMALL_FONT);
+        sidePane.getChildren().add(p2);
+
+        Button endBtn = new Button("Exit");
+        endBtn.setOnAction(event -> {switchToLogin();});
+        sidePane.getChildren().add(endBtn);
+
+        grid.add(sidePane,0,1,1,3);
+
+        mainScene = new Scene(grid, DEF_WIDTH, DEF_HEIGHT);
+
+        return mainScene;
+    }
+
+
+    /**
+     * Initializes login scene and returns it.
+     * @return
+     */
+    private static Scene initLoginScene() {
         GridPane grid = new GridPane();
         grid.setAlignment(Pos.CENTER);
         grid.setHgap(10);
@@ -48,7 +97,7 @@ public class MainApp extends Application{
         grid.setPadding(new Insets(25,25,25,25));
 
         Text sceneTitle = new Text("Connect to server:");
-        sceneTitle.setFont(Font.font("Tahoma", FontWeight.NORMAL, 20));
+        sceneTitle.setFont(DEF_FONT);
         grid.add(sceneTitle, 0, 0, 2, 1);
 
         Label userName = new Label("Nickname:");
@@ -67,13 +116,36 @@ public class MainApp extends Application{
         grid.add(portTextField, 1, 3);
 
         Button btn = new Button("Connect");
+        btn.setOnAction(event -> {switchToMain();});
         HBox hbBtn = new HBox(10);
         hbBtn.setAlignment(Pos.BOTTOM_RIGHT);
         hbBtn.getChildren().add(btn);
         grid.add(hbBtn, 1, 5);
 
-        Scene scene = new Scene(grid, DEF_WIDTH, DEF_HEIGHT);
+        loginScene = new Scene(grid, DEF_LOGIN_WIDTH, DEF_LOGIN_HEIGHT);
 
-        return scene;
+        return loginScene;
+    }
+
+    /**
+     * Sets the loginScene as a scene.
+     */
+    private static void switchToLogin() {
+        if(loginScene == null) {
+            loginScene = initLoginScene();
+        }
+
+        stage.setScene(loginScene);
+    }
+
+    /**
+     * Sets the mainScene as a scene.
+     */
+    private static void switchToMain() {
+        if(mainScene == null) {
+            mainScene = initMainScene();
+        }
+
+        stage.setScene(mainScene);
     }
 }

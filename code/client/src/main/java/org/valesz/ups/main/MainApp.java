@@ -14,13 +14,15 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
+import org.valesz.ups.common.error.Error;
+import org.valesz.ups.network.ThreadListener;
 
 /**
  * Main javafx application.
  *
  * @author Zdenek Vales
  */
-public class MainApp extends Application{
+public class MainApp extends Application implements ThreadListener {
 
     public static final int DEF_WIDTH = 640;
     public static final int DEF_HEIGHT = 480;
@@ -74,7 +76,9 @@ public class MainApp extends Application{
         sidePane.getChildren().add(p2);
 
         Button endBtn = new Button("Exit");
-        endBtn.setOnAction(event -> {switchToLogin();});
+        endBtn.setOnAction(event -> {
+            switchToLogin();
+        });
         sidePane.getChildren().add(endBtn);
 
         grid.add(sidePane,0,1,1,3);
@@ -147,5 +151,15 @@ public class MainApp extends Application{
         }
 
         stage.setScene(mainScene);
+    }
+
+    @Override
+    public void notifyOnError(Thread thread, Error error) {
+
+    }
+
+    @Override
+    public void notifyOnOperationOk(Thread thread) {
+
     }
 }

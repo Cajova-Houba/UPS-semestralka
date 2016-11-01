@@ -1,9 +1,13 @@
 package org.valesz.ups.network;
 
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.valesz.ups.common.error.Error;
-import org.valesz.ups.common.error.ErrorCode;
+import org.valesz.ups.common.message.Message;
+import org.valesz.ups.common.message.MessageType;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.net.Socket;
 
 /**
@@ -11,140 +15,97 @@ import java.net.Socket;
  *
  * @author Zdenek Vales
  */
-public class TcpClient extends Thread {
+public class TcpClient{
 
-    public static final Logger logger = Logger.getLogger(TcpClient.class.getName());
+    public static final Logger logger = LogManager.getLogger(TcpClient.class);
 
-    private String address;
-    private int port;
-    private String nickname;
     private Socket socket;
-    private State gameState;
-
-    private final ThreadListener threadListener;
 
     /**
-     * Possible states of thread.
+     * Tries to connect to the server and if the connection is successful,
+     * NO_ERROR is returned.
+     * @param address
+     * @param port
+     * @return
      */
-    private enum State {
-        /**
-         * The first gameState before thre client is connected to the server.
-         */
-        INIT,
+    public Error connect(String address, int port) {
+        Socket tmpSocket;
+        String errMsg;
 
-        /**
-         * Client tries to connect to the server and if unsuccessful, it will switch to the INIT gameState.
-         */
-        TRY_CONNECT,
+        logger.debug(String.format("Connecting to %s:%d.", address, port));
 
-        /**
-         * Client was successfully connected to the server and is now waiting for the game to start.
-         */
-        CONNECTED,
-
-        /**
-         * This gameState means that the thread will be ended.
-         */
-        END
-    }
-
-    public TcpClient(ThreadListener threadListener) {
-        this.threadListener = threadListener;
-        logger.debug("Tcp client initialized.");
-        gameState = State.INIT;
-    }
-
-    @Override
-    public void run() {
-        while(getGameState() != State.END) {
-            switch (getGameState()) {
-                /*
-                   do nothing and wait for the address, port and nick to be provided.
-                 */
-                case INIT:
-                    break;
-
-                /*
-                    try to connect.
-                 */
-                case TRY_CONNECT:
-                    Error e = connect();
-                    if(e.code == ErrorCode.NO_ERROR) {
-                        logger.debug(String.format("Connected to %s:%d as %s.", address, port, nickname));
-                        setGameState(State.CONNECTED);
-                        threadListener.notifyOnOperationOk(this);
-                    } else {
-                        logger.debug(String.format("Error occured: %s.", e.code.name()));
-                        setGameState(State.INIT);
-                        threadListener.notifyOnError(this, e);
-                    }
-
-                    break;
-
-                /*
-                    wait for game to start.
-                 */
-                case CONNECTED:
-                    break;
-
-            }
+        try {
+            tmpSocket = new Socket(address, port);
+        } catch (IOException e) {
+            errMsg = String.format("Error while connecting to %s:%d",address, port);
+            logger.error(errMsg);
+            return Error.GENERAL_ERROR(errMsg);
         }
-    }
 
-    public String getAddress() {
-        return address;
-    }
+        socket = tmpSocket;
 
-    public void setAddress(String address) {
-        this.address = address;
-    }
-
-    public int getPort() {
-        return port;
-    }
-
-    public void setPort(int port) {
-        this.port = port;
-    }
-
-    public String getNickname() {
-        return nickname;
-    }
-
-    public void setNickname(String nickname) {
-        this.nickname = nickname;
-    }
-
-    private synchronized State getGameState() {
-        return this.gameState;
-    }
-
-    private synchronized void setGameState(State gameState) {
-        this.gameState = gameState;
-    }
-
-    /**
-     * If the thread is in INIT gameState, it will switch to TRY_CONNECT gameState
-     * and will try to connect to the server.
-     */
-    public synchronized void tryConnect() {
-        if (getGameState() == State.INIT) {
-            setGameState(State.TRY_CONNECT);
-        }
-    }
-
-    /**
-     * Method tries to connect to server with provided address, port and nickname.
-     */
-    private Error connect() {
+        logger.debug("Connected.");
         return Error.NO_ERROR();
     }
 
     /**
-     * Sends a simple text message to the socket.
-     * @param message Message to be sent.
+     * Disconnect from the server.
      */
-    private void sendMessage(String message) {
-
+    public void disconnect() {
+        if(isConnected()) {
+            try {
+                socket.close();
+            } catch (IOException e) {
+                logger.error("Error while closing the socket: "+e.getMessage());
+            }
+        }
     }
+
+    /**
+     * Returns true if the socket is active.
+     * @return
+     */
+    public boolean isConnected() {
+        return socket.isConnected();
+    }
+
+    /**
+     * Sends a new nick to the server. If the nick is accepted by the server,
+     * NO_ERROR will be returned.
+     * @param nick nickname.
+     * @return
+     */
+    public Error sendNick(String nick) {
+        String errMsg;
+        if(!isConnected()) {
+            return Error.GENERAL_ERROR("No active connection.");
+        }
+
+        Message message = new Message(MessageType.CMD,nick);
+        logger.debug("Sending message: "+message.toString());
+
+        try {
+            sendMessage(message);
+        } catch (IOException e) {
+            errMsg = String.format("Error while sending nick to server: %s.",e.getMessage());
+            logger.error(errMsg);
+            return Error.GENERAL_ERROR(errMsg);
+        }
+
+        return Error.NO_ERROR();
+    }
+
+    /**
+     * Send a message to socket.
+     * @param message
+     */
+    public void sendMessage(Message message) throws IOException {
+        DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
+
+        // send message
+        outToServer.write(message.toBytes());
+
+        outToServer.close();
+    }
+
 }

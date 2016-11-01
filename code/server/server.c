@@ -21,13 +21,6 @@
  */
 #define MAX_CONNECTIONS			10
 
-
-/*
- * Names for logger.
- */ 
-#define SERVER_NAME				"server"
-#define PLAYER_THREAD_NAME	 	"server - player thread"
-
 /*
  * Structure which will be passed as an argument to a new thread.
  */
@@ -509,9 +502,10 @@ int main(int argc, char **argv)
 	int tmp_players, tmp_curr_conn;
 
 	printf("\n\n");
-	printf("===================\n");
-	printf("I'm a Senet server.\n");
-	printf("===================\n\n\n");
+	printf("==========================\n");
+	printf("   I am a Senet server.\n");
+	printf("Connect on 127.0.0.1:%d\n",SRV_PORT);
+	printf("==========================\n\n\n");
 
 	/* create socket */
 	sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);

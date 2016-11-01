@@ -72,6 +72,7 @@ int recv_txt(int sock)
  */ 
 int recv_txt_buffer(int sock, char *buffer) {
   int txtlen;
+  char log_buffer[255];
   uint32_t txtlen_net;
   int recv_status = 0;
 
@@ -85,7 +86,8 @@ int recv_txt_buffer(int sock, char *buffer) {
   if (recv_status < 0) return 0;
   txtlen = ntohl(txtlen_net);
   /*txtlen = txtlen_net;*/
-  /*printf("Receiving %d chars.\n",txtlen); */
+  sprintf(&log_buffer,"Receiving %d chars.\n",txtlen);
+  sdebug(COMMON_NAME, log_buffer);
   if (txtlen > MAX_TXT_LENGTH) {
 	   serror("common","Message too long.\n");
 	   return 0;

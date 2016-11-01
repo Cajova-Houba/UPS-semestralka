@@ -43,6 +43,13 @@ public class Error {
         return new Error(ErrorCode.GENERAL_ERROR,"");
     }
 
+    /**
+     * Returns true if the code is equal to ErrorCode.NO_ERROR.
+     * @return
+     */
+    public boolean ok() {
+        return code == ErrorCode.NO_ERROR;
+    }
 
     public final ErrorCode code;
     public final String msg;

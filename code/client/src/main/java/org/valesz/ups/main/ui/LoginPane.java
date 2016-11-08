@@ -16,7 +16,10 @@ import org.apache.logging.log4j.Logger;
 import org.valesz.ups.common.Constraits;
 import org.valesz.ups.common.error.Error;
 import org.valesz.ups.main.MainApp;
+import org.valesz.ups.network.NickService;
 import org.valesz.ups.network.TcpClient;
+
+import java.net.Socket;
 
 /**
  * Login window.
@@ -32,10 +35,12 @@ public class LoginPane extends GridPane {
     private Text feedback;
 
     private TcpClient tcpClient;
+    private NickService nickService;
 
     public LoginPane(TcpClient tcpClient) {
         super();
         this.tcpClient = tcpClient;
+        nickService = new NickService();
         initialize();
     }
 
@@ -147,12 +152,24 @@ public class LoginPane extends GridPane {
             return;
         }
 
-        res = tcpClient.sendNick(nick);
-        if (!res.ok()) {
-            feedback.setText(res.msg);
-            tcpClient.disconnect();
-        } else {
+        nickService.setSocket(tcpClient.getSocket());
+        nickService.setNick(nick);
+        nickService.setOnSucceeded(e -> {
+            logger.debug("Login ok.");
             MainApp.switchToLogin();
-        }
+        });
+        nickService.setOnFailed(e -> {
+            feedback.setText(nickService.getValue().toString());
+            tcpClient.disconnect();
+        });
+
+        nickService.restart();
+//        res = tcpClient.sendNick(nick);
+//        if (!res.ok()) {
+//            feedback.setText(res.msg);
+//            tcpClient.disconnect();
+//        } else {
+//
+//        }
     }
 }

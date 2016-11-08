@@ -15,11 +15,12 @@ import java.net.Socket;
  *
  * @author Zdenek Vales
  */
-public class TcpClient{
+public class TcpClient {
 
     public static final Logger logger = LogManager.getLogger(TcpClient.class);
 
     private Socket socket;
+    private NickService nickService;
 
     /**
      * Tries to connect to the server and if the connection is successful,
@@ -43,6 +44,8 @@ public class TcpClient{
         }
 
         socket = tmpSocket;
+        nickService = new NickService(socket);
+
 
         logger.debug("Connected.");
         return Error.NO_ERROR();
@@ -70,10 +73,10 @@ public class TcpClient{
     }
 
     /**
-     * Sends a new nick to the server. If the nick is accepted by the server,
-     * NO_ERROR will be returned.
+     * Sends a new nick to the server. Use nickOk and nickNotOk callbacks.
+     *
      * @param nick nickname.
-     * @return
+     * @return GENERAL_ERROR if there's no connection and NO_ERROR if everything is ok.
      */
     public Error sendNick(String nick) {
         String errMsg;
@@ -81,31 +84,55 @@ public class TcpClient{
             return Error.GENERAL_ERROR("No active connection.");
         }
 
-        Message message = new Message(MessageType.CMD,nick);
-        logger.debug("Sending message: "+message.toString());
+        nickService.setNick(nick);
+        nickService.setOnSucceeded(e -> {nickOk(nickService.getValue());});
+        nickService.setOnFailed(e -> {nickNotOk(nickService.getValue());});
 
-        try {
-            sendMessage(message);
-        } catch (IOException e) {
-            errMsg = String.format("Error while sending nick to server: %s.",e.getMessage());
-            logger.error(errMsg);
-            return Error.GENERAL_ERROR(errMsg);
-        }
 
+//        Message message = new Message(MessageType.CMD,nick);
+//        logger.debug("Sending message: "+message.toString());
+
+//        try {
+//            sendMessage(message);
+//        } catch (IOException e) {
+//            errMsg = String.format("Error while sending nick to server: %s.",e.getMessage());
+//            logger.error(errMsg);
+//            return Error.GENERAL_ERROR(errMsg);
+//        }
         return Error.NO_ERROR();
     }
 
     /**
-     * Send a message to socket.
-     * @param message
+     * Callback when nick is ok.
+     * @param response Response from the server.
      */
-    public void sendMessage(Message message) throws IOException {
-        DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
+    public void nickOk(Object response) {
 
-        // send message
-        outToServer.write(message.toBytes());
-
-        outToServer.close();
     }
+
+    /**
+     * Callback when nick is not ok.
+     * @param response Response from the server.
+     */
+    public void nickNotOk(Object response) {
+
+    }
+
+    public Socket getSocket() {
+        return socket;
+    }
+
+    //    /**
+//     * Send a message to socket.
+//     * @param message
+//     */
+//    public void sendMessage(Message message) throws IOException {
+//        DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
+//
+//        // send message
+//        outToServer.write(message.toBytes());
+//
+//        outToServer.close();
+//    }
 
 }

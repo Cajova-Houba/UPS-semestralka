@@ -1,14 +1,17 @@
 package org.valesz.ups.network;
 
+import javafx.concurrent.WorkerStateEvent;
+import javafx.event.EventHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.valesz.ups.common.error.Error;
 import org.valesz.ups.common.message.Message;
-import org.valesz.ups.common.message.MessageType;
 
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.net.SocketException;
 
 /**
  * Class used for communication with senet server.
@@ -21,6 +24,8 @@ public class TcpClient {
 
     private Socket socket;
     private NickService nickService;
+    private DataOutputStream outToServer;
+    private DataInputStream inFromServer;
 
     /**
      * Tries to connect to the server and if the connection is successful,
@@ -44,8 +49,18 @@ public class TcpClient {
         }
 
         socket = tmpSocket;
-        nickService = new NickService(socket);
+        try {
+            socket.setReuseAddress(true);
+            socket.getKeepAlive();
+            nickService = new NickService();
+            inFromServer = new DataInputStream(socket.getInputStream());
+            outToServer = new DataOutputStream(socket.getOutputStream());
 
+        } catch (IOException e) {
+            logger.debug("Error setting reuse address.");
+            socket = null;
+            return Error.GENERAL_ERROR("Connection error occurred.");
+        }
 
         logger.debug("Connected.");
         return Error.NO_ERROR();
@@ -76,17 +91,24 @@ public class TcpClient {
      * Sends a new nick to the server. Use nickOk and nickNotOk callbacks.
      *
      * @param nick nickname.
+     * @param successCallback Called if the nick is sent.
+     * @param failCallback Called if the nick sending fails.
      * @return GENERAL_ERROR if there's no connection and NO_ERROR if everything is ok.
      */
-    public Error sendNick(String nick) {
+    public Error sendNick(String nick,
+                          EventHandler<WorkerStateEvent> successCallback,
+                          EventHandler<WorkerStateEvent> failCallback) {
         String errMsg;
         if(!isConnected()) {
             return Error.GENERAL_ERROR("No active connection.");
         }
 
         nickService.setNick(nick);
-        nickService.setOnSucceeded(e -> {nickOk(nickService.getValue());});
-        nickService.setOnFailed(e -> {nickNotOk(nickService.getValue());});
+        nickService.setInFromServer(inFromServer);
+        nickService.setOutToServer(outToServer);
+        nickService.setOnSucceeded(successCallback);
+        nickService.setOnFailed(failCallback);
+        nickService.restart();
 
 
 //        Message message = new Message(MessageType.CMD,nick);
@@ -102,20 +124,8 @@ public class TcpClient {
         return Error.NO_ERROR();
     }
 
-    /**
-     * Callback when nick is ok.
-     * @param response Response from the server.
-     */
-    public void nickOk(Object response) {
-
-    }
-
-    /**
-     * Callback when nick is not ok.
-     * @param response Response from the server.
-     */
-    public void nickNotOk(Object response) {
-
+    public NickService getNickService() {
+        return nickService;
     }
 
     public Socket getSocket() {

@@ -16,32 +16,34 @@ public class Error {
     }
 
     public static Error BAD_OPERATION() {
-        return new Error(ErrorCode.GENERAL_ERROR,"");
+        return new Error(ErrorCode.BAD_OPERATION,"");
     }
 
     public static Error BAD_MSG_TYPE() {
-        return new Error(ErrorCode.GENERAL_ERROR,"");
+        return new Error(ErrorCode.BAD_MSG_TYPE,"");
     }
 
     public static Error BAD_MSG_CONTENT() {
-        return new Error(ErrorCode.GENERAL_ERROR,"");
+        return new Error(ErrorCode.BAD_MSG_CONTENT,"");
     }
 
     public static Error BAD_NICK() {
-        return new Error(ErrorCode.GENERAL_ERROR,"");
+        return new Error(ErrorCode.BAD_NICKNAME,"");
     }
 
     public static Error NICK_EXISTS() {
-        return new Error(ErrorCode.GENERAL_ERROR,"");
+        return new Error(ErrorCode.NICK_ALREADY_EXIST,"");
     }
 
     public static Error SERVER_FULL() {
-        return new Error(ErrorCode.GENERAL_ERROR,"");
+        return new Error(ErrorCode.SERVER_FULL,"");
     }
 
     public static Error BAD_TURN() {
-        return new Error(ErrorCode.GENERAL_ERROR,"");
+        return new Error(ErrorCode.BAD_TURN,"");
     }
+
+    public static Error NO_CONNECTION() { return new Error(ErrorCode.NO_CONNECTION, "");}
 
     /**
      * Returns true if the code is equal to ErrorCode.NO_ERROR.
@@ -58,11 +60,16 @@ public class Error {
         this(ErrorCode.GENERAL_ERROR, msg);
     }
 
-    private Error(ErrorCode code, String msg) {
+    public Error(ErrorCode code, String msg) {
         this.code = code;
         this.msg = msg;
     }
 
-
-
+    @Override
+    public String toString() {
+        return "Error{" +
+                "code=" + code +
+                ", msg='" + msg + '\'' +
+                '}';
+    }
 }

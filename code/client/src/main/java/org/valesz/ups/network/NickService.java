@@ -2,9 +2,12 @@ package org.valesz.ups.network;
 
 import javafx.concurrent.Service;
 import javafx.concurrent.Task;
+import org.valesz.ups.common.error.Error;
 import org.valesz.ups.common.message.Message;
 import org.valesz.ups.common.message.MessageType;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.net.Socket;
 
 /**
@@ -14,22 +17,27 @@ import java.net.Socket;
  */
 public class NickService extends Service<Object>{
 
-    private Socket socket;
     private String nick;
+    private DataInputStream inFromServer;
+    private DataOutputStream outToServer;
 
     public NickService() {
     }
 
-    public NickService(Socket socket) {
-        this.socket = socket;
+    public DataInputStream getInFromServer() {
+        return inFromServer;
     }
 
-    public Socket getSocket() {
-        return socket;
+    public void setInFromServer(DataInputStream inFromServer) {
+        this.inFromServer = inFromServer;
     }
 
-    public void setSocket(Socket socket) {
-        this.socket = socket;
+    public DataOutputStream getOutToServer() {
+        return outToServer;
+    }
+
+    public void setOutToServer(DataOutputStream outToServer) {
+        this.outToServer = outToServer;
     }
 
     public String getNick() {
@@ -42,6 +50,8 @@ public class NickService extends Service<Object>{
 
     @Override
     protected Task<Object> createTask() {
-        return new MessageSender(new Message(MessageType.CMD, nick), socket);
+        byte nickLen = (byte)nick.length();
+        nick = ((char)nickLen) + nick;
+        return new MessageSender(new Message(MessageType.CMD, nick), outToServer, inFromServer);
     }
 }

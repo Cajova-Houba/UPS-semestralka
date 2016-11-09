@@ -15,6 +15,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.valesz.ups.common.Constraits;
 import org.valesz.ups.common.error.Error;
+import org.valesz.ups.common.error.ErrorMessages;
+import org.valesz.ups.common.message.Message;
+import org.valesz.ups.common.message.MessageType;
 import org.valesz.ups.main.MainApp;
 import org.valesz.ups.network.NickService;
 import org.valesz.ups.network.TcpClient;
@@ -30,6 +33,10 @@ public class LoginPane extends GridPane {
 
     private static final Logger logger = LogManager.getLogger(LoginPane.class);
     public static final Font DEF_FONT = Font.font("Tahoma", FontWeight.NORMAL, 20);
+
+    public static final String DEFAULT_USERNAME = "valesz";
+    public static final String DEFAULT_IP = "127.0.0.1";
+    public static final String DEFAULT_PORT = "65000";
 
     private TextField nickTextField, addressTextFiled, portTextField;
     private Text feedback;
@@ -59,17 +66,17 @@ public class LoginPane extends GridPane {
 
         Label userName = new Label("Nickname:");
         add(userName, 0, 1);
-        nickTextField = new TextField();
+        nickTextField = new TextField(DEFAULT_USERNAME);
         add(nickTextField, 1, 1);
 
         Label address = new Label("IP address:");
         add(address, 0, 2);
-        addressTextFiled = new TextField();
+        addressTextFiled = new TextField(DEFAULT_IP);
         add(addressTextFiled, 1, 2);
 
         Label port = new Label("Port:");
         add(port, 0, 3);
-        portTextField = new TextField();
+        portTextField = new TextField(DEFAULT_PORT);
         add(portTextField, 1, 3);
 
         feedback = new Text();
@@ -152,24 +159,43 @@ public class LoginPane extends GridPane {
             return;
         }
 
-        nickService.setSocket(tcpClient.getSocket());
-        nickService.setNick(nick);
-        nickService.setOnSucceeded(e -> {
-            logger.debug("Login ok.");
-            MainApp.switchToLogin();
-        });
-        nickService.setOnFailed(e -> {
-            feedback.setText(nickService.getValue().toString());
-            tcpClient.disconnect();
-        });
+        tcpClient.sendNick(nick,
 
-        nickService.restart();
-//        res = tcpClient.sendNick(nick);
-//        if (!res.ok()) {
-//            feedback.setText(res.msg);
-//            tcpClient.disconnect();
-//        } else {
-//
-//        }
+                // success callback
+                e -> {
+                    Object result = tcpClient.getNickService().getValue();
+                    if(result == null) {
+                        logger.error("Unknown error.");
+                        feedback.setText("Neznámá chyba.");
+                        tcpClient.disconnect();
+                    }
+                    if(result instanceof Error ) {
+                        Error err = ((Error)result);
+                        logger.debug("Error while loging into server: "+err.toString());
+                        feedback.setText(err.toString());
+                        tcpClient.disconnect();
+
+                        //TODO switch err.code
+                    } else if (result instanceof Message) {
+                        Message m = (Message)result;
+                        if(m.isOk()) {
+                            logger.debug("Login ok.");
+                            MainApp.switchToMain();
+                        } else {
+                            logger.debug("Unexpected message: "+m.toString());
+                            feedback.setText(ErrorMessages.UNEXPECTED_RESPONSE);
+                            tcpClient.disconnect();
+                        }
+                    }
+                },
+
+                // fail callback
+                e -> {
+                    Object val = tcpClient.getNickService().getValue();
+                    String err = val == null ? "" : " ("+val.toString()+")";
+                    logger.error("Error while sending nick to server: "+err);
+                    feedback.setText("Chyba při odesílání nicku na server.");
+                    tcpClient.disconnect();
+                });
     }
 }

@@ -7,6 +7,7 @@
 #define SERVER_NAME				"server"
 #define PLAYER_THREAD_NAME	 	"server - player thread"
 #define COMMON_NAME				"common"
+#define MESSAGE_NAME			"message"
 
 void sinfo(char *name, char *msg);
 void sdebug(char *name, char *msg);

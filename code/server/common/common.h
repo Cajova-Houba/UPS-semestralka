@@ -14,6 +14,12 @@ typedef struct {
 	int socket;
 } Player;
 
+/*
+ * Receives byte_count of bytes and stores them to the buffer.
+ * Returns received number of bytes or -1 if error occurs.
+ * 
+ */
+int recv_bytes(char* buffer, int byte_count);
 int send_txt(int sock, char *txt);
 int recv_txt(int sock);
 void send_greetings(int sock);

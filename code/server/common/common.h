@@ -19,7 +19,7 @@ typedef struct {
  * Returns received number of bytes or -1 if error occurs.
  * 
  */
-int recv_bytes(char* buffer, int byte_count);
+int recv_bytes(int sock, char* buffer, int byte_count);
 int send_txt(int sock, char *txt);
 int recv_txt(int sock);
 void send_greetings(int sock);

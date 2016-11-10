@@ -8,11 +8,6 @@
 
 /* check nick results */
 #define NICK_OK					0
-#define NICK_TOO_SHORT			1
-#define NICK_TOO_LONG			2
-#define FIRST_CHAR_INV			3
-#define CONTAINS_INV_CHAR		4
-#define NICK_ALREADY_EXISTS		5
 
 /*
  * Checks, if the length is > 0 and <= MAX_NICK_LENGTH.
@@ -52,11 +47,11 @@ int check_duplicity(char* nickname, Player *players);
  * It is expected that the nick is '\0' terminated.
  * Return values:
  * 		NICK_OK - nick ok
- * 		NICK_TOO_SHORT - nick length is < MIN_NICK_LENGTH
- * 		NICK_TOO_LONG - nick length is > MAX_NICK_LENGTH
- * 		FIRT_CHAR_INV - nick starts with invalid char
- * 		CONTAINS_INV_CHAR - nick contains invalid chars
- * 		NICK_ALREADY_EXISTS - nick already exists
+ * 		ERR_NICK_TOO_SHORT - nick length is < MIN_NICK_LENGTH
+ * 		ERR_NICK_TOO_LONG - nick length is > MAX_NICK_LENGTH
+ * 		ERR_FIRT_CHAR_INV - nick starts with invalid char
+ * 		ERR_CONTAINS_INV_CHAR - nick contains invalid chars
+ * 		ERR_NICK_EXISTS - nick already exists
  */ 
 int check_nickname(char* nickname, char *errmsg);
 

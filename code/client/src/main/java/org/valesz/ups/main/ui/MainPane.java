@@ -1,11 +1,13 @@
 package org.valesz.ups.main.ui;
 
+import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextArea;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
@@ -132,6 +134,7 @@ public class MainPane extends BorderPane {
         container.setPadding(new Insets(20));
 
         canvas = new Canvas(CANVAS_WIDTH,CANVAS_HEIGHT);
+        canvas.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> canvasClick(event.getX(), event.getY()));
         GraphicsContext gc = canvas.getGraphicsContext2D();
         initCanvas(gc);
         container.getChildren().add(canvas);
@@ -165,6 +168,15 @@ public class MainPane extends BorderPane {
         gc.strokeLine(0,CANVAS_HEIGHT/3,CANVAS_WIDTH*9/10,CANVAS_HEIGHT/3);
         gc.strokeLine(CANVAS_WIDTH/10,CANVAS_HEIGHT*2/3, CANVAS_WIDTH, CANVAS_HEIGHT*2/3);
 
+    }
+
+    /**
+     * Callback for click on [x,y].
+     * @param x
+     * @param y
+     */
+    private void canvasClick(double x, double y) {
+        addLogMessage(String.format("Clicked on %d,%d.\n",(int)(x / CANVAS_WIDTH * 10), (int)(y % (CANVAS_HEIGHT/3))));
     }
 
     /**

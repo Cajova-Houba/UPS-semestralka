@@ -20,7 +20,7 @@ public class MainApp extends Application{
 
 
     private static TcpClient tcpClient;
-    public static final int DEF_WIDTH = 640;
+    public static final int DEF_WIDTH = 855;
     public static final int DEF_HEIGHT = 480;
     public static final int DEF_LOGIN_WIDTH = 640;
     public static final int DEF_LOGIN_HEIGHT = 240;
@@ -48,7 +48,8 @@ public class MainApp extends Application{
         initLoginScene();
         initMainScene();
 
-        stage.setScene(loginScene);
+//        stage.setScene(loginScene);
+        stage.setScene(mainScene);
         stage.show();
     }
 

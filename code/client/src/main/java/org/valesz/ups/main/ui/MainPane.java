@@ -2,9 +2,12 @@ package org.valesz.ups.main.ui;
 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
-import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
+import javafx.scene.control.TextArea;
+import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
@@ -18,14 +21,20 @@ import org.valesz.ups.network.TcpClient;
  *
  * @author Zdenek Vales
  */
-public class MainPane extends GridPane {
+public class MainPane extends BorderPane {
 
     private static final Logger logger = LogManager.getLogger(MainPane.class);
     public static final Font DEF_FONT = Font.font("Tahoma", FontWeight.NORMAL, 20);
     public static final Font DEF_SMALL_FONT = Font.font("Tahoma", FontWeight.NORMAL, 12);
     public static final String GAME_TITLE = "Senet";
+    public static final int CANVAS_WIDTH = 650;
+    public static final int CANVAS_HEIGHT = 210;
 
     private TcpClient tcpClient;
+
+    /*components*/
+    private TextArea infoArea;
+    private Canvas canvas;
 
     public MainPane(TcpClient tcpClient) {
         super();
@@ -37,29 +46,9 @@ public class MainPane extends GridPane {
      * Initializes the components in this pane.
      */
     private void initialize() {
-        setAlignment(Pos.CENTER);
-        setHgap(0);
-        setVgap(0);
-        setPadding(new Insets(0,0,0,0));
-
-        /* side panel */
-        VBox sidePane = new VBox();
-        Text gameTitle = new Text(GAME_TITLE);
-        gameTitle.setFont(DEF_FONT);
-        sidePane.getChildren().add(gameTitle);
-
-        Text p1 = new Text("Player 1");
-        p1.setFont(DEF_SMALL_FONT);
-        sidePane.getChildren().add(p1);
-        Text p2 = new Text("Player 2");
-        p2.setFont(DEF_SMALL_FONT);
-        sidePane.getChildren().add(p2);
-
-        Button endBtn = new Button("Exit");
-        endBtn.setOnAction(event -> {onExitClick();});
-        sidePane.getChildren().add(endBtn);
-
-        add(sidePane,0,1,1,3);
+        setLeft(getControlPane());
+        setCenter(getMainPane());
+        setBottom(getStatusPane());
     }
 
     /**
@@ -67,5 +56,98 @@ public class MainPane extends GridPane {
      */
     public void onExitClick() {
         MainApp.switchToMain();
+    }
+
+    /**
+     * Returns pane with control components.
+     * @return
+     */
+    private Pane getControlPane() {
+        VBox container = new VBox();
+        container.setPadding(new Insets(20));
+        container.setSpacing(10);
+
+        HBox buttons = new HBox();
+        buttons.setSpacing(5);
+        Button endBtn = new Button("Exit");
+        endBtn.setOnAction(event -> {onExitClick();});
+        buttons.getChildren().add(endBtn);
+        Button turnBtn = new Button("End turn");
+        endBtn.setOnAction(event -> {onExitClick();});
+        buttons.getChildren().add(turnBtn);
+
+        container.getChildren().add(getInfoPane());
+        container.getChildren().add(buttons);
+
+        return container;
+    }
+
+    /**
+     * Returns a pane with info about game.
+     * @return
+     */
+    private Pane getInfoPane() {
+        VBox container = new VBox();
+        container.setPadding(new Insets(10));
+
+        Text gameTitle = new Text(GAME_TITLE);
+        gameTitle.setFont(DEF_FONT);
+        container.getChildren().add(gameTitle);
+
+        Text p1 = new Text("Player 1: valesz");
+        p1.setFont(DEF_SMALL_FONT);
+        container.getChildren().add(p1);
+        Text p2 = new Text("Player 2: haxxorz");
+        p2.setFont(DEF_SMALL_FONT);
+        container.getChildren().add(p2);
+
+        return container;
+    }
+
+    /**
+     * Returns pane with status display.
+     * @return
+     */
+    private Pane getStatusPane() {
+        VBox container = new VBox();
+        container.setPadding(new Insets(20));
+
+        infoArea = new TextArea();
+        infoArea.setEditable(false);
+        infoArea.setWrapText(true);
+        infoArea.setPrefRowCount(10);
+        infoArea.setText("Have a nice game of Senet\n");
+        infoArea.appendText("=========================\n\n");
+        container.getChildren().add(infoArea);
+
+        return container;
+    }
+
+    /**
+     * Returns pane with board display.
+     * @return
+     */
+    private Pane getMainPane() {
+        Pane container = new VBox();
+        container.setPadding(new Insets(20));
+
+        canvas = new Canvas(CANVAS_WIDTH,CANVAS_HEIGHT);
+        GraphicsContext gc = canvas.getGraphicsContext2D();
+        initCanvas(gc);
+        container.getChildren().add(canvas);
+
+        return container;
+    }
+
+    private void initCanvas(GraphicsContext gc) {
+        gc.setFill(Color.BURLYWOOD);
+        gc.fillRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+    }
+
+    /**
+     * Adds a message which will be displayed in status pane.
+     */
+    public void addLogMessage(String message) {
+        infoArea.appendText(message);
     }
 }

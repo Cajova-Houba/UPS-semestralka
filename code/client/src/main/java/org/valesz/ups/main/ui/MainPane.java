@@ -142,6 +142,29 @@ public class MainPane extends BorderPane {
     private void initCanvas(GraphicsContext gc) {
         gc.setFill(Color.BURLYWOOD);
         gc.fillRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
+
+        // grid
+        gc.setStroke(Color.BLACK);
+        gc.setLineWidth(1);
+        for(int i = 0; i < 10 ; i++) {
+            double x = CANVAS_WIDTH*i/10;
+            gc.strokeLine(x,0,x,CANVAS_HEIGHT);
+        }
+        for(int i = 0; i < 3; i++) {
+            double y = CANVAS_HEIGHT*i/3;
+            gc.strokeLine(0,y,CANVAS_WIDTH,y);
+        }
+
+        // border
+        gc.setLineWidth(8);
+        gc.setStroke(Color.SADDLEBROWN);
+        gc.strokeRect(0,0,CANVAS_WIDTH, CANVAS_HEIGHT);
+
+        // bold lines to display the direction
+        gc.setLineWidth(4);
+        gc.strokeLine(0,CANVAS_HEIGHT/3,CANVAS_WIDTH*9/10,CANVAS_HEIGHT/3);
+        gc.strokeLine(CANVAS_WIDTH/10,CANVAS_HEIGHT*2/3, CANVAS_WIDTH, CANVAS_HEIGHT*2/3);
+
     }
 
     /**

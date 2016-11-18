@@ -16,6 +16,11 @@ public class Constraits {
     public static final int MIN_NICK_LENGTH = 3;
     public static final int MAX_NICK_LENGTH = 8;
 
+    /**
+     * Maximal number of stones per player.
+     */
+    public static final int MAX_NUMBER_OF_STONES = 5;
+
 
     /**
      * Checks if the address is valid ip address.

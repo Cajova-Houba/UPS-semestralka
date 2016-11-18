@@ -171,12 +171,30 @@ public class MainPane extends BorderPane {
     }
 
     /**
-     * Callback for click on [x,y].
+     * Converts pixel coordinates [0-CANVAS_WIDTH, 0-CANVAS_HEIGHT] to senet coordinates [1-10,1-3].
+     * Note that the fields in the middle row are numbered from right.
+     *
      * @param x
      * @param y
+     * @return
      */
-    private void canvasClick(double x, double y) {
-        addLogMessage(String.format("Clicked on %d,%d.\n",(int)(x / CANVAS_WIDTH * 10), (int)(y % (CANVAS_HEIGHT/3))));
+    private int[] getGamePosition(double x, double y) {
+        int gy = (int)(Math.floor(3*y / CANVAS_HEIGHT)+1);
+        int gx = (int)(Math.floor(10*x / CANVAS_WIDTH)+1);
+        if(gy == 2) {
+            gx = 11 - gx;
+        }
+
+        return new int[] {gx, gy};
+    }
+
+    /**
+     * Converts the game x,y position to a single number from 1 to 30.
+     * @param gamePos
+     * @return
+     */
+    private int gamePosToFieldNumber(int[] gamePos) {
+        return (gamePos[1] -1)*10 + gamePos[0];
     }
 
     /**
@@ -184,5 +202,30 @@ public class MainPane extends BorderPane {
      */
     public void addLogMessage(String message) {
         infoArea.appendText(message);
+    }
+
+
+
+    /*
+    =============================================================
+    CALLBACKS
+    =============================================================
+     */
+
+    /**
+     * Callback for click on [x,y].
+     * @param x
+     * @param y
+     */
+    private void canvasClick(double x, double y) {
+        int[] gPos = getGamePosition(x, y);
+        addLogMessage(String.format("Clicked on %d,%d - field %d.\n",gPos[0], gPos[1], gamePosToFieldNumber(gPos)));
+    }
+
+    /**
+     * Send a message to the server that the turn has been ended.
+     */
+    private void endTurnClick() {
+
     }
 }

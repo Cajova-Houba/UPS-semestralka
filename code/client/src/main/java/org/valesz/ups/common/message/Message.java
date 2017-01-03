@@ -4,7 +4,7 @@ import org.valesz.ups.common.error.Error;
 import org.valesz.ups.common.error.ErrorCode;
 
 /**
- * Message which will be sent (and received) to server.
+ * Message which will be sent to server.
  *
  * @author Zdenek Vales
  */

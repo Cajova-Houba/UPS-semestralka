@@ -24,6 +24,7 @@ public class TcpClient {
 
     private Socket socket;
     private NickService nickService;
+    private ReceivingService receivingService;
     private DataOutputStream outToServer;
     private DataInputStream inFromServer;
 
@@ -55,6 +56,7 @@ public class TcpClient {
             nickService = new NickService();
             inFromServer = new DataInputStream(socket.getInputStream());
             outToServer = new DataOutputStream(socket.getOutputStream());
+            receivingService = new ReceivingService();
 
         } catch (IOException e) {
             logger.debug("Error setting reuse address.");
@@ -98,30 +100,39 @@ public class TcpClient {
     public Error sendNick(String nick,
                           EventHandler<WorkerStateEvent> successCallback,
                           EventHandler<WorkerStateEvent> failCallback) {
-        String errMsg;
         if(!isConnected()) {
             return Error.GENERAL_ERROR("No active connection.");
         }
 
         nickService.setNick(nick);
-        nickService.setInFromServer(inFromServer);
         nickService.setOutToServer(outToServer);
         nickService.setOnSucceeded(successCallback);
         nickService.setOnFailed(failCallback);
         nickService.restart();
 
-
-//        Message message = new Message(MessageType.CMD,nick);
-//        logger.debug("Sending message: "+message.toString());
-
-//        try {
-//            sendMessage(message);
-//        } catch (IOException e) {
-//            errMsg = String.format("Error while sending nick to server: %s.",e.getMessage());
-//            logger.error(errMsg);
-//            return Error.GENERAL_ERROR(errMsg);
-//        }
         return Error.NO_ERROR();
+    }
+
+    /**
+     * Reads 1 response from server.
+     *
+     * @param successCallback Called if the response is obtained.
+     * @param failCallback Called if error occurs. ReceivingException is used.
+     * @return GENERAL_ERROR if there's no connection and NO_ERROR if everything is ok.
+     */
+    public Error getResponse(EventHandler<WorkerStateEvent> successCallback,
+                             EventHandler<WorkerStateEvent> failCallback) {
+        if(!isConnected()) {
+            return Error.GENERAL_ERROR("No active connection.");
+        }
+
+        receivingService.setInFromServer(inFromServer);
+        receivingService.setOnSucceeded(successCallback);
+        receivingService.setOnFailed(failCallback);
+        receivingService.restart();
+
+        return Error.NO_ERROR();
+
     }
 
     public NickService getNickService() {
@@ -132,17 +143,5 @@ public class TcpClient {
         return socket;
     }
 
-    //    /**
-//     * Send a message to socket.
-//     * @param message
-//     */
-//    public void sendMessage(Message message) throws IOException {
-//        DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
-//
-//        // send message
-//        outToServer.write(message.toBytes());
-//
-//        outToServer.close();
-//    }
 
 }

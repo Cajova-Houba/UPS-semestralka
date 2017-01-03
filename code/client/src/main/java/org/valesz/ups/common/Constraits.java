@@ -13,6 +13,7 @@ public class Constraits {
 
     public static final String IP_REGEXP = "^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}" +
             "(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
+    public static final String NICKNAME_REGEXP = "[a-zA-Z][a-zA-Z0-9]";
     public static final int MIN_NICK_LENGTH = 3;
     public static final int MAX_NICK_LENGTH = 8;
 
@@ -93,15 +94,8 @@ public class Constraits {
             return 1;
         }
 
-        for(char ch : nick.toCharArray()) {
-            if (ch < 48 ||
-                ch > 57 && ch < 65 ||
-                ch > 90 && ch < 97 ||
-                ch > 122 ) {
-
-                /* another char invalid */
-                return 2;
-            }
+        if(!Pattern.matches(NICKNAME_REGEXP, nick)) {
+            return 2;
         }
 
         return 0;

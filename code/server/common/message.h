@@ -47,10 +47,22 @@ int send_ok_msg(int socket);
  * Returns:
  * 1 : ERR message was sent.
  * 0 : Socket closed the connection.
- * <0: Error occured.
+ * <0: Error occurred.
  * 
  */
 int send_err_msg(int socket, int err_code);
+
+/*
+ * Sends START_GAME message with nicks of the 1st and 2nd player.
+ * The message will look like this: INFSTART_GAME<player1>,<player2>;.
+ *
+ *
+ * Returns:
+ * 1: Message was sent.
+ * 0: Socket closed the connection.
+ * <0: Error occurred.
+ */
+int send_start_game_msg(int sock, char* player1, char* player2);
 
 #endif
 

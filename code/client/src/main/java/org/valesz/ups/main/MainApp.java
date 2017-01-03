@@ -48,8 +48,8 @@ public class MainApp extends Application{
         initLoginScene();
         initMainScene();
 
-//        stage.setScene(loginScene);
-        stage.setScene(mainScene);
+        stage.setScene(loginScene);
+//        stage.setScene(mainScene);
         stage.show();
     }
 

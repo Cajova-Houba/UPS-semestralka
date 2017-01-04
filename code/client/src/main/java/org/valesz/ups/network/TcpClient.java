@@ -139,6 +139,10 @@ public class TcpClient {
         return nickService;
     }
 
+    public ReceivingService getReceivingService() {
+        return receivingService;
+    }
+
     public Socket getSocket() {
         return socket;
     }

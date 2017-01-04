@@ -18,6 +18,8 @@ import org.valesz.ups.common.error.Error;
 import org.valesz.ups.common.error.ErrorMessages;
 import org.valesz.ups.common.message.Message;
 import org.valesz.ups.common.message.MessageType;
+import org.valesz.ups.common.message.received.AbstractReceivedMessage;
+import org.valesz.ups.common.message.received.ReceivedMessageTypeResolver;
 import org.valesz.ups.main.MainApp;
 import org.valesz.ups.network.NickService;
 import org.valesz.ups.network.TcpClient;
@@ -159,40 +161,37 @@ public class LoginPane extends GridPane {
             return;
         }
 
+        //send nick
         tcpClient.sendNick(nick,
-
-                // success callback
                 e -> {
-                    Object result = tcpClient.getNickService().getValue();
-                    if(result == null) {
-                        logger.error("Unknown error.");
-                        feedback.setText("Neznámá chyba.");
-                        tcpClient.disconnect();
-                    }
-                    if(result instanceof Error ) {
-                        Error err = ((Error)result);
-                        logger.debug("Error while loging into server: "+err.toString());
-                        feedback.setText(err.toString());
-                        tcpClient.disconnect();
+                    //get response
+                    tcpClient.getResponse(
+                      event -> {
+                          //check received response
+                          AbstractReceivedMessage response = tcpClient.getReceivingService().getValue();
+                          if (ReceivedMessageTypeResolver.isOk(response) == null) {
+                              // wrong response
+                              logger.error("Wrong response received. "+response);
+                              feedback.setText("Chyba při odesílání nicku na server.");
+                              tcpClient.disconnect();
+                          } else {
+                              // nick ok
+                              logger.debug("Login ok.");
+                              MainApp.switchToMain();
+                          }
+                      },
+                      event -> {
+                          //receiving response failed
+                          String err = tcpClient.getReceivingService().getException().toString();
+                          logger.error("Error while receiving response from server: "+err);
+                          feedback.setText("Chyba při odesílání nicku na server.");
+                          tcpClient.disconnect();
+                      });
 
-                        //TODO switch err.code
-                    } else if (result instanceof Message) {
-                        Message m = (Message)result;
-                        if(m.isOk()) {
-                            logger.debug("Login ok.");
-                            MainApp.switchToMain();
-                        } else {
-                            logger.debug("Unexpected message: "+m.toString());
-                            feedback.setText(ErrorMessages.UNEXPECTED_RESPONSE);
-                            tcpClient.disconnect();
-                        }
-                    }
                 },
-
-                // fail callback
                 e -> {
-                    Object val = tcpClient.getNickService().getValue();
-                    String err = val == null ? "" : " ("+val.toString()+")";
+                    //sending nick failed
+                    String err = tcpClient.getNickService().getException().toString();
                     logger.error("Error while sending nick to server: "+err);
                     feedback.setText("Chyba při odesílání nicku na server.");
                     tcpClient.disconnect();

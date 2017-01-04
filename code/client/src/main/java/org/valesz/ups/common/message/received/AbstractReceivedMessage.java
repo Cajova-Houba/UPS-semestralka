@@ -23,4 +23,11 @@ public abstract class AbstractReceivedMessage<T> {
      * @return
      */
     public abstract MessageType getMessageType();
+
+    @Override
+    public String toString() {
+        String cnt = getContent() == null ? "null" : getContent().toString();
+        String msgType = getMessageType() == null ? "null" : getMessageType().toString();
+        return String.format("Content: %s, MessageType: %s.", cnt, msgType);
+    }
 }

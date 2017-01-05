@@ -26,11 +26,13 @@ import java.util.regex.Pattern;
  */
 public class MessageReceiver extends Task<AbstractReceivedMessage> {
 
-    public static final Logger logger = LogManager.getLogger(MessageSender.class);
+    public static final Logger logger = LogManager.getLogger(MessageReceiver.class);
     private final DataInputStream inFromServer;
+    private final boolean waitForResponse;
 
-    public MessageReceiver(DataInputStream inFromServer) {
+    public MessageReceiver(DataInputStream inFromServer, boolean waitForResponse) {
         this.inFromServer = inFromServer;
+        this.waitForResponse = waitForResponse;
     }
 
     @Override
@@ -46,10 +48,17 @@ public class MessageReceiver extends Task<AbstractReceivedMessage> {
         /* first, receive 3 bytes indicating message type*/
         byte[] buffer = new byte[3];
 
-        int received = inFromServer.read(buffer);
-        if(received != 3) {
-            logger.error("Error while receiving message type");
-            throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.WAITING_FOR_RESPONSE));
+        int received = 0;
+        if(waitForResponse) {
+            while( received != 3) {
+                received = inFromServer.read(buffer, 0, 3);
+            }
+        } else {
+            received = inFromServer.read(buffer);
+            if(received != 3) {
+                logger.error("Error while receiving message type");
+                throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.WAITING_FOR_RESPONSE));
+            }
         }
 
         String msgType = new String(buffer);
@@ -113,11 +122,13 @@ public class MessageReceiver extends Task<AbstractReceivedMessage> {
                 if(Pattern.matches("TART_GAME", receivedString)) {
                     // receive both nick names
                     String firstNick = receiveNick(inFromServer, ',');
+                    logger.trace("1st nick received: "+firstNick);
                     if(firstNick == null || !Pattern.matches(Constraits.NICKNAME_REGEXP, firstNick)) {
                         logger.error("Error while receiving the 1st nick from START_GAME message");
                         throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
                     }
                     String secondNick = receiveNick(inFromServer, ';');
+                    logger.trace("2nd nick received: "+secondNick   );
                     if(firstNick == null || !Pattern.matches(Constraits.NICKNAME_REGEXP, firstNick)) {
                         logger.error("Error while receiving the 1st nick from START_GAME message");
                         throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
@@ -191,13 +202,19 @@ public class MessageReceiver extends Task<AbstractReceivedMessage> {
         byte[] buffer = new byte[1];
         StringBuilder nickBuilder = new StringBuilder();
 
-        //first nick
-        while(i < Constraits.MAX_NICK_LENGTH && ((char)buffer[0]) != delimiter) {
+        received = input.read(buffer, 0, 1);
+        if(received == 0) {
+            return null;
+        }
+
+        while (i < Constraits.MAX_NICK_LENGTH && ((char)buffer[0]) != delimiter) {
+            nickBuilder.append((char)buffer[0]);
+
             received = input.read(buffer, 0, 1);
             if(received == 0) {
                 return null;
             }
-            nickBuilder.append((char)buffer[0]);
+
             i++;
         }
 

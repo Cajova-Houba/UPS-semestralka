@@ -58,4 +58,17 @@ public class ReceivedMessageTypeResolver {
         return null;
     }
 
+    /**
+     * Checks if the message is StartGameReceivedMessage and if the type is same,
+     * returns it. Otherwise null is returned.
+     * @param message
+     * @return
+     */
+    public static StartGameReceivedMessage isStartGame(AbstractReceivedMessage message) {
+        if(isMessageType(message, StartGameReceivedMessage.class)) {
+            return (StartGameReceivedMessage)message;
+        }
+        return null;
+    }
+
 }

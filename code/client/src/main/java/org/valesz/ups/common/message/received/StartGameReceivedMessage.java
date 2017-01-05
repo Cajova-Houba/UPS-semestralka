@@ -17,6 +17,14 @@ public class StartGameReceivedMessage extends AbstractReceivedMessage<String[]> 
         this.nick2 = nick2;
     }
 
+    public String getFirstNickname() {
+        return nick1;
+    }
+
+    public String getSecondNickname() {
+        return nick2;
+    }
+
     @Override
     public String[] getContent() {
         return new String[] {nick1, nick2};

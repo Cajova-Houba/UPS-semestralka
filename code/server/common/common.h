@@ -10,7 +10,7 @@
  */
 typedef struct {
 	int id;
-	char *nick;
+	char nick[10];
 	int socket;
 } Player;
 

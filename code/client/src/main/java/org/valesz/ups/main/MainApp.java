@@ -81,6 +81,7 @@ public class MainApp extends Application{
         }
 
         stage.setScene(mainScene);
+        ((MainPane)mainScene.getRoot()).waitForStartGame();
     }
 
 

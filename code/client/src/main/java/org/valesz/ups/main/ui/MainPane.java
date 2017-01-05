@@ -1,8 +1,6 @@
 package org.valesz.ups.main.ui;
 
-import javafx.event.EventHandler;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
@@ -15,7 +13,11 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.valesz.ups.common.message.received.AbstractReceivedMessage;
+import org.valesz.ups.common.message.received.ReceivedMessageTypeResolver;
+import org.valesz.ups.common.message.received.StartGameReceivedMessage;
 import org.valesz.ups.main.MainApp;
+import org.valesz.ups.main.game.Game;
 import org.valesz.ups.network.TcpClient;
 
 /**
@@ -37,11 +39,50 @@ public class MainPane extends BorderPane {
     /*components*/
     private TextArea infoArea;
     private Canvas canvas;
+    private Text p1Text, p2Text;
 
     public MainPane(TcpClient tcpClient) {
         super();
         this.tcpClient = tcpClient;
         initialize();
+    }
+
+    /**
+     * Starts a task which will wait for a START_GAME message.
+     */
+    public void waitForStartGame() {
+        tcpClient.getResponse(
+                event -> {
+                    // response
+                    AbstractReceivedMessage response = tcpClient.getReceivingService().getValue();
+                    StartGameReceivedMessage startGame = ReceivedMessageTypeResolver.isStartGame(response);
+                    if (startGame == null) {
+                        // wrong response
+                        logger.error("Wrong message received. Expected START_GAME, received: "+response);
+                    } else {
+                        Game.getInstance().startGame(startGame.getFirstNickname(),startGame.getSecondNickname());
+                        logger.info("The game has started");
+
+                        //update graphical components
+                        startGame();
+                    }
+                },
+                event -> {
+                    // failure
+                    String error = tcpClient.getReceivingService().getException().getMessage();
+                    logger.debug("Error while receiving response: "+error);
+                }
+        );
+    }
+
+    /**
+     * Updates the components.
+     */
+    private void startGame() {
+        p1Text.setText(Game.getInstance().getFirstPlayer().getNick());
+        p2Text.setText(Game.getInstance().getSecondPlayer().getNick());
+
+        // place stones
     }
 
     /**
@@ -96,12 +137,12 @@ public class MainPane extends BorderPane {
         gameTitle.setFont(DEF_FONT);
         container.getChildren().add(gameTitle);
 
-        Text p1 = new Text("Player 1: valesz");
-        p1.setFont(DEF_SMALL_FONT);
-        container.getChildren().add(p1);
-        Text p2 = new Text("Player 2: haxxorz");
-        p2.setFont(DEF_SMALL_FONT);
-        container.getChildren().add(p2);
+        p1Text = new Text("Player 1: valesz");
+        p1Text.setFont(DEF_SMALL_FONT);
+        container.getChildren().add(p1Text);
+        p2Text = new Text("Player 2: haxxorz");
+        p2Text.setFont(DEF_SMALL_FONT);
+        container.getChildren().add(p2Text);
 
         return container;
     }

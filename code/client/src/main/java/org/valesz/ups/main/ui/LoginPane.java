@@ -21,6 +21,7 @@ import org.valesz.ups.common.message.MessageType;
 import org.valesz.ups.common.message.received.AbstractReceivedMessage;
 import org.valesz.ups.common.message.received.ReceivedMessageTypeResolver;
 import org.valesz.ups.main.MainApp;
+import org.valesz.ups.main.game.Game;
 import org.valesz.ups.network.NickService;
 import org.valesz.ups.network.TcpClient;
 
@@ -176,6 +177,7 @@ public class LoginPane extends GridPane {
                               tcpClient.disconnect();
                           } else {
                               // nick ok
+                              Game.getInstance().waitingForOpponent(nick);
                               logger.debug("Login ok.");
                               MainApp.switchToMain();
                           }

@@ -10,9 +10,20 @@ import org.valesz.ups.common.error.NotMyTurnException;
 public class Game {
 
     /**
-     * The player which controls this client.
+     * Nickname of players which controls this client.
+     * Used as temporal storage.
      */
-    private Player mainPlayer;
+    private String me;
+
+    /**
+     * Either 1 or 2, if the first or second player controls this client.
+     */
+    private int myPlayer;
+
+    /**
+     * The player which starts the game.
+     */
+    private Player firstPlayer;
 
     /**
      * The second player.
@@ -34,18 +45,28 @@ public class Game {
      */
     private boolean myTurn;
 
-    public Game() {
+    private static Game instance;
+
+    public static Game getInstance() {
+        if(instance == null) {
+            instance = new Game();
+        }
+
+        return instance;
+    }
+
+    private Game() {
         winner = false;
         state = GameState.NOT_STARTED;
         myTurn = false;
     }
 
-    public Player getMainPlayer() {
-        return mainPlayer;
+    public Player getFirstPlayer() {
+        return firstPlayer;
     }
 
-    public void setMainPlayer(Player mainPlayer) {
-        this.mainPlayer = mainPlayer;
+    public void setFirstPlayer(Player firstPlayer) {
+        this.firstPlayer = firstPlayer;
     }
 
     public Player getSecondPlayer() {
@@ -69,7 +90,40 @@ public class Game {
     }
 
     /**
-     * Ends my turn and updates the positions of mainPlayer.
+     * Changes the state to WAITING_FOR_OPPONENT
+     *
+     * @param me Nick of the player which controls this client.
+     *
+     */
+    public void waitingForOpponent(String me) {
+        state = GameState.WAITING_FOR_OPPONENT;
+        this.me = me;
+    }
+
+    /**
+     * Starts the new game.
+     * Sets the state to RUNNING.
+     * Initializes both player objects.
+     *
+     *
+     * @param firstPlayer The player who starts the game.
+     * @param secondPlayer
+     */
+    public void startGame(String firstPlayer, String secondPlayer) {
+        if (firstPlayer == me) {
+            myPlayer = 1;
+        } else {
+            myPlayer = 2;
+        }
+
+        this.firstPlayer = new Player(firstPlayer);
+        this.secondPlayer = new Player(secondPlayer);
+
+        this.state = GameState.RUNNING;
+    }
+
+    /**
+     * Ends my turn and updates the positions of firstPlayer.
      * If the myTurn is false, NotMyTurnException will be thrown.
      *
      * @param newPositions
@@ -79,7 +133,7 @@ public class Game {
             throw new NotMyTurnException();
         }
 
-        mainPlayer.setStones(newPositions);
+        firstPlayer.setStones(newPositions);
         myTurn = false;
     }
 }

@@ -16,6 +16,16 @@ public class ReceivingService extends Service<AbstractReceivedMessage> {
 
     private DataInputStream inFromServer;
 
+    private boolean waitForTask = false;
+
+    /**
+     * If the thread will periodically check for response.
+     * @param wait
+     */
+    public void setWaitForTask(boolean wait) {
+        this.waitForTask = wait;
+    }
+
 
     public void setInFromServer(DataInputStream inFromServer) {
         this.inFromServer = inFromServer;
@@ -23,6 +33,6 @@ public class ReceivingService extends Service<AbstractReceivedMessage> {
 
     @Override
     protected Task<AbstractReceivedMessage> createTask() {
-        return new MessageReceiver(inFromServer);
+        return new MessageReceiver(inFromServer, waitForTask);
     }
 }

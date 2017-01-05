@@ -64,6 +64,17 @@ int send_err_msg(int socket, int err_code);
  */
 int send_start_game_msg(int sock, char* player1, char* player2);
 
+/*
+ * Sends END_GAME message with nick of the winner.
+ * The message will look like this: INFEND_GAME<winner>;
+ *
+ * Returns:
+ * 1: Message was sent.
+ * 2: Socket closed the connection.
+ * <0: Error occurred.
+ */
+int send_end_game_msg(int sock, char* winner);
+
 #endif
 
 

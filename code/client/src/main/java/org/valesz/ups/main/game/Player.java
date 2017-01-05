@@ -9,6 +9,9 @@ import org.valesz.ups.common.Constraits;
  */
 public class Player {
 
+    public static final int FIRST_PLAYER_INIT_POS = 1;
+    public static final int SECOND_PLAYER_INIT_POS = 2;
+
     private String nick;
 
     /**
@@ -18,6 +21,16 @@ public class Player {
 
     public Player() {
         stones = new int[Constraits.MAX_NUMBER_OF_STONES];
+    }
+
+    /**
+     * Creates a new player object and generates a new set of stones.
+     * @param nick
+     * @param initPosition
+     */
+    public Player(String nick, int initPosition) {
+        this(nick);
+        generateNewStones(initPosition);
     }
 
     public Player(String nick) {
@@ -57,5 +70,26 @@ public class Player {
         }
 
         return stateWord;
+    }
+
+    /**
+     * Generates a new set of stones.
+     * @param initPos The position of the first stone (1 or 2).
+     */
+    public void generateNewStones(int initPos) {
+        int pos = initPos;
+        if (initPos != 1 && initPos != 2) {
+            pos = 2;
+        }
+
+        if (stones == null) {
+            stones = new int[Constraits.MAX_NUMBER_OF_STONES];
+        }
+
+        for (int i = 0; i < 5; i++) {
+            stones[i] = pos;
+            pos += 2;
+        }
+
     }
 }

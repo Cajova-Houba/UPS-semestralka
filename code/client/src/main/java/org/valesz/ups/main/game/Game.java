@@ -116,8 +116,8 @@ public class Game {
             myPlayer = 2;
         }
 
-        this.firstPlayer = new Player(firstPlayer);
-        this.secondPlayer = new Player(secondPlayer);
+        this.firstPlayer = new Player(firstPlayer,Player.FIRST_PLAYER_INIT_POS);
+        this.secondPlayer = new Player(secondPlayer,Player.SECOND_PLAYER_INIT_POS);
 
         this.state = GameState.RUNNING;
     }
@@ -135,5 +135,13 @@ public class Game {
 
         firstPlayer.setStones(newPositions);
         myTurn = false;
+    }
+
+    /**
+     * Returns true if the state is RUNNING.
+     * @return
+     */
+    public boolean isRunning() {
+        return state == GameState.RUNNING;
     }
 }

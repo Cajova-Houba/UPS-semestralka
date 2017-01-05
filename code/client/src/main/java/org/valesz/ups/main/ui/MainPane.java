@@ -38,7 +38,7 @@ public class MainPane extends BorderPane {
 
     /*components*/
     private TextArea infoArea;
-    private Canvas canvas;
+    private Board canvas;
     private Text p1Text, p2Text;
 
     public MainPane(TcpClient tcpClient) {
@@ -83,6 +83,7 @@ public class MainPane extends BorderPane {
         p2Text.setText(Game.getInstance().getSecondPlayer().getNick());
 
         // place stones
+        canvas.placeStones();
     }
 
     /**
@@ -137,12 +138,19 @@ public class MainPane extends BorderPane {
         gameTitle.setFont(DEF_FONT);
         container.getChildren().add(gameTitle);
 
-        p1Text = new Text("Player 1: valesz");
+        HBox player1Caption = new HBox();
+        player1Caption.getChildren().add(new Text("Hráč 1: "));
+        p1Text = new Text("-");
         p1Text.setFont(DEF_SMALL_FONT);
-        container.getChildren().add(p1Text);
-        p2Text = new Text("Player 2: haxxorz");
+        player1Caption.getChildren().add(p1Text);
+        container.getChildren().add(player1Caption);
+
+        HBox player2Caption = new HBox();
+        player2Caption.getChildren().add(new Text("Hráč 2: "));
+        p2Text = new Text("-");
         p2Text.setFont(DEF_SMALL_FONT);
-        container.getChildren().add(p2Text);
+        player2Caption.getChildren().add(p2Text);
+        container.getChildren().add(player2Caption);
 
         return container;
     }
@@ -174,41 +182,12 @@ public class MainPane extends BorderPane {
         Pane container = new VBox();
         container.setPadding(new Insets(20));
 
-        canvas = new Canvas(CANVAS_WIDTH,CANVAS_HEIGHT);
+        canvas = new Board();
         canvas.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> canvasClick(event.getX(), event.getY()));
-        GraphicsContext gc = canvas.getGraphicsContext2D();
-        initCanvas(gc);
+        canvas.init();
         container.getChildren().add(canvas);
 
         return container;
-    }
-
-    private void initCanvas(GraphicsContext gc) {
-        gc.setFill(Color.BURLYWOOD);
-        gc.fillRect(0,0,CANVAS_WIDTH,CANVAS_HEIGHT);
-
-        // grid
-        gc.setStroke(Color.BLACK);
-        gc.setLineWidth(1);
-        for(int i = 0; i < 10 ; i++) {
-            double x = CANVAS_WIDTH*i/10;
-            gc.strokeLine(x,0,x,CANVAS_HEIGHT);
-        }
-        for(int i = 0; i < 3; i++) {
-            double y = CANVAS_HEIGHT*i/3;
-            gc.strokeLine(0,y,CANVAS_WIDTH,y);
-        }
-
-        // border
-        gc.setLineWidth(8);
-        gc.setStroke(Color.SADDLEBROWN);
-        gc.strokeRect(0,0,CANVAS_WIDTH, CANVAS_HEIGHT);
-
-        // bold lines to display the direction
-        gc.setLineWidth(4);
-        gc.strokeLine(0,CANVAS_HEIGHT/3,CANVAS_WIDTH*9/10,CANVAS_HEIGHT/3);
-        gc.strokeLine(CANVAS_WIDTH/10,CANVAS_HEIGHT*2/3, CANVAS_WIDTH, CANVAS_HEIGHT*2/3);
-
     }
 
     /**
@@ -259,6 +238,10 @@ public class MainPane extends BorderPane {
      * @param y
      */
     private void canvasClick(double x, double y) {
+        if(!Game.getInstance().isRunning()) {
+            logger.warn("Game's not runnig yet.");
+            return;
+        }
         int[] gPos = getGamePosition(x, y);
         addLogMessage(String.format("Clicked on %d,%d - field %d.\n",gPos[0], gPos[1], gamePosToFieldNumber(gPos)));
     }

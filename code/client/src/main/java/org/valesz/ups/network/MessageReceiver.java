@@ -161,8 +161,28 @@ public class MessageReceiver extends Task<AbstractReceivedMessage> {
      * Receives the rest of the CMD message.
      * @return
      */
-    private AbstractReceivedMessage receiveCmdMsg() {
-        return  null;
+    private AbstractReceivedMessage receiveCmdMsg() throws IOException, ReceivingException {
+
+        /*
+            Command message can be only start turn
+            10 bytes = both turn words
+         */
+        byte[] buffer = new byte[10];
+        int received = inFromServer.read(buffer);
+        if(received != buffer.length) {
+            logger.error("Error while receiving start turn message");
+            throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
+        } else {
+            int[] firstPlayerStones = new int[5];
+            int[] secondPlayerStones = new int[5];
+
+            for (int i = 0; i < 5; i++) {
+                firstPlayerStones[i] = buffer[i];
+                secondPlayerStones[i] = buffer[i+5];
+            }
+
+            return new StartTurnReceivedMessage(firstPlayerStones, secondPlayerStones);
+        }
     }
 
     /**

@@ -36,6 +36,7 @@ public class MainPane extends BorderPane {
     private TextArea infoArea;
     private Board canvas;
     private Text p1Text, p2Text, turnText, throwText;
+    private Button exitButton, endTurnButton, throwButton;
 
     public MainPane(TcpClient tcpClient) {
         super();
@@ -78,6 +79,13 @@ public class MainPane extends BorderPane {
     }
 
     /**
+     * End turn button callback.
+     */
+    public void onEndTurnClick() {
+        controller.endTurn();
+    }
+
+    /**
      * Throw sticks callbacks.
      */
     public void onThrowClick() {
@@ -100,12 +108,12 @@ public class MainPane extends BorderPane {
 
         HBox buttons = new HBox();
         buttons.setSpacing(5);
-        Button endBtn = new Button("Exit");
-        endBtn.setOnAction(event -> {onExitClick();});
-        buttons.getChildren().add(endBtn);
-        Button turnBtn = new Button("End turn");
-        endBtn.setOnAction(event -> {onExitClick();});
-        buttons.getChildren().add(turnBtn);
+        exitButton = new Button("Exit");
+        exitButton.setOnAction(event -> {onExitClick();});
+        buttons.getChildren().add(exitButton);
+        endTurnButton = new Button("End turn");
+        exitButton.setOnAction(event -> {onEndTurnClick();});
+        buttons.getChildren().add(endTurnButton);
 
         container.getChildren().add(getInfoPane());
         container.getChildren().add(buttons);
@@ -153,7 +161,7 @@ public class MainPane extends BorderPane {
         throwText.setFont(DEF_SMALL_FONT);
         throwTextCaption.getChildren().add(throwText);
         throwBox.getChildren().add(throwTextCaption);
-        Button throwButton = new Button("Hoď dřívky");
+        throwButton = new Button("Hoď dřívky");
         throwButton.setOnAction(event -> onThrowClick());
         throwBox.getChildren().add(throwButton);
         container.getChildren().add(throwBox);
@@ -193,6 +201,16 @@ public class MainPane extends BorderPane {
         container.getChildren().add(canvas);
 
         return container;
+    }
+
+    public void disableButtons() {
+        endTurnButton.setDisable(true);
+        throwButton.setDisable(true);
+    }
+
+    public void enableButtons() {
+        endTurnButton.setDisable(false);
+        throwButton.setDisable(false);
     }
 
     /**

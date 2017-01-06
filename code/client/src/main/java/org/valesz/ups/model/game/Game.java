@@ -143,20 +143,24 @@ public class Game {
     }
 
     /**
-     * Ends my turn and updates the positions of firstPlayer.
-     * If the myTurn is false, NotMyTurnException will be thrown.
-     *
-     * @param newPositions
+     * Starts a new turn and updates the stones.
+     * @param firstPlayerStones
+     * @param secondPlayerStones
      */
-    public void endTurn(int[] newPositions) throws NotMyTurnException {
-        if (!isMyTurn()) {
-            throw new NotMyTurnException();
-        }
-
-        firstPlayer.setStones(newPositions);
-        turn = turn == 1 ? 2 : 1;
+    public void newTurn(int[] firstPlayerStones, int[] secondPlayerStones) {
         thrownValue = -1;
         alreadyMoved = false;
+
+        firstPlayer.setStones(firstPlayerStones);
+        secondPlayer.setStones(secondPlayerStones);
+    }
+
+    /**
+     * Ends my turn and updates the positions of firstPlayer.
+     * If the myTurn is false, NotMyTurnException will be thrown.
+     */
+    public void endTurn() {
+        turn = turn == 1 ? 2 : 1;
     }
 
     /**
@@ -214,9 +218,6 @@ public class Game {
 
         return false;
     }
-
-
-
 
     /**
      * Returns true if the state is RUNNING.

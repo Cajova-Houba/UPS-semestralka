@@ -71,4 +71,18 @@ public class ReceivedMessageTypeResolver {
         return null;
     }
 
+    /**
+     * Checks if the message is StartTurnReceivedMessage and if the type is same,
+     * returns it. Otherwise null is returned.
+     * @param message
+     * @return
+     */
+    public static StartTurnReceivedMessage isStartTurn(AbstractReceivedMessage message) {
+        if(isMessageType(message, StartTurnReceivedMessage.class)) {
+            return (StartTurnReceivedMessage)message;
+        }
+
+        return null;
+    }
+
 }

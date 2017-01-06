@@ -5,6 +5,7 @@ import org.apache.logging.log4j.Logger;
 import org.valesz.ups.common.message.received.AbstractReceivedMessage;
 import org.valesz.ups.common.message.received.ReceivedMessageTypeResolver;
 import org.valesz.ups.common.message.received.StartGameReceivedMessage;
+import org.valesz.ups.common.message.received.StartTurnReceivedMessage;
 import org.valesz.ups.model.game.Game;
 import org.valesz.ups.network.TcpClient;
 import org.valesz.ups.ui.Board;
@@ -105,5 +106,45 @@ public class GameController {
      */
     public int throwSticks() {
         return Game.getInstance().throwSticks();
+    }
+
+    /**
+     * Ends the turn and waits for START_TURN message
+     */
+    public void endTurn() {
+        Game.getInstance().endTurn();
+        view.disableButtons();
+
+        // wait for START_TURN message
+        tcpClient.getResponse(
+                event -> {
+                    // response
+                    AbstractReceivedMessage response = tcpClient.getReceivingService().getValue();
+                    StartTurnReceivedMessage startTurn = ReceivedMessageTypeResolver.isStartTurn(response);
+                    if (startTurn == null) {
+                        // wrong response
+                        logger.error("Wrong message received. Expected START_TURN, received: "+response);
+                    } else {
+                        newTurn(startTurn.getFirstPlayerStones(), startTurn.getSecondPlayerStones());
+                    }
+                },
+                event -> {
+                    // failure
+                    String error = tcpClient.getReceivingService().getException().getMessage();
+                    logger.debug("Error while receiving response: "+error);
+                }
+        );
+    }
+
+    /**
+     * Starts the new turn with updated stones.
+     * @param firstPlayerStones
+     * @param secondPlayerStones
+     */
+    public void newTurn(int[] firstPlayerStones, int[] secondPlayerStones) {
+        Game.getInstance().newTurn(firstPlayerStones, secondPlayerStones);
+        view.enableButtons();
+        boardView.updateStones(Game.getInstance().getFirstPlayer().getStones(),
+                Game.getInstance().getSecondPlayer().getStones());
     }
 }

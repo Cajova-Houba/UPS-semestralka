@@ -10,14 +10,19 @@ import javafx.scene.paint.Color;
  */
 public class Stone {
 
-    public static final int DEF_FIELD_WIDTH = Board.DEF_WIDTH / 10;
-    public static final int DEF_FIELD_HEIGHT = Board.DEF_HEIGHT / 3;
-
     public static final int DEF_WIDTH = 50;
     public static final int DEF_HEIGHT = 50;
+    public static final int DEF_X_MARING = (Board.DEF_FIELD_WIDTH - DEF_WIDTH)/2;
+    public static final int DEF_Y_MARING = (Board.DEF_FIELD_HEIGHT - DEF_HEIGHT)/2;
 
     public static final Color DEF_FIRST_PLAYER_COLOR = Color.WHITE;
     public static final Color DEF_SECOND_PLAYER_COLOR = Color.BLACK;
+
+    /**
+     * 1 if this stone belongs to the first player.
+     * 2 if this stone belongs to the second player.
+     */
+    private final int player;
 
     /**
      * Number of field for this stone.
@@ -29,8 +34,26 @@ public class Stone {
      */
     private Color color;
 
-    public Stone(int field, Color color) {
+
+    public Stone(int player, int field, Color color) {
+        this.player = player;
         this.field = field;
+        this.color = color;
+    }
+
+    public int getField() {
+        return field;
+    }
+
+    public void setField(int field) {
+        this.field = field;
+    }
+
+    public Color getColor() {
+        return color;
+    }
+
+    public void setColor(Color color) {
         this.color = color;
     }
 
@@ -40,36 +63,33 @@ public class Stone {
      */
     public void draw(GraphicsContext gc) {
         gc.setFill(color);
-        int[] coord = getXY(field);
-        gc.fillOval(coord[0], coord[1], DEF_WIDTH, DEF_HEIGHT);
+        int[] coords = getXY(field);
+        gc.fillOval(coords[0], coords[1], DEF_WIDTH, DEF_HEIGHT);
     }
 
     /**
      * Converts the field number to coordinates of left upper corner.
-     * @param field
+     * Also adds margin.
+     * @param fieldNumber
      * @return
      */
-    public int[] getXY(int field) {
+    public int[] getXY(int fieldNumber) {
 
-        int x = 0;
-        int y = 0;
+        int[] coords = Board.fieldNumberToCoordinates(fieldNumber);
 
-        int xMargin = (DEF_FIELD_WIDTH - DEF_WIDTH)/2;
-        int yMargin = (DEF_FIELD_HEIGHT - DEF_HEIGHT)/2;
+        return new int[] {coords[0] + DEF_X_MARING, coords[1] + DEF_Y_MARING};
+    }
 
-        if(field < 1 || field > 30) {
-            return new int[] {x,y};
-        } else if(field < 11) {
-            x = (field - 1)*DEF_FIELD_WIDTH + xMargin;
-            y = yMargin;
-        } else if(field < 21) {
-            x = 10 * DEF_FIELD_WIDTH - (field - 11) * DEF_FIELD_WIDTH + xMargin;
-            y = DEF_FIELD_HEIGHT + yMargin;
-        } else {
-            x = (field - 1)*DEF_FIELD_WIDTH + xMargin;
-            y = 2*DEF_FIELD_HEIGHT + yMargin;
-        }
+    public int getPlayer() {
+        return this.player;
+    }
 
-        return new int[] {x,y};
+    @Override
+    public String toString() {
+        return "Stone{" +
+                "player=" + player +
+                ", field=" + field +
+                ", color=" + color +
+                '}';
     }
 }

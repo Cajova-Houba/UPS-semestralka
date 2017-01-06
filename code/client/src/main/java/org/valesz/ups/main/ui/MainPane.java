@@ -39,7 +39,7 @@ public class MainPane extends BorderPane {
     /*components*/
     private TextArea infoArea;
     private Board canvas;
-    private Text p1Text, p2Text;
+    private Text p1Text, p2Text, turnText;
 
     public MainPane(TcpClient tcpClient) {
         super();
@@ -81,6 +81,7 @@ public class MainPane extends BorderPane {
     private void startGame() {
         p1Text.setText(Game.getInstance().getFirstPlayer().getNick());
         p2Text.setText(Game.getInstance().getSecondPlayer().getNick());
+        turnText.setText(Game.getInstance().getCurrentPlayer());
 
         // place stones
         canvas.placeStones();
@@ -152,6 +153,13 @@ public class MainPane extends BorderPane {
         player2Caption.getChildren().add(p2Text);
         container.getChildren().add(player2Caption);
 
+        HBox turnTextCaption = new HBox();
+        turnTextCaption.getChildren().add(new Text("Táhne: "));
+        turnText = new Text("-");
+        turnText.setFont(DEF_SMALL_FONT);
+        turnTextCaption.getChildren().add(turnText);
+        container.getChildren().add(turnTextCaption);
+
         return container;
     }
 
@@ -182,39 +190,11 @@ public class MainPane extends BorderPane {
         Pane container = new VBox();
         container.setPadding(new Insets(20));
 
-        canvas = new Board();
-        canvas.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> canvasClick(event.getX(), event.getY()));
+        canvas = new Board(this);
         canvas.init();
         container.getChildren().add(canvas);
 
         return container;
-    }
-
-    /**
-     * Converts pixel coordinates [0-CANVAS_WIDTH, 0-CANVAS_HEIGHT] to senet coordinates [1-10,1-3].
-     * Note that the fields in the middle row are numbered from right.
-     *
-     * @param x
-     * @param y
-     * @return
-     */
-    private int[] getGamePosition(double x, double y) {
-        int gy = (int)(Math.floor(3*y / CANVAS_HEIGHT)+1);
-        int gx = (int)(Math.floor(10*x / CANVAS_WIDTH)+1);
-        if(gy == 2) {
-            gx = 11 - gx;
-        }
-
-        return new int[] {gx, gy};
-    }
-
-    /**
-     * Converts the game x,y position to a single number from 1 to 30.
-     * @param gamePos
-     * @return
-     */
-    private int gamePosToFieldNumber(int[] gamePos) {
-        return (gamePos[1] -1)*10 + gamePos[0];
     }
 
     /**
@@ -224,32 +204,4 @@ public class MainPane extends BorderPane {
         infoArea.appendText(message);
     }
 
-
-
-    /*
-    =============================================================
-    CALLBACKS
-    =============================================================
-     */
-
-    /**
-     * Callback for click on [x,y].
-     * @param x
-     * @param y
-     */
-    private void canvasClick(double x, double y) {
-        if(!Game.getInstance().isRunning()) {
-            logger.warn("Game's not runnig yet.");
-            return;
-        }
-        int[] gPos = getGamePosition(x, y);
-        addLogMessage(String.format("Clicked on %d,%d - field %d.\n",gPos[0], gPos[1], gamePosToFieldNumber(gPos)));
-    }
-
-    /**
-     * Send a message to the server that the turn has been ended.
-     */
-    private void endTurnClick() {
-
-    }
 }

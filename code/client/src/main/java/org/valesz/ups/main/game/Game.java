@@ -2,6 +2,8 @@ package org.valesz.ups.main.game;
 
 import org.valesz.ups.common.error.NotMyTurnException;
 
+import java.util.Random;
+
 /**
  * Class implementing the game itself. It contains information about players and about the game state.
  *
@@ -41,11 +43,25 @@ public class Game {
     private GameState state;
 
     /**
-     * True if it's my turn now.
+     * 1 or 2 - current turn.
      */
-    private boolean myTurn;
+    private int turn;
+
+    /**
+     * Player's value. It's possible to throw only once per turn.
+     * Default value is -1.
+     *
+     */
+    private int thrownValue;
 
     private static Game instance;
+
+    /**
+     * True if the player already moved a stone in this turn.
+     */
+    private boolean alreadyMoved;
+
+
 
     public static Game getInstance() {
         if(instance == null) {
@@ -58,7 +74,9 @@ public class Game {
     private Game() {
         winner = false;
         state = GameState.NOT_STARTED;
-        myTurn = false;
+        turn = 1;
+        thrownValue = -1;
+        alreadyMoved = false;
     }
 
     public Player getFirstPlayer() {
@@ -86,7 +104,7 @@ public class Game {
     }
 
     public boolean isMyTurn() {
-        return myTurn;
+        return turn == myPlayer;
     }
 
     /**
@@ -110,11 +128,13 @@ public class Game {
      * @param secondPlayer
      */
     public void startGame(String firstPlayer, String secondPlayer) {
-        if (firstPlayer == me) {
+        if (firstPlayer.equals(me)) {
             myPlayer = 1;
         } else {
             myPlayer = 2;
         }
+
+        this.turn = 1;
 
         this.firstPlayer = new Player(firstPlayer,Player.FIRST_PLAYER_INIT_POS);
         this.secondPlayer = new Player(secondPlayer,Player.SECOND_PLAYER_INIT_POS);
@@ -134,8 +154,40 @@ public class Game {
         }
 
         firstPlayer.setStones(newPositions);
-        myTurn = false;
+        turn = turn == 1 ? 2 : 1;
+        thrownValue = -1;
+        alreadyMoved = false;
     }
+
+    /**
+     * Throws the sticks and returns thrown value. If the sticks had been already thrown,
+     * actual value is returned.
+     * @return
+     */
+    public int throwSticks() {
+        if(thrownValue == -1) {
+            Random random = new Random();
+            thrownValue = random.nextInt(5) + 1;
+        }
+
+        return thrownValue;
+    }
+
+    /**
+     * Moves a current player's turn from one field to another.
+     * If the turn isn't possible, false is returned. Otherwise, true
+     * is returned and alreadyMoved is set to true.
+     *
+     * @param fromField
+     * @param toFiled
+     * @return
+     */
+    public boolean moveStone(int fromField, int toFiled) {
+        
+    }
+
+
+
 
     /**
      * Returns true if the state is RUNNING.
@@ -144,4 +196,55 @@ public class Game {
     public boolean isRunning() {
         return state == GameState.RUNNING;
     }
+
+    /**
+     * Returns true if the player which controls this client begins the game.
+     * @return
+     */
+    public boolean amIFirst() {
+        return myPlayer == 1;
+    }
+
+    /**
+     * Returns a nick of player who currently turns.
+     * @return
+     */
+    public String getCurrentPlayer() {
+        return turn == 1 ? firstPlayer.getNick() : secondPlayer.getNick();
+    }
+
+    /**
+     * Returns the number (1 or 2) of the current player.
+     * @return
+     */
+    public int getCurrentPlayerNum() {
+        return turn;
+    }
+
+    public int getMyPlayer() {
+        return myPlayer;
+    }
+
+    public int getThrownValue() {
+        return thrownValue;
+    }
+
+    /**
+     * Returns true if the sticks had been already thrown in this turn.
+     * @return
+     */
+    public boolean alreadyThrown() {
+        return thrownValue != -1;
+    }
+
+    /**
+     * Returns true if a player already moved a stone in this turn.
+     * @return
+     */
+    public boolean isAlreadyMoved() {
+        return alreadyMoved;
+    }
+
+
+
 }

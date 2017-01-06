@@ -1,23 +1,17 @@
-package org.valesz.ups.main.ui;
+package org.valesz.ups.ui;
 
 import javafx.geometry.Insets;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextArea;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.valesz.ups.common.message.received.AbstractReceivedMessage;
-import org.valesz.ups.common.message.received.ReceivedMessageTypeResolver;
-import org.valesz.ups.common.message.received.StartGameReceivedMessage;
+import org.valesz.ups.controller.GameController;
 import org.valesz.ups.main.MainApp;
-import org.valesz.ups.main.game.Game;
+import org.valesz.ups.model.game.Game;
 import org.valesz.ups.network.TcpClient;
 
 /**
@@ -36,55 +30,35 @@ public class MainPane extends BorderPane {
 
     private TcpClient tcpClient;
 
+    private GameController controller;
+
     /*components*/
     private TextArea infoArea;
     private Board canvas;
-    private Text p1Text, p2Text, turnText;
+    private Text p1Text, p2Text, turnText, throwText;
 
     public MainPane(TcpClient tcpClient) {
         super();
         this.tcpClient = tcpClient;
         initialize();
+        this.controller = new GameController(this, canvas, tcpClient);
+        canvas.setGameController(controller);
     }
 
     /**
      * Starts a task which will wait for a START_GAME message.
      */
     public void waitForStartGame() {
-        tcpClient.getResponse(
-                event -> {
-                    // response
-                    AbstractReceivedMessage response = tcpClient.getReceivingService().getValue();
-                    StartGameReceivedMessage startGame = ReceivedMessageTypeResolver.isStartGame(response);
-                    if (startGame == null) {
-                        // wrong response
-                        logger.error("Wrong message received. Expected START_GAME, received: "+response);
-                    } else {
-                        Game.getInstance().startGame(startGame.getFirstNickname(),startGame.getSecondNickname());
-                        logger.info("The game has started");
-
-                        //update graphical components
-                        startGame();
-                    }
-                },
-                event -> {
-                    // failure
-                    String error = tcpClient.getReceivingService().getException().getMessage();
-                    logger.debug("Error while receiving response: "+error);
-                }
-        );
+        controller.waitForStartGame();
     }
 
     /**
      * Updates the components.
      */
-    private void startGame() {
+    public void startGame() {
         p1Text.setText(Game.getInstance().getFirstPlayer().getNick());
         p2Text.setText(Game.getInstance().getSecondPlayer().getNick());
-        turnText.setText(Game.getInstance().getCurrentPlayer());
-
-        // place stones
-        canvas.placeStones();
+        turnText.setText(Game.getInstance().getCurrentPlayerNick());
     }
 
     /**
@@ -101,6 +75,18 @@ public class MainPane extends BorderPane {
      */
     public void onExitClick() {
         MainApp.switchToMain();
+    }
+
+    /**
+     * Throw sticks callbacks.
+     */
+    public void onThrowClick() {
+        int val = controller.throwSticks();
+        if(val == -1) {
+            throwText.setText("-");
+        } else {
+            throwText.setText(Integer.toString(val));
+        }
     }
 
     /**
@@ -159,6 +145,18 @@ public class MainPane extends BorderPane {
         turnText.setFont(DEF_SMALL_FONT);
         turnTextCaption.getChildren().add(turnText);
         container.getChildren().add(turnTextCaption);
+
+        VBox throwBox = new VBox();
+        HBox throwTextCaption = new HBox();
+        throwTextCaption.getChildren().add(new Text("Hozeno: "));
+        throwText = new Text("-");
+        throwText.setFont(DEF_SMALL_FONT);
+        throwTextCaption.getChildren().add(throwText);
+        throwBox.getChildren().add(throwTextCaption);
+        Button throwButton = new Button("Hoď dřívky");
+        throwButton.setOnAction(event -> onThrowClick());
+        throwBox.getChildren().add(throwButton);
+        container.getChildren().add(throwBox);
 
         return container;
     }

@@ -1,4 +1,4 @@
-package org.valesz.ups.main.game;
+package org.valesz.ups.model.game;
 
 import org.valesz.ups.common.Constraits;
 
@@ -90,6 +90,34 @@ public class Player {
             stones[i] = pos;
             pos += 2;
         }
+    }
 
+    /**
+     * Moves stone from one field to another.
+     * @param from
+     * @param to
+     */
+    public void moveStone(int from, int to) {
+        for (int i=0; i < stones.length; i++) {
+            if(stones[i] == from) {
+                stones[i] = to;
+                return;
+            }
+        }
+    }
+
+    /**
+     * Returns true, if this player has stone on this field.
+     * @param fieldNumber
+     * @return
+     */
+    public boolean isStoneOnField(int fieldNumber) {
+        for(int stone : stones) {
+            if(stone == fieldNumber) {
+                return  true;
+            }
+        }
+
+        return false;
     }
 }

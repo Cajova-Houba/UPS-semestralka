@@ -1,4 +1,4 @@
-package org.valesz.ups.main.ui;
+package org.valesz.ups.ui;
 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -15,17 +15,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.valesz.ups.common.Constraits;
 import org.valesz.ups.common.error.Error;
-import org.valesz.ups.common.error.ErrorMessages;
-import org.valesz.ups.common.message.Message;
-import org.valesz.ups.common.message.MessageType;
 import org.valesz.ups.common.message.received.AbstractReceivedMessage;
 import org.valesz.ups.common.message.received.ReceivedMessageTypeResolver;
+import org.valesz.ups.controller.LoginController;
 import org.valesz.ups.main.MainApp;
-import org.valesz.ups.main.game.Game;
+import org.valesz.ups.model.LoginData;
+import org.valesz.ups.model.game.Game;
 import org.valesz.ups.network.NickService;
 import org.valesz.ups.network.TcpClient;
-
-import java.net.Socket;
 
 /**
  * Login window.
@@ -45,12 +42,13 @@ public class LoginPane extends GridPane {
     private Text feedback;
 
     private TcpClient tcpClient;
-    private NickService nickService;
+
+    private LoginController controller;
 
     public LoginPane(TcpClient tcpClient) {
         super();
         this.tcpClient = tcpClient;
-        nickService = new NickService();
+        this.controller = new LoginController(tcpClient, this);
         initialize();
     }
 
@@ -124,79 +122,24 @@ public class LoginPane extends GridPane {
      */
     public void onLoginClick() {
         String addr = getAddress();
-        if(!Constraits.checkAddress(addr)) {
-            feedback.setText("Špatná adresa serveru.");
-            logger.warn("Bas server address");
+        int p = 0;
+        try {
+            p = Integer.parseInt(getPort());
+        } catch (Exception e) {
+            logger.error("Error while parsing port: "+e.getMessage());
             return;
         }
-        String p = getPort();
-        if(!Constraits.checkPort(p)) {
-            feedback.setText("Špatný port.");
-            logger.warn("Bad port");
-            return;
-        }
-
         String nick = getNick();
-        if(!Constraits.checkNickLength(nick)) {
-            feedback.setText("Délka nicku musí být v rozmezí 3-8");
-            logger.warn("Bad nick length");
-            return;
-        }
-        switch (Constraits.checkNick(nick)) {
-            case 0:
-                        /*ok*/
-                break;
-            case 1:
-                feedback.setText("První znak nicku musí být malé, nebo velké písmeno.");
-                logger.warn("Bad nick length");
-                return;
-            case 2:
-                feedback.setText("Nick může obsahovat pouze čísla a velká, nebo malá písmena.");
-                logger.warn("Bad nick length");
-                return;
-        }
+        LoginData loginData = new LoginData(nick, addr, p);
+        controller.login(loginData);
 
-        Error res = tcpClient.connect(addr, Integer.parseInt(p));
-        if (!res.ok()) {
-            feedback.setText(res.msg);
-            return;
-        }
+    }
 
-        //send nick
-        tcpClient.sendNick(nick,
-                e -> {
-                    //get response
-                    tcpClient.getResponse(
-                      event -> {
-                          //check received response
-                          AbstractReceivedMessage response = tcpClient.getReceivingService().getValue();
-                          if (ReceivedMessageTypeResolver.isOk(response) == null) {
-                              // wrong response
-                              logger.error("Wrong response received. "+response);
-                              feedback.setText("Chyba při odesílání nicku na server.");
-                              tcpClient.disconnect();
-                          } else {
-                              // nick ok
-                              Game.getInstance().waitingForOpponent(nick);
-                              logger.debug("Login ok.");
-                              MainApp.switchToMain();
-                          }
-                      },
-                      event -> {
-                          //receiving response failed
-                          String err = tcpClient.getReceivingService().getException().toString();
-                          logger.error("Error while receiving response from server: "+err);
-                          feedback.setText("Chyba při odesílání nicku na server.");
-                          tcpClient.disconnect();
-                      });
-
-                },
-                e -> {
-                    //sending nick failed
-                    String err = tcpClient.getNickService().getException().toString();
-                    logger.error("Error while sending nick to server: "+err);
-                    feedback.setText("Chyba při odesílání nicku na server.");
-                    tcpClient.disconnect();
-                });
+    /**
+     * Displays message in feedback.
+     * @param message
+     */
+    public void displayMessage(String message) {
+        feedback.setText(message);
     }
 }

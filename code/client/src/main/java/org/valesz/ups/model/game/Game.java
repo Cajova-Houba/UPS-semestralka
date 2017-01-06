@@ -1,4 +1,4 @@
-package org.valesz.ups.main.game;
+package org.valesz.ups.model.game;
 
 import org.valesz.ups.common.error.NotMyTurnException;
 
@@ -178,12 +178,41 @@ public class Game {
      * If the turn isn't possible, false is returned. Otherwise, true
      * is returned and alreadyMoved is set to true.
      *
+     * Both fields are expected to be already checked.
+     *
+     * If the toFiled is empty, stone will be moved.
+     * If there's a opponent's stone on the toField and the switch is
+     * possible, stones will be switched.
+     * In any other case, false will be returned.
+     *
      * @param fromField
      * @param toFiled
      * @return
      */
     public boolean moveStone(int fromField, int toFiled) {
-        
+
+        Player player = getCurrentPlayer();
+        Player other = getOtherPlayer();
+        if(isFieldEmpty(toFiled)) {
+            // move the stone of the first player
+            player.moveStone(fromField, toFiled);
+            return true;
+        } else {
+            // if there's a stone, check that it's opponent's stone and the switch is possible
+            if(other.isStoneOnField(toFiled)) {
+                // check that the switch is possible
+                // switch is possible if there aren't two opponent's stones next to each other
+                if (!other.isStoneOnField(toFiled -1) && !other.isStoneOnField(toFiled+1)) {
+                    //switch stones
+                    player.moveStone(fromField, toFiled);
+                    other.moveStone(toFiled, fromField);
+                    alreadyMoved = true;
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
 
@@ -209,7 +238,7 @@ public class Game {
      * Returns a nick of player who currently turns.
      * @return
      */
-    public String getCurrentPlayer() {
+    public String getCurrentPlayerNick() {
         return turn == 1 ? firstPlayer.getNick() : secondPlayer.getNick();
     }
 
@@ -221,12 +250,36 @@ public class Game {
         return turn;
     }
 
+    /**
+     * Returns current player.
+     * @return
+     */
+    public Player getCurrentPlayer() {
+        return turn == 1 ? firstPlayer : secondPlayer;
+    }
+
+    /**
+     * Returns the other player.
+     * @return
+     */
+    public Player getOtherPlayer() {
+        return turn == 1 ? secondPlayer : firstPlayer;
+    }
+
     public int getMyPlayer() {
         return myPlayer;
     }
 
     public int getThrownValue() {
         return thrownValue;
+    }
+
+    /**
+     * Only for testing!
+     * @return
+     */
+    public void setThrownValue(int newValue) {
+        this.thrownValue = newValue;
     }
 
     /**
@@ -245,6 +298,36 @@ public class Game {
         return alreadyMoved;
     }
 
+    /**
+     * Checks if the move from one field to another is ok with
+     * thrown value.
+     * @return
+     */
+    public boolean isMoveLengthOk(int from, int to) {
+        if(!alreadyThrown()) {
+            return false;
+        }
+
+        return Math.abs(from - to) == getThrownValue();
+    }
+
+    /**
+     * Returns true if there is no stone on the field.
+     * @param field
+     * @return
+     */
+    public boolean isFieldEmpty(int field) {
+        boolean empty = true;
+        for (int s : firstPlayer.getStones()) {
+            empty = empty && (s != field);
+        }
+
+        for (int s : secondPlayer.getStones()) {
+            empty = empty && (s != field);
+        }
+
+        return empty;
+    }
 
 
 }

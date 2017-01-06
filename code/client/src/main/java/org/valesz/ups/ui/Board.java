@@ -1,4 +1,4 @@
-package org.valesz.ups.main.ui;
+package org.valesz.ups.ui;
 
 
 import javafx.scene.canvas.Canvas;
@@ -8,8 +8,8 @@ import javafx.scene.paint.Color;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.valesz.ups.common.Constraits;
-import org.valesz.ups.main.game.Game;
-
+import org.valesz.ups.controller.GameController;
+import org.valesz.ups.model.game.Game;
 
 /**
  * Game board.
@@ -26,6 +26,8 @@ public class Board extends Canvas {
     public static final Color DEF_BORDER_COLOR = Color.SADDLEBROWN;
     public static final int DEF_FIELD_WIDTH = DEF_WIDTH / 10;
     public static final int DEF_FIELD_HEIGHT = DEF_HEIGHT / 3;
+
+    private GameController gameController;
 
     private final MainPane parent;
 
@@ -65,10 +67,10 @@ public class Board extends Canvas {
             x = (fieldNumber - 1)*DEF_FIELD_WIDTH;
             y = 0;
         } else if(fieldNumber < 21) {
-            x = 10 * DEF_FIELD_WIDTH - (fieldNumber - 11) * DEF_FIELD_WIDTH ;
+            x = 10 * DEF_FIELD_WIDTH - (fieldNumber - 10) * DEF_FIELD_WIDTH ;
             y = DEF_FIELD_HEIGHT;
         } else {
-            x = (fieldNumber - 1)*DEF_FIELD_WIDTH;
+            x = (fieldNumber - 21)*DEF_FIELD_WIDTH;
             y = 2*DEF_FIELD_HEIGHT;
         }
 
@@ -89,6 +91,10 @@ public class Board extends Canvas {
         selected = null;
 
         this.addEventHandler(MouseEvent.MOUSE_CLICKED, event -> canvasClick(event.getX(), event.getY()));
+    }
+
+    public void setGameController(GameController gameController) {
+        this.gameController = gameController;
     }
 
     /**
@@ -127,7 +133,7 @@ public class Board extends Canvas {
     /**
      * Places stones on the blank board.
      */
-    public void placeStones() {
+    public void placeStones(int[] firstPlayerStones, int[] secondPlayerStones) {
         if(boardDirty) {
             init();
         }
@@ -135,16 +141,14 @@ public class Board extends Canvas {
         GraphicsContext gc = this.getGraphicsContext2D();
 
         // first player
-        int[] pStones = Game.getInstance().getFirstPlayer().getStones();
         for (int i = 0; i < Constraits.MAX_NUMBER_OF_STONES; i++) {
-            firstPlayersStones[i] = new Stone(1, pStones[i], Stone.DEF_FIRST_PLAYER_COLOR);
+            firstPlayersStones[i] = new Stone(1, firstPlayerStones[i], Stone.DEF_FIRST_PLAYER_COLOR);
             firstPlayersStones[i].draw(gc);
         }
 
         // second player
-        pStones = Game.getInstance().getSecondPlayer().getStones();
         for (int i = 0; i < Constraits.MAX_NUMBER_OF_STONES; i++) {
-            secondPlayersStones[i] = new Stone(2,pStones[i], Stone.DEF_SECOND_PLAYER_COLOR);
+            secondPlayersStones[i] = new Stone(2, secondPlayerStones[i], Stone.DEF_SECOND_PLAYER_COLOR);
             secondPlayersStones[i].draw(gc);
         }
     }
@@ -214,17 +218,12 @@ public class Board extends Canvas {
      */
     public void canvasClick(double x, double y) {
         if(!Game.getInstance().isRunning()) {
-            logger.warn("Game's not runnig yet.");
+            logger.warn("Game's not running yet.");
             return;
         }
 
         if(!Game.getInstance().isMyTurn()) {
             logger.warn("Not my turn("+Game.getInstance().getMyPlayer()+". Current turn: "+Game.getInstance().getCurrentPlayerNum());
-            return;
-        }
-
-        if(!Game.getInstance().alreadyThrown()) {
-            logger.warn("Stick hadn't been thrown yet.");
             return;
         }
 
@@ -248,18 +247,26 @@ public class Board extends Canvas {
                 this.selected = selectedTmp;
             }
         } else if (this.selected != null && selectedTmp == null) {
-            if(Game.getInstance().isAlreadyMoved()) {
-                logger.warn(String.format("Already moved in this turn."));
-            } else {
-                logger.trace(String.format("Moving %s to %d.", this.selected, fieldNumber));
 
-                // move stone
-                this.selected.setField(fieldNumber);
+            logger.trace(String.format("Moving %s to %d.", this.selected, fieldNumber));
 
-                // there is still reference in first/secondPlayerStones field
-                this.selected = null;
-            }
+            gameController.move(this.selected.getField(), fieldNumber);
         }
+    }
+
+    /**
+     * Updates stones on the board.
+     * Called from controller.
+     *
+     * @param firstPlayerStones
+     * @param secondPlayerStones
+     */
+    public void updateStones(int[] firstPlayerStones, int[] secondPlayerStones) {
+        // there is still reference in first/secondPlayerStones field
+        this.selected = null;
+
+        boardDirty = true;
+        placeStones(firstPlayerStones, secondPlayerStones);
     }
 
     /**

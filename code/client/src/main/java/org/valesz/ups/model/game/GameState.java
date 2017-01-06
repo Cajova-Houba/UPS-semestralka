@@ -1,4 +1,4 @@
-package org.valesz.ups.main.game;
+package org.valesz.ups.model.game;
 
 /**
  * Possible states of the game.

@@ -1,4 +1,4 @@
-package org.valesz.ups.main.ui;
+package org.valesz.ups.ui;
 
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;

@@ -1,10 +1,8 @@
 package org.valesz.ups.ui;
 
+import org.junit.Ignore;
 import org.junit.Test;
-import org.valesz.ups.main.game.Game;
-import org.valesz.ups.main.ui.Board;
-
-import java.util.Arrays;
+import org.valesz.ups.model.game.Game;
 
 import static org.junit.Assert.*;
 
@@ -14,6 +12,8 @@ import static org.junit.Assert.*;
 public class BoardTest {
 
     @Test
+    @Ignore
+    /* old */
     public void testSelectNewStone() {
         startNewGame("first", "second");
         Board board = getInitializedBoard();
@@ -48,11 +48,33 @@ public class BoardTest {
     }
 
     @Test
+    @Ignore
+    /* old */
     public void testIsOpponentOnField() {
         startNewGame("first", "second");
         Board board = getInitializedBoard();
 
         assertTrue("Opponent's stone should be on field 2!", board.isOpponentOnField(2));
+    }
+
+    @Test
+    public void testGetFieldNumberToCoordinates() {
+        int[] fieldNumbers = new int[] {1,2,11,20,21,30};
+        int[][] coordinates = new int[][] {
+                new int[] {0,0},
+                new int[] {65,0},
+                new int[] {585,70},
+                new int[] {0,70},
+                new int[] {0,140},
+                new int[] {585,140},
+        };
+
+        for (int i = 0; i < fieldNumbers.length; i++) {
+            int[] coords = Board.fieldNumberToCoordinates(fieldNumbers[i]);
+
+            assertEquals("Wrong x coordinate returned for "+fieldNumbers[i]+"!", coordinates[i][0], coords[0]);
+            assertEquals("Wrong y coordinate returned for "+fieldNumbers[i]+"!", coordinates[i][1], coords[1]);
+        }
     }
 
     /**
@@ -71,7 +93,7 @@ public class BoardTest {
      */
     private Board getInitializedBoard() {
         Board board = new Board(null);
-        board.placeStones();
+        board.placeStones(new int[5], new int[5]);
         board.init();
 
         return board;

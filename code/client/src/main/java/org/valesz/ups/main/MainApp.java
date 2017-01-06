@@ -5,8 +5,10 @@ import javafx.scene.Scene;
 import javafx.stage.Stage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.valesz.ups.main.ui.LoginPane;
-import org.valesz.ups.main.ui.MainPane;
+import org.valesz.ups.controller.LoginController;
+import org.valesz.ups.controller.ViewController;
+import org.valesz.ups.ui.LoginPane;
+import org.valesz.ups.ui.MainPane;
 import org.valesz.ups.network.TcpClient;
 
 /**
@@ -25,6 +27,7 @@ public class MainApp extends Application{
     public static final int DEF_LOGIN_WIDTH = 640;
     public static final int DEF_LOGIN_HEIGHT = 240;
     public static final String DEF_TITLE = "Senet - klient";
+
 
     /**
      * Scenes.
@@ -49,7 +52,6 @@ public class MainApp extends Application{
         initMainScene();
 
         stage.setScene(loginScene);
-//        stage.setScene(mainScene);
         stage.show();
     }
 

@@ -11,6 +11,8 @@ import org.valesz.ups.network.TcpClient;
 import org.valesz.ups.ui.Board;
 import org.valesz.ups.ui.MainPane;
 
+import java.util.Arrays;
+
 /**
  * Game controller. Starts game, makes turns etc.
  *
@@ -46,10 +48,16 @@ public class GameController {
                         Game.getInstance().startGame(startGame.getFirstNickname(),startGame.getSecondNickname());
                         logger.info("The game has started");
 
-                        //update graphical components
+                        // update graphical components
                         view.startGame();
                         boardView.placeStones(Game.getInstance().getFirstPlayer().getStones(),
                                               Game.getInstance().getSecondPlayer().getStones());
+
+                        // if this is the second player, wait for start turn message
+                        if(!Game.getInstance().isMyTurn()) {
+                            view.disableButtons();
+                            waitForNewTurn();
+                        }
                     }
                 },
                 event -> {
@@ -114,7 +122,42 @@ public class GameController {
     public void endTurn() {
         Game.getInstance().endTurn();
         view.disableButtons();
+        sendEndTurnMessage(1);
+        logger.debug("Ending turn with player 1 stones: "+ Arrays.toString(Game.getInstance().getFirstPlayer().getStones())+
+                        ", player 2 stones: "+Arrays.toString(Game.getInstance().getSecondPlayer().getStones())+".");
+    }
 
+    /**
+     * Separation of sending a message from the main endTurn() method
+     */
+    private void sendEndTurnMessage(int numOfAttempts) {
+        final int noa = numOfAttempts+1;
+        if(noa > 5) {
+            logger.error("Maximum number of attempts reached.");
+            return;
+        }
+        // send end turn message
+        tcpClient.sendEndturn(
+                Game.getInstance().getFirstPlayer().getStones(),
+                Game.getInstance().getSecondPlayer().getStones(),
+                event -> {
+                    logger.trace("End turn message sent.");
+                    waitForNewTurn();
+                },
+                event -> {
+                    String error = tcpClient.getReceivingService().getException().getMessage();
+                    logger.debug("Error while sending end turn message, trying again: "+error);
+                    sendEndTurnMessage(noa);
+                }
+        );
+    }
+
+
+    /**
+     * Waits until new turn message is received.
+     */
+    public void waitForNewTurn() {
+        logger.debug("Waiting for my turn.");
         // wait for START_TURN message
         tcpClient.getResponse(
                 event -> {
@@ -142,8 +185,9 @@ public class GameController {
      * @param secondPlayerStones
      */
     public void newTurn(int[] firstPlayerStones, int[] secondPlayerStones) {
+        logger.debug("Starting new turn.");
         Game.getInstance().newTurn(firstPlayerStones, secondPlayerStones);
-        view.enableButtons();
+        view.newTurn();
         boardView.updateStones(Game.getInstance().getFirstPlayer().getStones(),
                 Game.getInstance().getSecondPlayer().getStones());
     }

@@ -11,6 +11,8 @@ import org.valesz.ups.common.Constraits;
 import org.valesz.ups.controller.GameController;
 import org.valesz.ups.model.game.Game;
 
+import java.util.Arrays;
+
 /**
  * Game board.
  *
@@ -138,6 +140,8 @@ public class Board extends Canvas {
             init();
         }
 
+        logger.debug("Updating stones. Player1: "+ Arrays.toString(firstPlayerStones)+", player2: "+Arrays.toString(secondPlayerStones)+".");
+
         GraphicsContext gc = this.getGraphicsContext2D();
 
         // first player
@@ -200,11 +204,15 @@ public class Board extends Canvas {
      */
     public Stone selectStoneOnField(int fieldNumber) {
         int player = Game.getInstance().getCurrentPlayerNum();
+        Stone[] stones;
         if (player == 1) {
-            for (Stone stone : firstPlayersStones) {
-                if (stone.getField() == fieldNumber) {
-                    return  stone;
-                }
+            stones = firstPlayersStones;
+        } else {
+            stones = secondPlayersStones;
+        }
+        for (Stone stone : stones) {
+            if (stone.getField() == fieldNumber) {
+                return  stone;
             }
         }
 

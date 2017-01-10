@@ -39,7 +39,7 @@ int check_characters(char* nickname);
  * It is expected that length and character has already been checked.
  * It is expected that the length of players is MAX_PLAYERS.
  */
-int check_duplicity(char* nickname, Player *players);
+int check_duplicity(char* nickname);
 
 /*
  * Checks the nickname for length, allowed chars and duplicity.

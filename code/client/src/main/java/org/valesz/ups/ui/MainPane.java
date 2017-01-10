@@ -82,6 +82,7 @@ public class MainPane extends BorderPane {
      * End turn button callback.
      */
     public void onEndTurnClick() {
+        logger.debug("Ending turn.");
         controller.endTurn();
     }
 
@@ -112,7 +113,7 @@ public class MainPane extends BorderPane {
         exitButton.setOnAction(event -> {onExitClick();});
         buttons.getChildren().add(exitButton);
         endTurnButton = new Button("End turn");
-        exitButton.setOnAction(event -> {onEndTurnClick();});
+        endTurnButton.setOnAction(event -> {onEndTurnClick();});
         buttons.getChildren().add(endTurnButton);
 
         container.getChildren().add(getInfoPane());
@@ -201,6 +202,15 @@ public class MainPane extends BorderPane {
         container.getChildren().add(canvas);
 
         return container;
+    }
+
+    /**
+     * Prepares components on the mane pane (not on the board!) for the
+     * new turn.
+     */
+    public void newTurn() {
+        enableButtons();
+        throwText.setText("-");
     }
 
     public void disableButtons() {

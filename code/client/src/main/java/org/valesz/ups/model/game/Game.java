@@ -150,14 +150,14 @@ public class Game {
     public void newTurn(int[] firstPlayerStones, int[] secondPlayerStones) {
         thrownValue = -1;
         alreadyMoved = false;
+        turn = turn == 1 ? 2 : 1;
 
         firstPlayer.setStones(firstPlayerStones);
         secondPlayer.setStones(secondPlayerStones);
     }
 
     /**
-     * Ends my turn and updates the positions of firstPlayer.
-     * If the myTurn is false, NotMyTurnException will be thrown.
+     * Ends my turn.
      */
     public void endTurn() {
         turn = turn == 1 ? 2 : 1;
@@ -198,8 +198,9 @@ public class Game {
         Player player = getCurrentPlayer();
         Player other = getOtherPlayer();
         if(isFieldEmpty(toFiled)) {
-            // move the stone of the first player
+            // move the players stone from one field to another empty field
             player.moveStone(fromField, toFiled);
+            alreadyMoved = true;
             return true;
         } else {
             // if there's a stone, check that it's opponent's stone and the switch is possible

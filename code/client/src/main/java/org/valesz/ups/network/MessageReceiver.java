@@ -74,6 +74,8 @@ public class MessageReceiver extends Task<AbstractReceivedMessage> {
                 return receiveInfMsg();
             case ERR:
                 return receiveErrMsg();
+            case CMD:
+                return receiveCmdMsg();
             default:
                 throw new ReceivingException(Error.BAD_MSG_TYPE());
         }
@@ -167,6 +169,7 @@ public class MessageReceiver extends Task<AbstractReceivedMessage> {
             Command message can be only start turn
             10 bytes = both turn words
          */
+        logger.debug("Receiving CMD message.");
         byte[] buffer = new byte[10];
         int received = inFromServer.read(buffer);
         if(received != buffer.length) {

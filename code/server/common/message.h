@@ -8,6 +8,7 @@
 #define		START_GAME_MESSAGE_LEN		13
 #define 	END_GAME_MESSAGE			"INFEND_GAME"
 #define 	END_GAME_MESSAGE_LEN		11
+#define     START_TURN_MESSAGE_LEN      13
 
 /* message types */
 #define		MSG_TYPE_INF				"INF\0"
@@ -17,7 +18,7 @@
 
 
 /*
- * Recieves nick from socket and stores it to the buffer. 
+ * Receives nick from socket and stores it to the buffer. 
  * The buffer should have adequate size = MAX_NICK_LENGTH+1.
  * 
  * The nick is checked only for length by this method.
@@ -29,6 +30,19 @@
  *  Error from seneterror.h
  */
 int recv_nick(int socket, char* buffer);
+
+/*
+ * Receives a message from the socket indicating the end of turn.
+ * player1_turn_word and player2_turn_word are buffers for updated turn words.
+ * Both turn words are expected to have length equal to TURN_WORD_LENGTH.
+ *
+ * Returns:
+ * 	1 : Nick was received.
+ *  0: Socket closed connection.
+ *  Error from seneterror.h
+ */
+int recv_end_turn(int socket, char* player1_turn_word, char* player2_turn_word);
+
 
 /*
  * Send OK_MESSAGE to socket. 
@@ -75,6 +89,16 @@ int send_start_game_msg(int sock, char* player1, char* player2);
  */
 int send_end_game_msg(int sock, char* winner);
 
+/*
+ * Sends a start turn message to the socket.
+ * The message will look like this: CMD<p1turnword><p2turnword>
+ *
+ * Returns:
+ * 1: Message was sent.
+ * 2: Socket closed the connection.
+ * <0: Error occurred.
+ */
+int send_start_turn_msg(int sock, char* player1_turn_word, char* player2_turn_word);
 #endif
 
 

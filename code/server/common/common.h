@@ -6,15 +6,6 @@
 #define MAX_PLAYERS				2     
 
 /*
- * Structure representing a player.
- */
-typedef struct {
-	int id;
-	char nick[10];
-	int socket;
-} Player;
-
-/*
  * Receives byte_count of bytes and stores them to the buffer.
  * Returns received number of bytes or -1 if error occurs.
  * 

@@ -25,6 +25,7 @@ public class TcpClient {
     private Socket socket;
     private NickService nickService;
     private ReceivingService receivingService;
+    private TurnService turnService;
     private DataOutputStream outToServer;
     private DataInputStream inFromServer;
 
@@ -57,6 +58,7 @@ public class TcpClient {
             inFromServer = new DataInputStream(socket.getInputStream());
             outToServer = new DataOutputStream(socket.getOutputStream());
             receivingService = new ReceivingService();
+            turnService = new TurnService();
 
         } catch (IOException e) {
             logger.debug("Error setting reuse address.");
@@ -90,10 +92,10 @@ public class TcpClient {
     }
 
     /**
-     * Sends a new nick to the server. Use nickOk and nickNotOk callbacks.
+     * Sends a new nick to the server.
      *
      * @param nick nickname.
-     * @param successCallback Called if the nick is sent.
+     * @param successCallback Called if the nick is sent. Received: OK
      * @param failCallback Called if the nick sending fails.
      * @return GENERAL_ERROR if there's no connection and NO_ERROR if everything is ok.
      */
@@ -109,6 +111,33 @@ public class TcpClient {
         nickService.setOnSucceeded(successCallback);
         nickService.setOnFailed(failCallback);
         nickService.restart();
+
+        return Error.NO_ERROR();
+    }
+
+    /**
+     * Sends an end turn message to the server.
+     *
+     * @param firstPlayerTurnWord Turn word of the first player.
+     * @param secondPlayerTurnWord Turn word of the second player.
+     * @param successCallback Called if the message was sent.
+     * @param failCallback Called if there's some error during sending the message.
+     * @return GENERAL_ERROR if there's no connection and NO_ERROR if everything is ok.
+     */
+    public Error sendEndturn(int[] firstPlayerTurnWord,
+                             int[] secondPlayerTurnWord,
+                             EventHandler<WorkerStateEvent> successCallback,
+                             EventHandler<WorkerStateEvent> failCallback) {
+        if(!isConnected()) {
+            return Error.GENERAL_ERROR("No active connection.");
+        }
+
+        turnService.setOutToServer(outToServer);
+        turnService.setFirstTurnWord(firstPlayerTurnWord);
+        turnService.setSecondTurnWord(secondPlayerTurnWord);
+        turnService.setOnSucceeded(successCallback);
+        turnService.setOnFailed(failCallback);
+        turnService.restart();
 
         return Error.NO_ERROR();
     }

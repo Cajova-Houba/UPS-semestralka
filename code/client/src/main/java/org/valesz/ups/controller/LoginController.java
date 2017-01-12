@@ -4,7 +4,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.valesz.ups.common.Constraits;
 import org.valesz.ups.common.error.Error;
+import org.valesz.ups.common.error.ErrorMessages;
 import org.valesz.ups.common.message.received.AbstractReceivedMessage;
+import org.valesz.ups.common.message.received.ErrorReceivedMessage;
 import org.valesz.ups.common.message.received.ReceivedMessageTypeResolver;
 import org.valesz.ups.main.MainApp;
 import org.valesz.ups.model.LoginData;
@@ -77,9 +79,16 @@ public class LoginController {
                                 //check received response
                                 AbstractReceivedMessage response = tcpClient.getReceivingService().getValue();
                                 if (ReceivedMessageTypeResolver.isOk(response) == null) {
-                                    // wrong response
-                                    logger.error("Wrong response received. "+response);
-                                    view.displayMessage("Chyba při odesílání nicku na server.");
+                                    // check error
+                                    ErrorReceivedMessage err = ReceivedMessageTypeResolver.isError(response);
+                                    if(err != null) {
+                                        logger.error("Server returned an error: "+err.getContent().toString());
+                                        view.displayMessage(ErrorMessages.getErrorForCode(err.getContent().code));
+                                    } else {
+                                        // wrong response
+                                        logger.error("Wrong response received. "+response);
+                                        view.displayMessage("Chyba při odesílání nicku na server.");
+                                    }
                                     tcpClient.disconnect();
                                 } else {
                                     // nick ok

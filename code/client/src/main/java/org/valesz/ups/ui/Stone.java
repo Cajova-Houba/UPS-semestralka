@@ -17,6 +17,7 @@ public class Stone {
 
     public static final Color DEF_FIRST_PLAYER_COLOR = Color.WHITE;
     public static final Color DEF_SECOND_PLAYER_COLOR = Color.BLACK;
+    public static final Color DEF_SELECTED_COLOR = Color.RED;
 
     /**
      * 1 if this stone belongs to the first player.
@@ -65,6 +66,19 @@ public class Stone {
         gc.setFill(color);
         int[] coords = getXY(field);
         gc.fillOval(coords[0], coords[1], DEF_WIDTH, DEF_HEIGHT);
+    }
+
+    /**
+     * Draws itself as selected.
+     * @param gc
+     */
+    public void drawSelected(GraphicsContext gc) {
+        gc.setFill(color);
+        gc.setStroke(DEF_SELECTED_COLOR);
+        gc.setLineWidth(2);
+        int[] coords = getXY(field);
+        gc.fillOval(coords[0], coords[1], DEF_WIDTH, DEF_HEIGHT);
+        gc.strokeOval(coords[0]+1, coords[1]+1  , DEF_WIDTH-2, DEF_HEIGHT-2);
     }
 
     /**

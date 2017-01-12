@@ -61,6 +61,11 @@ public class Game {
      */
     private boolean alreadyMoved;
 
+    /**
+     * Flag that indicates that the player can throw sticks again.
+     */
+    private boolean throwAgain;
+
 
 
     public static Game getInstance() {
@@ -77,6 +82,7 @@ public class Game {
         turn = 1;
         thrownValue = -1;
         alreadyMoved = false;
+        throwAgain = false;
     }
 
     public Player getFirstPlayer() {
@@ -135,6 +141,9 @@ public class Game {
         }
 
         this.turn = 1;
+        thrownValue = -1;
+        alreadyMoved = false;
+        throwAgain = false;
 
         this.firstPlayer = new Player(firstPlayer,Player.FIRST_PLAYER_INIT_POS);
         this.secondPlayer = new Player(secondPlayer,Player.SECOND_PLAYER_INIT_POS);
@@ -166,12 +175,38 @@ public class Game {
     /**
      * Throws the sticks and returns thrown value. If the sticks had been already thrown,
      * actual value is returned.
+     *
+     * Probabilities:
+     * 1: 25%
+     * 2: 37.5%
+     * 3: 25%
+     * 4: 6.25%
+     * 5: 6.25%
+     *
+     *
      * @return
      */
     public int throwSticks() {
-        if(thrownValue == -1) {
+        if(thrownValue == -1 || throwAgain) {
             Random random = new Random();
-            thrownValue = random.nextInt(5) + 1;
+            double tmp;
+            tmp = random.nextDouble()*100;
+            if(tmp < 37.5) {
+                thrownValue = 2;
+                throwAgain = false;
+            } else if (tmp < 65.5) {
+                thrownValue = 1;
+                throwAgain = false;
+            } else if (tmp < 87.5) {
+                thrownValue = 3;
+                throwAgain = false;
+            } else if (tmp < 93.75) {
+                thrownValue = 4;
+                throwAgain = true;
+            } else {
+                thrownValue = 5;
+                throwAgain = true;
+            }
         }
 
         return thrownValue;
@@ -200,7 +235,9 @@ public class Game {
         if(isFieldEmpty(toFiled)) {
             // move the players stone from one field to another empty field
             player.moveStone(fromField, toFiled);
-            alreadyMoved = true;
+            if(!canThrowAgain()) {
+                alreadyMoved = true;
+            }
             return true;
         } else {
             // if there's a stone, check that it's opponent's stone and the switch is possible
@@ -211,7 +248,9 @@ public class Game {
                     //switch stones
                     player.moveStone(fromField, toFiled);
                     other.moveStone(toFiled, fromField);
-                    alreadyMoved = true;
+                    if(!canThrowAgain()) {
+                        alreadyMoved = true;
+                    }
                     return true;
                 }
             }
@@ -329,6 +368,14 @@ public class Game {
         }
 
         return empty;
+    }
+
+    /**
+     * Returns true if the player can throw again.
+     * @return
+     */
+    public boolean canThrowAgain() {
+        return throwAgain;
     }
 
 

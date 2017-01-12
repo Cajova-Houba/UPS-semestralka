@@ -113,13 +113,33 @@ public class GameController {
      * @return
      */
     public int throwSticks() {
-        return Game.getInstance().throwSticks();
+        int thrown;
+        if(Game.getInstance().alreadyThrown()) {
+            thrown = Game.getInstance().throwSticks();
+        } else {
+            thrown = Game.getInstance().throwSticks();
+            logger.debug("Thrown: "+thrown+"\n");
+            view.addLogMessage("Hozeno: "+thrown+"\n");
+        }
+
+        if(Game.getInstance().canThrowAgain()) {
+            view.disableEndTurnButton();
+        } else {
+            view.enableEndTurnButton();
+        }
+
+        return thrown;
     }
 
     /**
      * Ends the turn and waits for START_TURN message
      */
     public void endTurn() {
+        if(Game.getInstance().canThrowAgain()) {
+            logger.error("Cannot end turn if player can throw again!");
+            view.addLogMessage("Hráč musí házet znovu!\n");
+            return;
+        }
         Game.getInstance().endTurn();
         view.disableButtons();
         sendEndTurnMessage(1);

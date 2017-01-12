@@ -220,6 +220,23 @@ public class Board extends Canvas {
     }
 
     /**
+     * Deselect the currently selcted stone.
+     */
+    public void deselect() {
+        if(this.selected == null) {
+            return;
+        }
+
+        this.selected.draw(this.getGraphicsContext2D());
+        this.selected = null;
+    }
+
+    public void select(Stone selected) {
+        this.selected = selected;
+        this.selected.drawSelected(this.getGraphicsContext2D());
+    }
+
+    /**
      * Callback for click on [x,y].
      * @param x
      * @param y
@@ -243,16 +260,17 @@ public class Board extends Canvas {
 
         if (this.selected == null && selectedTmp != null) {
             logger.trace(String.format("Selected: %s.", selectedTmp));
-            this.selected = selectedTmp;
+            select(selectedTmp);
         } else if(this.selected != null && selectedTmp != null) {
 
             // if user click's on same stone, deselect it
             if(this.selected.getField() == selectedTmp.getField()) {
                 logger.trace(String.format("Deselecting %s.", this.selected));
-                this.selected = null;
+                deselect();
             } else {
                 logger.trace(String.format("Selected %s instead of %s.", selectedTmp, this.selected));
-                this.selected = selectedTmp;
+                deselect();
+                select(selectedTmp);
             }
         } else if (this.selected != null && selectedTmp == null) {
 

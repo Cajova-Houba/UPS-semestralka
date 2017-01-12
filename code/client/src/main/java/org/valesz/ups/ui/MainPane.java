@@ -218,6 +218,14 @@ public class MainPane extends BorderPane {
         throwButton.setDisable(true);
     }
 
+    public void disableEndTurnButton() {
+        endTurnButton.setDisable(true);
+    }
+
+    public void enableEndTurnButton() {
+        endTurnButton.setDisable(false);
+    }
+
     public void enableButtons() {
         endTurnButton.setDisable(false);
         throwButton.setDisable(false);

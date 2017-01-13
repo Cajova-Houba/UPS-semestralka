@@ -151,8 +151,15 @@ public class MessageReceiver extends Task<AbstractReceivedMessage> {
                     throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
                 }
 
+                // receive winner's nick
+                String winner = receiveNick(inFromServer, ';');
+                if(winner == null) {
+                    logger.error("Empty nick received!");
+                    throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
+                }
+
                 logger.trace("Received: END_GAME");
-                return new EndGameReceivedMessage();
+                return new EndGameReceivedMessage(winner);
 
             default:
                 throw new ReceivingException(Error.BAD_MSG_CONTENT());

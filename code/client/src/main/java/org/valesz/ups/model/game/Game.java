@@ -16,6 +16,11 @@ public class Game {
     public static final int OUT_OF_BOARD = 31;
 
     /**
+     * For testing purposes.
+     */
+    public static final int[] WINNER = new int[] {OUT_OF_BOARD, OUT_OF_BOARD, OUT_OF_BOARD, OUT_OF_BOARD, OUT_OF_BOARD};
+
+    /**
      * Nickname of players which controls this client.
      * Used as temporal storage.
      */

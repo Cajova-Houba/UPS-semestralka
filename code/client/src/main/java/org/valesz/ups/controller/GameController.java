@@ -2,10 +2,7 @@ package org.valesz.ups.controller;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.valesz.ups.common.message.received.AbstractReceivedMessage;
-import org.valesz.ups.common.message.received.ReceivedMessageTypeResolver;
-import org.valesz.ups.common.message.received.StartGameReceivedMessage;
-import org.valesz.ups.common.message.received.StartTurnReceivedMessage;
+import org.valesz.ups.common.message.received.*;
 import org.valesz.ups.model.game.Game;
 import org.valesz.ups.network.TcpClient;
 import org.valesz.ups.ui.Board;
@@ -166,6 +163,7 @@ public class GameController {
         // send end turn message
         tcpClient.sendEndturn(
                 Game.getInstance().getFirstPlayer().getStones(),
+//                Game.WINNER,
                 Game.getInstance().getSecondPlayer().getStones(),
                 event -> {
                     logger.trace("End turn message sent.");
@@ -182,6 +180,7 @@ public class GameController {
 
     /**
      * Waits until new turn message is received.
+     * Also checks if the
      */
     public void waitForNewTurn() {
         logger.debug("Waiting for my turn.");
@@ -192,8 +191,13 @@ public class GameController {
                     AbstractReceivedMessage response = tcpClient.getReceivingService().getValue();
                     StartTurnReceivedMessage startTurn = ReceivedMessageTypeResolver.isStartTurn(response);
                     if (startTurn == null) {
-                        // wrong response
-                        logger.error("Wrong message received. Expected START_TURN, received: "+response);
+                        EndGameReceivedMessage endGame = ReceivedMessageTypeResolver.isEndGame(response);
+                        if (endGame != null) {
+                            logger.debug("End of the game, winner is: "+endGame.getContent());
+                        } else {
+                            // wrong response
+                            logger.error("Wrong message received. Expected START_TURN, received: "+response);
+                        }
                     } else {
                         newTurn(startTurn.getFirstPlayerStones(), startTurn.getSecondPlayerStones());
                     }

@@ -1,5 +1,6 @@
 package org.valesz.ups.model.game;
 
+import org.valesz.ups.common.Constraits;
 import org.valesz.ups.common.error.NotMyTurnException;
 
 import java.util.Random;
@@ -10,6 +11,9 @@ import java.util.Random;
  * @author Zdenek Vales
  */
 public class Game {
+
+    public static final int LAST_FIELD = 30;
+    public static final int OUT_OF_BOARD = 31;
 
     /**
      * Nickname of players which controls this client.
@@ -376,6 +380,25 @@ public class Game {
      */
     public boolean canThrowAgain() {
         return throwAgain;
+    }
+
+    /**
+     * Removes the stone which is currently on the field 30 out of board.
+     */
+    public void leaveBoard() {
+        int[] p1Stones = getFirstPlayer().getStones();
+        int[] p2Stones = getSecondPlayer().getStones();
+        for (int i = 0; i < Constraits.MAX_NUMBER_OF_STONES; i++) {
+            if(p1Stones[i] == LAST_FIELD) {
+                p1Stones[i] = OUT_OF_BOARD;
+                return;
+            }
+
+            if(p2Stones[i] == LAST_FIELD) {
+                p2Stones[i] = OUT_OF_BOARD;
+                return;
+            }
+        }
     }
 
 

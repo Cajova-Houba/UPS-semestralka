@@ -10,6 +10,7 @@ import org.valesz.ups.model.game.Game;
 import org.valesz.ups.network.TcpClient;
 import org.valesz.ups.ui.Board;
 import org.valesz.ups.ui.MainPane;
+import org.valesz.ups.ui.Stone;
 
 import java.util.Arrays;
 
@@ -100,6 +101,12 @@ public class GameController {
         if(Game.getInstance().moveStone(fromField, toField)) {
             boardView.updateStones(Game.getInstance().getFirstPlayer().getStones(),
                     Game.getInstance().getSecondPlayer().getStones());
+
+            if(toField == 30) {
+                view.showLeaveButton();
+            } else {
+                view.hideLeaveButton();
+            }
             return true;
         } else {
             logger.warn("Turn from "+fromField+" to "+toField+" not possible.");
@@ -210,5 +217,34 @@ public class GameController {
         view.newTurn();
         boardView.updateStones(Game.getInstance().getFirstPlayer().getStones(),
                 Game.getInstance().getSecondPlayer().getStones());
+    }
+
+    /**
+     * If the currently selected pawn is on the field 30, pawn can leave the board.
+     */
+    public void leaveBoard() {
+        int currentPlayer = Game.getInstance().getCurrentPlayerNum();
+        Stone stone = boardView.getSelected();
+        if(stone == null) {
+            logger.warn("No stone selected.");
+            return;
+        }
+
+        if(stone.getPlayer() != currentPlayer) {
+            logger.warn("Selected pawn doesn't belong to the current player!");
+            return;
+        }
+
+        if(stone.getField() != Game.LAST_FIELD) {
+            logger.warn("Selected pawn isn't on the last field!");
+            return;
+        }
+
+        Game.getInstance().leaveBoard();
+        view.addLogMessage("Kámen opustil hrací plochu.");
+        logger.debug("Pawn "+stone+" has leaved the game board");
+        boardView.deselect();
+        boardView.updateStones(Game.getInstance().getFirstPlayer().getStones(),
+                               Game.getInstance().getSecondPlayer().getStones());
     }
 }

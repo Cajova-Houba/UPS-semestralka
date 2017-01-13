@@ -1,6 +1,7 @@
 package org.valesz.ups.ui;
 
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.*;
@@ -36,7 +37,7 @@ public class MainPane extends BorderPane {
     private TextArea infoArea;
     private Board canvas;
     private Text p1Text, p2Text, turnText, throwText;
-    private Button exitButton, endTurnButton, throwButton;
+    private Button exitButton, endTurnButton, throwButton, leaveButton;
 
     public MainPane(TcpClient tcpClient) {
         super();
@@ -196,10 +197,16 @@ public class MainPane extends BorderPane {
     private Pane getMainPane() {
         Pane container = new VBox();
         container.setPadding(new Insets(20));
+        ((VBox)container).setAlignment(Pos.TOP_RIGHT);
 
         canvas = new Board(this);
         canvas.init();
         container.getChildren().add(canvas);
+
+        leaveButton = new Button("Opustit pole");
+        leaveButton.setVisible(false);
+        leaveButton.setOnAction(e -> leaveButtonClick());
+        container.getChildren().add(leaveButton);
 
         return container;
     }
@@ -229,6 +236,18 @@ public class MainPane extends BorderPane {
     public void enableButtons() {
         endTurnButton.setDisable(false);
         throwButton.setDisable(false);
+    }
+
+    public void showLeaveButton() {
+        leaveButton.setVisible(true);
+    }
+
+    public void hideLeaveButton() {
+        leaveButton.setVisible(false);
+    }
+
+    private void leaveButtonClick() {
+        controller.leaveBoard();
     }
 
     /**

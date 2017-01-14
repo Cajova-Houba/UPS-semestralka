@@ -1,6 +1,9 @@
 #ifndef __SENET_LOGGER_H
 #define __SENET_LOGGER_H
 
+#include <stdio.h>
+#include <time.h>
+
 /*
  * Possible names to use for log messages.
  */ 

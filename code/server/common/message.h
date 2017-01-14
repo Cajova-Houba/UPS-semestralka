@@ -9,6 +9,8 @@
 #define 	END_GAME_MESSAGE			"INFEND_GAME"
 #define 	END_GAME_MESSAGE_LEN		11
 #define     START_TURN_MESSAGE_LEN      13
+#define     WAIT_FOR_PLAYER_MESSAGE     "INFWAITING"
+#define     WAIT_FOR_PLAYER_MESSAGE_LEN 10
 
 /* message types */
 #define		MSG_TYPE_INF				"INF\0"
@@ -16,6 +18,14 @@
 #define		MSG_TYPE_ERR				"ERR\0"
 #define		MSG_TYPE_LEN				3
 
+#include <string.h>
+#include <stdio.h>
+
+#include "common.h"
+#include "seneterror.h"
+#include "slog.h"
+#include "nick_val.h"
+#include "../core/player.h"
 
 /*
  * Receives nick from socket and stores it to the buffer. 
@@ -99,6 +109,17 @@ int send_end_game_msg(int sock, char* winner);
  * <0: Error occurred.
  */
 int send_start_turn_msg(int sock, char* player1_turn_word, char* player2_turn_word);
+
+/*
+ * Sends a message to the socket that the game is currently waiting for a player with
+ * specified nick.
+ *
+ * Returns:
+ * 1: Message was sent.
+ * 2: Socket closed the connection.
+ * <0: Error occurred.
+ */
+int send_waiting_for_player_msg(int sock, char* nick);
 #endif
 
 

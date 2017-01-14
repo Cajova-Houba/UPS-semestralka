@@ -1,7 +1,11 @@
 #ifndef __NICK_VAL_H
 #define __NICK_VAL_H
 
+#include <stdio.h>
+#include <string.h>
+
 #include "common.h"
+#include "seneterror.h"
 
 #define MIN_NICK_LENGTH			3
 #define MAX_NICK_LENGTH			8

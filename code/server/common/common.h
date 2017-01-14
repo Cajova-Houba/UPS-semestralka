@@ -3,7 +3,15 @@
 
 #define SRV_PORT				65000
 #define MAX_TXT_LENGTH			50
-#define MAX_PLAYERS				2     
+
+#include <stdio.h>
+#include <string.h>
+
+#include <sys/socket.h>
+#include <arpa/inet.h>
+
+#include "common.h"
+#include "slog.h"
 
 /*
  * Receives byte_count of bytes and stores them to the buffer.

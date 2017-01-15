@@ -5,11 +5,45 @@
 
 #define MAX_PLAYERS				2
 
+/* Flag indexes */
+/*
+ * Flag indicating that the game has started.
+ */
+#define GAME_STARTED_FLAG       0
+
+/*
+ * A flag indicating the end of game. If the flag is raised, it's a signal for the
+ * thread that it should quit.
+ */
+#define GAME_ENDED_FLAG         1
+
+/*
+ * A flag indicating that we're waiting for player 1 to reconnect.
+ */
+#define WAITING_P1_FLAG         2
+
+/*
+ * A flag indicating that we're waiting for player 2 to reconnect.
+ */
+#define WAITING_P2_FLAG         3
+
+/*
+ * Variable indicating whose turn is now.
+ * Either 0 or 1.
+ */
+#define TURN_FLAG               4
+
 /*
  * ======================
  * CONTROL VARIABLES
  * ======================
  */
+
+typedef struct {
+    Player players[MAX_PLAYERS];
+
+    unsigned char flags;
+} Game_struct;
 
 /*
  * Two players.
@@ -19,7 +53,7 @@ Player players[MAX_PLAYERS];
 /*
  * Flag indicating that the game has started.
  */
-int game_started = 0;
+int game_started;
 
 /*
  * A flag indicating the end of game. If the flag is raised, it's a signal for the
@@ -48,6 +82,7 @@ int waiting_for_p2;
  * FUNCTIONS
  * ========================
  */
+
 
 
 /*

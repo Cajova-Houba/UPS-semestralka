@@ -19,6 +19,7 @@ pthread_mutex_t mutex_players_check;
 /*
  * Mutex and a condition variable for switching turns.
  */
+pthread_mutex_t mutex_is_my_turn;
 pthread_mutex_t mutex_turn;
 pthread_cond_t cond_turn;
 

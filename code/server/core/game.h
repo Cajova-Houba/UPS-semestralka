@@ -34,6 +34,11 @@
 #define TURN_FLAG               4
 
 /*
+ * Winner. 0 = player 1 wins, 1 = player 2 wins.
+ */
+#define WINNER_FLAG             5
+
+/*
  * ======================
  * CONTROL VARIABLES
  * ======================
@@ -108,6 +113,11 @@ void switch_turn(Game_struct* game, int current_turn);
  * If the game ended flag is set, returns 1, otherwise 0.
  */
 int is_end_of_game(Game_struct* game);
+
+/*
+ * Sets the winner flag either to 0 or 1.
+ */
+void set_winner(Game_struct* game, int player);
 
 /*
  * Checks the new turn words against the old turn words, and returns 1 if the turn was valid.

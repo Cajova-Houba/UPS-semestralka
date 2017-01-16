@@ -3,7 +3,42 @@
 
 #include <pthread.h>
 #include <semaphore.h>
+#include <unistd.h>
 #include "../common/slog.h"
+#include "game.h"
+
+/*
+ * Arguments for timer thread.
+ */
+typedef struct {
+
+    /*
+     * An index to the timer_threads array in server.c
+     * Note, it begins on -1 and goes to the negative numbers (-2,-3..)
+     */
+    int thread_number;
+
+    /*
+     * A number of second for which the thread will wait.
+     */
+    unsigned int timeout;
+
+    /*
+     * The player thread is waiting for - 0 or 1.
+     */
+    int waiting_for;
+
+    /*
+     * The action to be performed after the thread finishes the waiting.
+     */
+    void (*perform_after)(int);
+
+    /* A pointer to the clearing function.
+     * The thread will call this functions after all the work is done.
+     */
+    void (*cleaning_function)(int);
+} Timer_thread_struct;
+
 
 /*
  * Mutexes for critical sections.
@@ -15,6 +50,7 @@ pthread_mutex_t mutex_cleaner_index;
 pthread_mutex_t mutex_get_player;
 pthread_mutex_t mutex_is_waiting;
 pthread_mutex_t mutex_players_check;
+pthread_mutex_t mutex_timer_threads;
 
 /*
  * Mutex and a condition variable for switching turns.
@@ -64,5 +100,11 @@ sem_t turn_sem;
  * Initializes mutexes and semaphores and returns 0 if error occurs.
  */
 int init_ms();
+
+/*
+ * A timer thread which will wait for some time and then perform an action.
+ * It will also free the passed argument structure.
+ */
+void* timer_thread(void* args);
 
 #endif //SERVER_PARALEL_H

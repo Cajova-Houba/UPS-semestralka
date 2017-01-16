@@ -11,6 +11,7 @@
 #define PLAYER_THREAD_NAME	 	"server - player thread"
 #define COMMON_NAME				"common"
 #define MESSAGE_NAME			"message"
+#define TIMER_THREAD_NAME       "timer"
 
 void sinfo(char *name, char *msg);
 void sdebug(char *name, char *msg);

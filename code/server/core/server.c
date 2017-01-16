@@ -35,6 +35,15 @@
  */
 #define MAX_TIMEOUT             60
 
+
+/*
+ * Possible parameter names.
+ */
+#define HELP_PARAM_NAME         "help"
+#define PORT_PARM_NAME          "port"
+#define IP_PARAM_NAME           "ip"
+
+
 /*
  * Structure which will be passed as an argument to a new thread.
  */
@@ -819,33 +828,102 @@ void *player_thread(void *arg) {
  * =====================================================================
  */
 
+void print_help() {
+    printf("+================+\n");
+    printf("|  SENET SERVER  |\n");
+    printf("+================+\n\n");
+    printf("Possibe paramaters:\n");
+    printf("===================\n");
+    printf("help: Display this help and quit.\n");
+    printf("port <port>: Specify the port server will be listening on. Must be 49152 <= port <= 65535. 65000 is used by default.\n");
+    printf("ip   <ip>: String which specifies the ip address server will be listening on. If not valid, INADDR_ANY is used.\n");
+}
+
+/*
+ * Converts argv to number and stores it to port.
+ * If the conversion goes wrong or the port isn't in range, default value
+ * is used.
+ */
+void load_port(char* argv, int* port) {
+    char log_msg[100];
+    *port = (int)strtol(argv, NULL , 10);
+    if (*port < 49152 || *port > 65535) {
+        sprintf(log_msg, "Provided port value %s is out of possible range, using default %d.\n", argv, SRV_PORT);
+        sdebug(SERVER_NAME, log_msg);
+        *port = SRV_PORT;
+    }
+}
+
+/*
+ * Converts argv to ip addres.
+ * If the conversion fails, INADDR_ANY is used.
+ */
+void load_ip(char* argv, struct in_addr* addr) {
+    char log_msg[100];
+    if(inet_aton(argv, addr) == 0) {
+        sprintf(log_msg, "Address %s is not valid. Using INADDR_ANY instead.\n", argv);
+        serror(SERVER_NAME, log_msg);
+
+        addr->s_addr = htonl(INADDR_ANY);
+    }
+}
+
+/*
+ * Loads data from arguments and return 1 if the program should exist afterwards.
+ */
+int load_arguments(int argc, char* argv[], int* port, struct in_addr* addr ) {
+    int cntr = 1;
+    char log_msg[100];
+
+    while (cntr < argc) {
+        if(strcmp(argv[cntr], HELP_PARAM_NAME) == 0) {
+            // print help
+            print_help();
+            return 1;
+        } else if (strcmp(argv[cntr], PORT_PARM_NAME) == 0) {
+            // load port
+            cntr++;
+            load_port(argv[cntr], port);
+            cntr++;
+        } else if (strcmp(argv[cntr], IP_PARAM_NAME) == 0) {
+            // load ip
+            cntr++;
+            load_ip(argv[cntr], addr);
+            cntr++;
+        } else {
+            // unknown parameter
+            sprintf(log_msg, "Unknown parameter %s.\n", argv[cntr]);
+            sdebug(SERVER_NAME, log_msg);
+            print_help();
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
 /*
  * Main function.
  */ 
 int main(int argc, char *argv[])
 {
 	int sock, incoming_sock;
-    int port;
+    int port = SRV_PORT;
 	int optval;
 	struct sockaddr_in addr, incoming_addr;
+    struct in_addr ip_addr;
 	unsigned int incoming_addr_len;
-	pthread_t cleaner_thread;
-	thread_arg thread_args[MAX_CONNECTIONS];
-	int thread_err;
-	char log_msg[255];
-	int tmp_curr_conn;
+    pthread_t cleaner_thread;
+    thread_arg thread_args[MAX_CONNECTIONS];
+    int thread_err;
+    char log_msg[255];
+    int tmp_curr_conn;
     int tmp;
 
-    /* read port value if any */
-    if (argc < 2) {
-        port = SRV_PORT;
-    } else {
-        port = (int)strtol(argv[1], NULL , 10);
-        if (port < 49152 || port > 65000) {
-            sprintf(log_msg, "Provided port value %d is out of possible range, using default %d.\n", port, SRV_PORT);
-            sdebug(SERVER_NAME, log_msg);
-            port = SRV_PORT;
-        }
+    /* load arguments */
+    ip_addr.s_addr = htonl(INADDR_ANY);
+    if(load_arguments(argc, argv, &port, &ip_addr) == 1) {
+        return 0;
     }
 
     /* init timer threads */
@@ -873,8 +951,8 @@ int main(int argc, char *argv[])
 	/* prepare inet address */
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
-	addr.sin_port = htons(SRV_PORT);
-	addr.sin_addr.s_addr = htonl(INADDR_ANY); /* listen on all interfaces */
+	addr.sin_port = htons((uint16_t )port);
+	addr.sin_addr = ip_addr; /* listen on all interfaces */
 	if (bind(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
         sprintf(log_msg, "Error while binding a new listener: %s.\n", strerror(errno));
 		serror(SERVER_NAME, log_msg);

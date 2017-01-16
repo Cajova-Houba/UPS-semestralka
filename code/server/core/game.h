@@ -34,7 +34,8 @@
 #define TURN_FLAG               4
 
 /*
- * Winner. 0 = player 1 wins, 1 = player 2 wins.
+ * Flag indicating that someone has won the game.
+ * Actual number of winner is stored in winner variable.
  */
 #define WINNER_FLAG             5
 
@@ -49,8 +50,8 @@
  */
 typedef struct {
     Player players[MAX_PLAYERS];
-
     int flags;
+    int winner;
 } Game_struct;
 
 
@@ -115,9 +116,16 @@ void switch_turn(Game_struct* game, int current_turn);
 int is_end_of_game(Game_struct* game);
 
 /*
- * Sets the winner flag either to 0 or 1.
+ * If the player is 0 or 1, sets the winner variable and
+ * the winner flag.
  */
 void set_winner(Game_struct* game, int player);
+
+/*
+ * If the winner flag is set, returns the value of winner variable.
+ * Otherwise returns -1.
+ */
+int get_winner(Game_struct* game);
 
 /*
  * Checks the new turn words against the old turn words, and returns 1 if the turn was valid.
@@ -133,5 +141,10 @@ int validate_turn(char* p1_old_tw, char* p2_old_tw, char* p1_new_tw, char* p2_ne
  *  1: player 2 wins
  */
 int check_winning_conditions(char* p1_turn_word, char* p2_turn_word);
+
+/*
+ * Prints game flags to buffer.
+ */
+void print_flags(char *buffer, Game_struct *game);
 
 #endif //SERVER_GAME_H

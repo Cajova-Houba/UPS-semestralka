@@ -99,7 +99,7 @@ public class LoginController {
                             },
                             event -> {
                                 //receiving response failed
-                                String err = tcpClient.getReceivingService().getException().toString();
+                                String err = tcpClient.getReceivingService().getException().getMessage();
                                 logger.error("Error while receiving response from server: "+err);
                                 view.displayMessage("Chyba při odesílání nicku na server.");
                                 tcpClient.disconnect();
@@ -108,7 +108,7 @@ public class LoginController {
                 },
                 e -> {
                     //sending nick failed
-                    String err = tcpClient.getNickService().getException().toString();
+                    String err = tcpClient.getNickService().getException().getMessage();
                     logger.error("Error while sending nick to server: "+err);
                     view.displayMessage("Chyba při odesílání nicku na server.");
                     tcpClient.disconnect();

@@ -161,6 +161,24 @@ public class MessageReceiver extends Task<AbstractReceivedMessage> {
                 logger.trace("Received: END_GAME");
                 return new EndGameReceivedMessage(winner);
 
+            case 'W':
+                //receive 'AITING'
+                buffer = new byte[6];
+                received = inFromServer.read(buffer);
+                if(received != buffer.length || !Pattern.matches("AITING", new String(buffer))) {
+                    logger.error("Error while receiving WAITING message.");
+                    throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
+                }
+
+                // receive the nick of the player the game is waiting for
+                String nick = receiveNick(inFromServer, ';');
+                if(nick == null) {
+                    logger.error("Empty nick received!");
+                    throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
+                }
+
+                return new WaitingForPlayerReceivedMessage(nick);
+
             default:
                 throw new ReceivingException(Error.BAD_MSG_CONTENT());
         }

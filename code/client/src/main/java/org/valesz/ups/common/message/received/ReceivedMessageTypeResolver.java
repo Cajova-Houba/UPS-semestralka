@@ -85,4 +85,18 @@ public class ReceivedMessageTypeResolver {
         return null;
     }
 
+    /**
+     * Checks if the message is WaitingForPlayerReceivedMessage and if the type is same,
+     * returns it. Otherwise null is returned.
+     * @param message
+     * @return
+     */
+    public static WaitingForPlayerReceivedMessage isWaitingForPlayer(AbstractReceivedMessage message) {
+        if(isMessageType(message, WaitingForPlayerReceivedMessage.class)) {
+            return (WaitingForPlayerReceivedMessage)message;
+        }
+
+        return null;
+    }
+
 }

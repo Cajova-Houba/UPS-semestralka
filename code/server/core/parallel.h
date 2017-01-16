@@ -4,8 +4,8 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include "../common/slog.h"
-#include "game.h"
 
 /*
  * Arguments for timer thread.
@@ -51,6 +51,7 @@ pthread_mutex_t mutex_get_player;
 pthread_mutex_t mutex_is_waiting;
 pthread_mutex_t mutex_players_check;
 pthread_mutex_t mutex_timer_threads;
+pthread_mutex_t mutex_winner;
 
 /*
  * Mutex and a condition variable for switching turns.

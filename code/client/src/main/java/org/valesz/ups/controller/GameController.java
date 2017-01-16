@@ -180,7 +180,9 @@ public class GameController {
 
     /**
      * Waits until new turn message is received.
-     * Also checks if the
+     * The waiting for player message can also be received,
+     * in that case, continue waiting for the new turn message.
+     * End game message with the winner can also be received at this point.
      */
     public void waitForNewTurn() {
         logger.debug("Waiting for my turn.");
@@ -190,16 +192,19 @@ public class GameController {
                     // response
                     AbstractReceivedMessage response = tcpClient.getReceivingService().getValue();
                     StartTurnReceivedMessage startTurn = ReceivedMessageTypeResolver.isStartTurn(response);
-                    if (startTurn == null) {
-                        EndGameReceivedMessage endGame = ReceivedMessageTypeResolver.isEndGame(response);
-                        if (endGame != null) {
-                            logger.debug("End of the game, winner is: "+endGame.getContent());
-                        } else {
-                            // wrong response
-                            logger.error("Wrong message received. Expected START_TURN, received: "+response);
-                        }
-                    } else {
+                    EndGameReceivedMessage endGame = ReceivedMessageTypeResolver.isEndGame(response);
+                    WaitingForPlayerReceivedMessage waitingForPlayer = ReceivedMessageTypeResolver.isWaitingForPlayer(response);
+
+                    if( endGame != null) {
+                        logger.debug("End of the game, winner is: "+endGame.getContent());
+                    } else if (waitingForPlayer != null) {
+                        logger.debug("The game is waiting for player "+waitingForPlayer.getContent()+" to reconnect.");
+                        waitForNewTurn();
+                    } else if (startTurn != null) {
                         newTurn(startTurn.getFirstPlayerStones(), startTurn.getSecondPlayerStones());
+                    } else {
+                        // wrong response
+                        logger.error("Wrong message received. Expected START_TURN, received: "+response);
                     }
                 },
                 event -> {

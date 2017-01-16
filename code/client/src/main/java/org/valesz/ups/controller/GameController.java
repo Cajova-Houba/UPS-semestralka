@@ -24,10 +24,16 @@ public class GameController {
     private Board boardView;
     private TcpClient tcpClient;
 
-    public GameController(MainPane view, Board boardView, TcpClient tcpClient) {
-        this.view = view;
-        this.boardView = boardView;
+    public GameController(TcpClient tcpClient) {
         this.tcpClient = tcpClient;
+    }
+
+    public void setView(MainPane view) {
+        this.view = view;
+    }
+
+    public void setBoardView(Board boardView) {
+        this.boardView = boardView;
     }
 
     /**
@@ -197,6 +203,7 @@ public class GameController {
 
                     if( endGame != null) {
                         logger.debug("End of the game, winner is: "+endGame.getContent());
+                        endGame(endGame.getContent());
                     } else if (waitingForPlayer != null) {
                         logger.debug("The game is waiting for player "+waitingForPlayer.getContent()+" to reconnect.");
                         waitForNewTurn();
@@ -255,5 +262,14 @@ public class GameController {
         boardView.deselect();
         boardView.updateStones(Game.getInstance().getFirstPlayer().getStones(),
                                Game.getInstance().getSecondPlayer().getStones());
+    }
+
+    /**
+     * Ends the game, disconnects the tcpClient.
+     */
+    public void endGame(String winner) {
+        Game.getInstance().resetGame();
+        tcpClient.disconnect();
+        view.displayEndGameDialog(winner);
     }
 }

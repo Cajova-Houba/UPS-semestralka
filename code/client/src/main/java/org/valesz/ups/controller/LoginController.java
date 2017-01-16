@@ -27,8 +27,11 @@ public class LoginController {
 
     private LoginPane view;
 
-    public LoginController(TcpClient tcpClient, LoginPane view) {
+    public LoginController(TcpClient tcpClient) {
         this.tcpClient = tcpClient;
+    }
+
+    public void setView(LoginPane view) {
         this.view = view;
     }
 
@@ -141,5 +144,19 @@ public class LoginController {
                     view.displayMessage("Chyba při odesílání nicku na server.");
                     tcpClient.disconnect();
                 });
+    }
+
+    /**
+     * Tries to reconnect to the same server. If no lastSuccessfulConnection exists, switches to LoginPane.
+     */
+    public void reconnect() {
+        LoginData lastSuc = tcpClient.getLastSuccessfulConnection();
+        if(lastSuc == null) {
+            logger.warn("No last successful connection!");
+            MainApp.switchToLogin();
+        } else {
+            connect(lastSuc);
+        }
+
     }
 }

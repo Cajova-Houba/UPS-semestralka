@@ -6,6 +6,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.valesz.ups.common.error.Error;
 import org.valesz.ups.common.message.Message;
+import org.valesz.ups.model.LoginData;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -22,6 +23,7 @@ public class TcpClient {
 
     public static final Logger logger = LogManager.getLogger(TcpClient.class);
 
+    private LoginData lastSuccessfulConnection;
     private Socket socket;
     private NickService nickService;
     private ReceivingService receivingService;
@@ -58,6 +60,7 @@ public class TcpClient {
                 receivingService = new ReceivingService();
                 turnService = new TurnService();
 
+                lastSuccessfulConnection = new LoginData("", address, port);
             } catch (IOException e) {
                 logger.debug("Error setting reuse address.");
                 socket = null;
@@ -84,6 +87,7 @@ public class TcpClient {
                 logger.error("Error while closing the socket: "+e.getMessage());
             }
         }
+        socket = null;
     }
 
     /**
@@ -111,7 +115,10 @@ public class TcpClient {
 
         nickService.setNick(nick);
         nickService.setOutToServer(outToServer);
-        nickService.setOnSucceeded(successCallback);
+        nickService.setOnSucceeded(event -> {
+            lastSuccessfulConnection = new LoginData(nick, lastSuccessfulConnection.getAddress(), lastSuccessfulConnection.getPort());
+            successCallback.handle(event);
+        });
         nickService.setOnFailed(failCallback);
         nickService.restart();
 
@@ -179,5 +186,7 @@ public class TcpClient {
         return socket;
     }
 
-
+    public LoginData getLastSuccessfulConnection() {
+        return lastSuccessfulConnection;
+    }
 }

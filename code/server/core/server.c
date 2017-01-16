@@ -351,10 +351,13 @@ void get_timer_thread_num(int *variable) {
  */
 void waiting_thread_after(int waiting_for) {
     int tmp;
-    char log_msg[50];
+    char log_msg[100];
     is_game_waiting_for_player(&tmp, waiting_for);
     if(tmp == 1) {
         // the game is still waiting for a player
+        sprintf(log_msg, "The player %d still isn't connected. Other player wins the game.\n", waiting_for);
+        sdebug(TIMER_THREAD_NAME, log_msg);
+
 
         // check the end of the game
         if (is_end_of_game(&game) == 1) {
@@ -368,12 +371,13 @@ void waiting_thread_after(int waiting_for) {
         } else {
             server_set_winner(0);
         }
+        decrement_players();
         server_end_game();
 
         // wake waiting player threads
         switch_turn(&game, waiting_for);
         pthread_mutex_unlock(&mutex_turn);
-        pthread_cond_broadcast(&cond_turn);
+        pthread_cond_signal(&cond_turn);
     } else {
         sprintf(log_msg, "The game is not waiting for player %d anymore.\n", waiting_for);
         sdebug(TIMER_THREAD_NAME, log_msg);

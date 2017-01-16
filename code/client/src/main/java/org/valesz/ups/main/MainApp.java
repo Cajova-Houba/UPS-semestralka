@@ -2,9 +2,11 @@ package org.valesz.ups.main;
 
 import javafx.application.Application;
 import javafx.scene.Scene;
+import javafx.scene.layout.Pane;
 import javafx.stage.Stage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.valesz.ups.controller.GameController;
 import org.valesz.ups.controller.LoginController;
 import org.valesz.ups.controller.ViewController;
 import org.valesz.ups.ui.LoginPane;
@@ -35,11 +37,25 @@ public class MainApp extends Application{
     private static Scene mainScene, loginScene;
     private static Stage stage;
 
+    /**
+     * Controllers used in app.
+     */
+    private static ViewController viewController;
+    private static LoginController loginController;
+    private static GameController gameController;
+
     public static void main(String[] args) {
         logger.info("Initializing main app.");
         tcpClient = new TcpClient();
+        initControllers();
 
         Application.launch(args);
+    }
+
+    private static void initControllers() {
+        viewController = new ViewController();
+        loginController = new LoginController(tcpClient);
+        gameController = new GameController(tcpClient);
     }
 
     @Override
@@ -56,11 +72,13 @@ public class MainApp extends Application{
     }
 
     private static void initLoginScene() {
-        loginScene = new Scene(new LoginPane(tcpClient), DEF_LOGIN_WIDTH, DEF_LOGIN_HEIGHT);
+        loginController = new LoginController(tcpClient);
+        LoginPane loginPane = new LoginPane(tcpClient, loginController);
+        loginScene = new Scene(loginPane, DEF_LOGIN_WIDTH, DEF_LOGIN_HEIGHT);
     }
 
     private static void initMainScene() {
-        mainScene = new Scene(new MainPane(tcpClient), DEF_WIDTH, DEF_HEIGHT);
+        mainScene = new Scene(new MainPane(tcpClient, gameController, viewController, loginController), DEF_WIDTH, DEF_HEIGHT);
     }
 
     /**
@@ -80,8 +98,9 @@ public class MainApp extends Application{
     public static void switchToMain() {
         if(mainScene == null) {
             initMainScene();
+        } else {
+            ((MainPane)mainScene.getRoot()).initialize();
         }
-
         stage.setScene(mainScene);
         ((MainPane)mainScene.getRoot()).waitForStartGame();
     }

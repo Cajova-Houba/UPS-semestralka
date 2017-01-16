@@ -86,6 +86,10 @@ public class Game {
     }
 
     private Game() {
+        resetGame();
+    }
+
+    public void resetGame() {
         winner = false;
         state = GameState.NOT_STARTED;
         turn = 1;

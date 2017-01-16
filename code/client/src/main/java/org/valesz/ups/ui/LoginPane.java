@@ -45,10 +45,11 @@ public class LoginPane extends GridPane {
 
     private LoginController controller;
 
-    public LoginPane(TcpClient tcpClient) {
+    public LoginPane(TcpClient tcpClient, LoginController loginController) {
         super();
         this.tcpClient = tcpClient;
-        this.controller = new LoginController(tcpClient, this);
+        this.controller = loginController;
+        this.controller.setView(this);
         initialize();
     }
 

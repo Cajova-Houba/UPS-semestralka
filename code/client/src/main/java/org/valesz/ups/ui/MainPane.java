@@ -3,6 +3,7 @@ package org.valesz.ups.ui;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.*;
 import javafx.scene.text.Font;
@@ -11,9 +12,14 @@ import javafx.scene.text.Text;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.valesz.ups.controller.GameController;
+import org.valesz.ups.controller.LoginController;
+import org.valesz.ups.controller.ViewController;
 import org.valesz.ups.main.MainApp;
 import org.valesz.ups.model.game.Game;
 import org.valesz.ups.network.TcpClient;
+
+import java.util.Optional;
+
 
 /**
  * Main window.
@@ -32,6 +38,8 @@ public class MainPane extends BorderPane {
     private TcpClient tcpClient;
 
     private GameController controller;
+    private ViewController viewController;
+    private LoginController loginController;
 
     /*components*/
     private TextArea infoArea;
@@ -39,12 +47,14 @@ public class MainPane extends BorderPane {
     private Text p1Text, p2Text, turnText, throwText;
     private Button exitButton, endTurnButton, throwButton, leaveButton;
 
-    public MainPane(TcpClient tcpClient) {
+    public MainPane(TcpClient tcpClient, GameController gameController, ViewController viewController, LoginController loginController) {
         super();
         this.tcpClient = tcpClient;
+        this.controller = gameController;
+        this.viewController = viewController;
+        this.loginController = loginController;
+        this.controller.setView(this);
         initialize();
-        this.controller = new GameController(this, canvas, tcpClient);
-        canvas.setGameController(controller);
     }
 
     /**
@@ -66,10 +76,12 @@ public class MainPane extends BorderPane {
     /**
      * Initializes the components in this pane.
      */
-    private void initialize() {
+    public void initialize() {
         setLeft(getControlPane());
         setCenter(getMainPane());
         setBottom(getStatusPane());
+        canvas.setGameController(controller);
+        this.controller.setBoardView(canvas);
     }
 
     /**
@@ -255,6 +267,24 @@ public class MainPane extends BorderPane {
      */
     public void addLogMessage(String message) {
         infoArea.appendText(message);
+    }
+
+    /**
+     * Displays the end game dialog.
+     * @param winner
+     */
+    public void displayEndGameDialog(String winner) {
+        EndGameAlert alert = new EndGameAlert(winner);
+        Optional<ButtonType> res = alert.showAndWait();
+        if (res.get() == EndGameAlert.EXIT_BUTTON) {
+            logger.debug("Exiting...");
+        } else if (res.get() == EndGameAlert.ANOTHER_SERVER_BUTTON) {
+            // switch to login pane
+            viewController.displayLoginPane();
+        } else if (res.get() == EndGameAlert.NEW_GAME_BUTTON) {
+            // reconnect on the same server
+            loginController.reconnect();
+        }
     }
 
 }

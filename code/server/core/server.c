@@ -822,9 +822,10 @@ void *player_thread(void *arg) {
 /*
  * Main function.
  */ 
-int main(int argc, char **argv)
+int main(int argc, char *argv[])
 {
 	int sock, incoming_sock;
+    int port;
 	int optval;
 	struct sockaddr_in addr, incoming_addr;
 	unsigned int incoming_addr_len;
@@ -835,6 +836,18 @@ int main(int argc, char **argv)
 	int tmp_curr_conn;
     int tmp;
 
+    /* read port value if any */
+    if (argc < 2) {
+        port = SRV_PORT;
+    } else {
+        port = (int)strtol(argv[1], NULL , 10);
+        if (port < 49152 || port > 65000) {
+            sprintf(log_msg, "Provided port value %d is out of possible range, using default %d.\n", port, SRV_PORT);
+            sdebug(SERVER_NAME, log_msg);
+            port = SRV_PORT;
+        }
+    }
+
     /* init timer threads */
     for (tmp = 0; tmp < MAX_TIMER_THREADS; tmp++) {
         timer_threads[tmp] = NULL;
@@ -843,7 +856,7 @@ int main(int argc, char **argv)
 	printf("\n\n");
 	printf("==========================\n");
 	printf("   I am a Senet server.\n");
-	printf("Connect on 127.0.0.1:%d\n",SRV_PORT);
+	printf("  Connect on port %d\n",port);
 	printf("==========================\n\n\n");
 
 	/* create socket */
@@ -869,7 +882,8 @@ int main(int argc, char **argv)
 	}
 
 	if (listen(sock, 10) < 0) {
-		serror("server","Error while listening.");
+        sprintf(log_msg, "Error while listening: %s.\n", strerror(errno));
+        serror(SERVER_NAME, log_msg);
 		return 1;
 	}
 	

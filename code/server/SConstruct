@@ -1,4 +1,7 @@
+import glob
 env = Environment(CCFLAGS=['-pthread','-Wall'])
 
-env.Program(target="build/server",source=["core/server.c","common/common.c","common/slog.c","common/nick_val.c", "common/message.c"],LIBS=['pthread'])
-env.Program(terget="build/testClient",source=["testClient.c", "common/common.c", "common/slog.c"])
+commonSources = glob.glob("common/*.c");
+sources = glob.glob("core/**.c") + commonSources;
+env.Program(target="build/server",source=sources,LIBS=['pthread'])
+#env.Program(target="build/testClient",source=["testClient.c", "common/common.c", "common/slog.c"])

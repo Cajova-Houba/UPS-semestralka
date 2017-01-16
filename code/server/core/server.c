@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <errno.h>
 
 #include "../common/common.h"
 #include "../common/seneterror.h"
@@ -830,7 +831,7 @@ int main(int argc, char **argv)
 	pthread_t cleaner_thread;
 	thread_arg thread_args[MAX_CONNECTIONS];
 	int thread_err;
-	char *logMsg;
+	char log_msg[255];
 	int tmp_curr_conn;
     int tmp;
 
@@ -862,7 +863,8 @@ int main(int argc, char **argv)
 	addr.sin_port = htons(SRV_PORT);
 	addr.sin_addr.s_addr = htonl(INADDR_ANY); /* listen on all interfaces */
 	if (bind(sock, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
-		serror("server","Error while binding a new listener.");
+        sprintf(log_msg, "Error while binding a new listener: %s.\n", strerror(errno));
+		serror(SERVER_NAME, log_msg);
 		return 1;
 	}
 
@@ -879,11 +881,10 @@ int main(int argc, char **argv)
 	 * Start the cleaning thread
 	 */ 
 	if(pthread_create(&cleaner_thread, NULL, cleaner, NULL)) {
-		serror(SERVER_NAME, "Error while initilizing the cleaner thread.\n");
+		serror(SERVER_NAME, "Error while initializing the cleaner thread.\n");
 		return 1;
 	}
-	
-	logMsg = (char*)malloc(sizeof(char)*255);
+
 	/* listening loop - wait for players*/
 	while (1) 
 	{	
@@ -896,15 +897,15 @@ int main(int argc, char **argv)
 		if (incoming_sock < 0)
 		{
 			close(sock);
-			serror("server","Error while acceptig a new connection.");
+			serror("server","Error while accepting a new connection.");
 		}
 		
 		/* connection info */
-		sprintf(logMsg, "Connection from %s:%i\n",
+		sprintf(log_msg, "Connection from %s:%i\n",
 	        	inet_ntoa(incoming_addr.sin_addr),
 	        	ntohs(incoming_addr.sin_port)
 		);
-		sinfo("server",logMsg);
+		sinfo("server",log_msg);
 
 		/* 
 		 * new thread which will validate the nickname 
@@ -926,8 +927,8 @@ int main(int argc, char **argv)
         thread_args[tmp_curr_conn].port = incoming_addr.sin_port;
 		thread_err = pthread_create(&connections[tmp_curr_conn], NULL, player_thread,(void *)&thread_args[tmp_curr_conn]);
 		if(thread_err) {
-			sprintf(logMsg, "Error: %s\n",strerror(thread_err));
-			serror(SERVER_NAME,logMsg);
+			sprintf(log_msg, "Error: %s\n",strerror(thread_err));
+			serror(SERVER_NAME,log_msg);
             break;
 		}
 	}
@@ -937,6 +938,5 @@ int main(int argc, char **argv)
 	/* wait for cleaner */
 	shutdown_cleaner();
 	pthread_join(cleaner_thread, NULL);
-	free(logMsg);	
 	return 0;
 }

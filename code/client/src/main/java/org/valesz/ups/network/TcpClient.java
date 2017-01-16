@@ -36,37 +36,40 @@ public class TcpClient {
      * @param port
      * @return
      */
-    public Error connect(String address, int port) {
-        Socket tmpSocket;
-        String errMsg;
+    public Error connect(String address, int port,
+                         EventHandler<WorkerStateEvent> successCallback,
+                         EventHandler<WorkerStateEvent> failCallback) {
 
-        logger.debug(String.format("Connecting to %s:%d.", address, port));
+        ConnectionService cs = new ConnectionService(address, port);
+        cs.setOnFailed(event -> {
+            String err = String.format("Error while connecting to %s:%d",address, port);
+            logger.error(err);
 
-        try {
-            tmpSocket = new Socket(address, port);
-        } catch (IOException e) {
-            errMsg = String.format("Error while connecting to %s:%d",address, port);
-            logger.error(errMsg);
-            return Error.GENERAL_ERROR(errMsg);
-        }
+            failCallback.handle(event);
+        });
+        cs.setOnSucceeded(event -> {
+            this.socket = cs.getValue();
+            try {
+                socket.setReuseAddress(true);
+                socket.getKeepAlive();
+                nickService = new NickService();
+                inFromServer = new DataInputStream(socket.getInputStream());
+                outToServer = new DataOutputStream(socket.getOutputStream());
+                receivingService = new ReceivingService();
+                turnService = new TurnService();
 
-        socket = tmpSocket;
-        try {
-            socket.setReuseAddress(true);
-            socket.getKeepAlive();
-            nickService = new NickService();
-            inFromServer = new DataInputStream(socket.getInputStream());
-            outToServer = new DataOutputStream(socket.getOutputStream());
-            receivingService = new ReceivingService();
-            turnService = new TurnService();
+            } catch (IOException e) {
+                logger.debug("Error setting reuse address.");
+                socket = null;
 
-        } catch (IOException e) {
-            logger.debug("Error setting reuse address.");
-            socket = null;
-            return Error.GENERAL_ERROR("Connection error occurred.");
-        }
+                failCallback.handle(event);
+                return;
+            }
 
-        logger.debug("Connected.");
+            successCallback.handle(event);
+        });
+        cs.restart();
+
         return Error.NO_ERROR();
     }
 
@@ -88,7 +91,7 @@ public class TcpClient {
      * @return
      */
     public boolean isConnected() {
-        return socket.isConnected();
+        return socket != null && socket.isConnected();
     }
 
     /**

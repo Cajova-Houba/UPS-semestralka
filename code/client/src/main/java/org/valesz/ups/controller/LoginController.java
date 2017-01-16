@@ -56,6 +56,36 @@ public class LoginController {
         }
     }
 
+    /**
+     * Tries to connect to server and if successful, sends player's nick to server.
+     */
+    public void connect(LoginData loginData) {
+
+        logger.debug(String.format("Connecting to %s:%d.", loginData.getAddress(), loginData.getPort()));
+
+        if(tcpClient.isConnected()) {
+            login(loginData);
+            return;
+        }
+
+        tcpClient.connect(loginData.getAddress(), loginData.getPort(),
+                event -> {
+                    //ok
+                    logger.debug("Connected.");
+                    login(loginData);
+                },
+                event -> {
+                    // not ok
+                    logger.error(String.format("Error while connecting to %s:%d",loginData.getAddress(), loginData.getPort()));
+                    view.displayMessage(String.format("Klient se nemohl připojit k %s:%d.", loginData.getAddress(), loginData.getPort()));
+                });
+
+    }
+
+    /**
+     * Do not call this method directly, call connect() first.
+     * @param loginData
+     */
     public void login(LoginData loginData) {
 
         //check nick
@@ -63,10 +93,8 @@ public class LoginController {
             return;
         }
 
-        // connect to server
-        Error res = tcpClient.connect(loginData.getAddress(), loginData.getPort());
-        if (!res.ok()) {
-            view.displayMessage(res.msg);
+        if(!tcpClient.isConnected()) {
+            logger.warn("Tcp client not connected!");
             return;
         }
 

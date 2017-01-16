@@ -131,7 +131,7 @@ public class LoginPane extends GridPane {
         }
         String nick = getNick();
         LoginData loginData = new LoginData(nick, addr, p);
-        controller.login(loginData);
+        controller.connect(loginData);
 
     }
 

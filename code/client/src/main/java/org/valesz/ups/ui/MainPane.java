@@ -32,6 +32,7 @@ public class MainPane extends BorderPane {
     public static final Font DEF_FONT = Font.font("Tahoma", FontWeight.NORMAL, 20);
     public static final Font DEF_SMALL_FONT = Font.font("Tahoma", FontWeight.NORMAL, 12);
     public static final String GAME_TITLE = "Senet";
+    public static final String CLIENT_TITLE = "Klient";
     public static final int CANVAS_WIDTH = 650;
     public static final int CANVAS_HEIGHT = 210;
 
@@ -44,7 +45,7 @@ public class MainPane extends BorderPane {
     /*components*/
     private TextArea infoArea;
     private Board canvas;
-    private Text p1Text, p2Text, turnText, throwText;
+    private Text p1Text, p2Text, turnText, throwText, nickText, portText;
     private Button exitButton, endTurnButton, throwButton, leaveButton;
 
     public MainPane(TcpClient tcpClient, GameController gameController, ViewController viewController, LoginController loginController) {
@@ -52,6 +53,7 @@ public class MainPane extends BorderPane {
         this.tcpClient = tcpClient;
         this.controller = gameController;
         this.viewController = viewController;
+        this.viewController.setMainView(this);
         this.loginController = loginController;
         this.controller.setView(this);
         initialize();
@@ -80,6 +82,8 @@ public class MainPane extends BorderPane {
         setLeft(getControlPane());
         setCenter(getMainPane());
         setBottom(getStatusPane());
+//        setRight(getClientInfoPane());
+        setTop(getClientInfoPane());
         canvas.setGameController(controller);
         this.controller.setBoardView(canvas);
     }
@@ -140,33 +144,33 @@ public class MainPane extends BorderPane {
      * @return
      */
     private Pane getInfoPane() {
-        VBox container = new VBox();
-        container.setPadding(new Insets(10));
+        VBox gameInfoContainer = new VBox();
+        gameInfoContainer.setPadding(new Insets(10));
 
         Text gameTitle = new Text(GAME_TITLE);
         gameTitle.setFont(DEF_FONT);
-        container.getChildren().add(gameTitle);
+        gameInfoContainer.getChildren().add(gameTitle);
 
         HBox player1Caption = new HBox();
         player1Caption.getChildren().add(new Text("Hráč 1: "));
         p1Text = new Text("-");
         p1Text.setFont(DEF_SMALL_FONT);
         player1Caption.getChildren().add(p1Text);
-        container.getChildren().add(player1Caption);
+        gameInfoContainer.getChildren().add(player1Caption);
 
         HBox player2Caption = new HBox();
         player2Caption.getChildren().add(new Text("Hráč 2: "));
         p2Text = new Text("-");
         p2Text.setFont(DEF_SMALL_FONT);
         player2Caption.getChildren().add(p2Text);
-        container.getChildren().add(player2Caption);
+        gameInfoContainer.getChildren().add(player2Caption);
 
         HBox turnTextCaption = new HBox();
         turnTextCaption.getChildren().add(new Text("Táhne: "));
         turnText = new Text("-");
         turnText.setFont(DEF_SMALL_FONT);
         turnTextCaption.getChildren().add(turnText);
-        container.getChildren().add(turnTextCaption);
+        gameInfoContainer.getChildren().add(turnTextCaption);
 
         VBox throwBox = new VBox();
         HBox throwTextCaption = new HBox();
@@ -178,9 +182,31 @@ public class MainPane extends BorderPane {
         throwButton = new Button("Hoď dřívky");
         throwButton.setOnAction(event -> onThrowClick());
         throwBox.getChildren().add(throwButton);
-        container.getChildren().add(throwBox);
+        gameInfoContainer.getChildren().add(throwBox);
 
-        return container;
+        return gameInfoContainer;
+    }
+
+    private Pane getClientInfoPane() {
+        HBox clientInfoContainer = new HBox(20);
+        clientInfoContainer.setPadding(new Insets(5,0,0,30));
+
+//        Text clientTitle = new Text(CLIENT_TITLE+": ");
+//        clientInfoContainer.getChildren().add(clientTitle);
+
+        HBox portInfo = new HBox();
+        portInfo.getChildren().add(new Text("Port: "));
+        portText = new Text("-");
+        portInfo.getChildren().add(portText);
+        clientInfoContainer.getChildren().add(portInfo);
+
+        HBox nickInfo = new HBox();
+        nickInfo.getChildren().add(new Text("Nick: "));
+        nickText = new Text("-");
+        nickInfo.getChildren().add(nickText);
+        clientInfoContainer.getChildren().add(nickInfo);
+
+        return clientInfoContainer;
     }
 
     /**
@@ -285,6 +311,16 @@ public class MainPane extends BorderPane {
             // reconnect on the same server
             loginController.reconnect();
         }
+    }
+
+    /**
+     * Displays port and nick in the top bar.
+     * @param port
+     * @param nick
+     */
+    public void showPortAndNick(int port, String nick) {
+        nickText.setText(nick);
+        portText.setText(Integer.toString(port));
     }
 
 }

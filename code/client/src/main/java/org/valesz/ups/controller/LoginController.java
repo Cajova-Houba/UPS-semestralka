@@ -27,12 +27,19 @@ public class LoginController {
 
     private LoginPane view;
 
+    private ViewController viewController;
+
     public LoginController(TcpClient tcpClient) {
         this.tcpClient = tcpClient;
     }
 
     public void setView(LoginPane view) {
         this.view = view;
+    }
+
+
+    public void setViewController(ViewController viewController) {
+        this.viewController = viewController;
     }
 
     /**
@@ -125,7 +132,8 @@ public class LoginController {
                                     // nick ok
                                     Game.getInstance().waitingForOpponent(loginData.getNick());
                                     logger.debug("Login ok.");
-                                    MainApp.switchToMain();
+                                    int port = tcpClient.getSocket().getLocalPort();
+                                    viewController.displayMainPane(port, loginData.getNick());
                                 }
                             },
                             event -> {

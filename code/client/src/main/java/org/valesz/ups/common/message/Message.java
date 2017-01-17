@@ -69,6 +69,14 @@ public class Message {
         return new Message(MessageType.CMD, nick);
     }
 
+    /**
+     * Creates a message of type INF with EXIT string as a content.
+     * @return
+     */
+    public static Message createExitMessage() {
+        return new Message(MessageType.INF, "EXIT");
+    }
+
     public Message(MessageType messageType, String content) {
         this.messageType = messageType;
         this.content = content;

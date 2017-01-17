@@ -11,6 +11,8 @@
 #define     START_TURN_MESSAGE_LEN      13
 #define     WAIT_FOR_PLAYER_MESSAGE     "INFWAITING"
 #define     WAIT_FOR_PLAYER_MESSAGE_LEN 10
+#define     EXIT_MSG                    "EXIT"
+#define     EXIT_MSG_LEN                4
 
 /* message types */
 #define		MSG_TYPE_INF				"INF\0"
@@ -47,6 +49,7 @@ int recv_nick(int socket, char* buffer);
  * Both turn words are expected to have length equal to TURN_WORD_LENGTH.
  *
  * Returns:
+ *  2 : Client quit.
  * 	1 : Nick was received.
  *  0: Socket closed connection.
  *  Error from seneterror.h

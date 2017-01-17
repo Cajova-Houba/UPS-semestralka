@@ -174,6 +174,21 @@ public class TcpClient {
 
     }
 
+    public Error sendExitMessage(EventHandler<WorkerStateEvent> successCallback,
+                                 EventHandler<WorkerStateEvent> failCallback) {
+        if(!isConnected()) {
+            return Error.GENERAL_ERROR("No active connection.");
+        }
+
+        ExitService exitService = new ExitService();
+        exitService.setOutToServer(outToServer);
+        exitService.setOnSucceeded(successCallback);
+        exitService.setOnFailed(failCallback);
+        exitService.restart();
+
+        return Error.NO_ERROR();
+    }
+
     public NickService getNickService() {
         return nickService;
     }

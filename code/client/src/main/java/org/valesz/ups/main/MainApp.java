@@ -25,7 +25,7 @@ public class MainApp extends Application{
 
     private static TcpClient tcpClient;
     public static final int DEF_WIDTH = 855;
-    public static final int DEF_HEIGHT = 480;
+    public static final int DEF_HEIGHT = 520;
     public static final int DEF_LOGIN_WIDTH = 640;
     public static final int DEF_LOGIN_HEIGHT = 240;
     public static final String DEF_TITLE = "Senet - klient";
@@ -52,10 +52,24 @@ public class MainApp extends Application{
         Application.launch(args);
     }
 
+    @Override
+    public void stop() throws Exception {
+        tcpClient.sendExitMessage(
+                event -> {
+                    logger.debug("Exit message sent.");
+                },
+                event -> {
+                    logger.error("Error while sending exit message.");
+                });
+        super.stop();
+    }
+
     private static void initControllers() {
         viewController = new ViewController();
         loginController = new LoginController(tcpClient);
         gameController = new GameController(tcpClient);
+
+        loginController.setViewController(viewController);
     }
 
     @Override
@@ -72,7 +86,6 @@ public class MainApp extends Application{
     }
 
     private static void initLoginScene() {
-        loginController = new LoginController(tcpClient);
         LoginPane loginPane = new LoginPane(tcpClient, loginController);
         loginScene = new Scene(loginPane, DEF_LOGIN_WIDTH, DEF_LOGIN_HEIGHT);
     }
@@ -89,6 +102,8 @@ public class MainApp extends Application{
             initLoginScene();
         }
 
+        stage.setWidth(DEF_LOGIN_WIDTH);
+        stage.setHeight(DEF_LOGIN_HEIGHT);
         stage.setScene(loginScene);
     }
 
@@ -101,6 +116,9 @@ public class MainApp extends Application{
         } else {
             ((MainPane)mainScene.getRoot()).initialize();
         }
+
+        stage.setWidth(DEF_WIDTH);
+        stage.setHeight(DEF_HEIGHT);
         stage.setScene(mainScene);
         ((MainPane)mainScene.getRoot()).waitForStartGame();
     }

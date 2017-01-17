@@ -60,13 +60,15 @@ int recv_nick(int socket, char* buffer) {
  * Both turn words are expected to have length equal to TURN_WORD_LENGTH.
  *
  * Returns:
+ *  2 : Client quit.
  * 	1 : Both turn words received.
  *  0: Socket closed connection.
  *  Error from seneterror.h
  */
 int recv_end_turn(int socket, char* player1_turn_word, char* player2_turn_word) {
-    char nbuffer[4]; // 4 is max length of msg type + '\0'
+    char nbuffer[5]; // 5 is max length of EXIT message + '\0'
     int recv_status = 0;
+	int i;
 
     sdebug(MESSAGE_NAME, "Waiting for end turn message.\n");
     recv_status = recv_bytes(socket, nbuffer, MSG_TYPE_LEN);
@@ -75,16 +77,28 @@ int recv_end_turn(int socket, char* player1_turn_word, char* player2_turn_word) 
         return recv_status;
     }
 
-    /* the type must be CMD */
+    /* the type must be INF */
     nbuffer[3] = '\0';
     if(strcmp(nbuffer, MSG_TYPE_INF) != 0) {
         serror(MESSAGE_NAME, "Wrong message type received, expecting INF.\n");
         return ERR_MSG_TYPE;
     }
 
-    /* first 5 bytes are 1 turn word */
-    recv_status = recv_bytes(socket, player1_turn_word, TURN_WORD_LENGTH);
-    if(recv_status != TURN_WORD_LENGTH) {
+	/* try to receive first 4 bytes and check exit message */
+	recv_status = recv_bytes(socket, nbuffer, EXIT_MSG_LEN);
+	if (recv_status == EXIT_MSG_LEN && strcmp(nbuffer, EXIT_MSG) == 0) {
+		sdebug(MESSAGE_NAME, "EXIT message received.\n");
+		return 2;
+	} else {
+		// received message is a turn word, copy 4 bytes
+		for(i = 0; i < EXIT_MSG_LEN; i++) {
+			player1_turn_word[i] = nbuffer[i];
+		}
+	}
+
+    /* receive the remaining 1 byte of the first turn word */
+    recv_status = recv_bytes(socket, &player1_turn_word[TURN_WORD_LENGTH-1], 1);
+    if(recv_status != 1) {
         serror(MESSAGE_NAME, "Error while receiving first turn word of end turn message.\n");
         return ERR_MSG_CONTENT;
     }

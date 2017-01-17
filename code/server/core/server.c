@@ -33,7 +33,7 @@
 /*
  * Max time for a player to reconnect. In seconds.
  */
-#define MAX_TIMEOUT             60
+#define DEF_TIMEOUT             10
 
 
 /*
@@ -42,6 +42,10 @@
 #define HELP_PARAM_NAME         "help"
 #define PORT_PARM_NAME          "port"
 #define IP_PARAM_NAME           "ip"
+#define TIMEOUT_PARAM_NAME      "timeout"
+
+#define MIN_TIMEOUT             1
+#define MAX_TIMEOUT             60
 
 
 /*
@@ -85,6 +89,11 @@ int cleaner_index;
  * Game instance.
  */
 Game_struct game;
+
+/*
+ * Initialized on the start of server.
+ */
+int timeout;
 
 /*
  * =====================================================================
@@ -397,7 +406,7 @@ int start_waiting_thread(int waiting_for) {
 
     // create the argument structure - the timer thread will free it
     tt_args->waiting_for = waiting_for;
-    tt_args->timeout = MAX_TIMEOUT;
+    tt_args->timeout = (unsigned )timeout;
     tt_args->cleaning_function = &clean_me;
     tt_args->perform_after = &waiting_thread_after;
     tt_args->thread_number = -tmp - 1;
@@ -573,6 +582,38 @@ void handle_disconnect(int disconnected_player) {
 }
 
 /*
+ * Handles the status of received end turn message
+ * and returns 1 if the game loop should stop.
+ */
+int handle_end_turn_message(int msg_status, int my_player, int other_player) {
+    char log_msg[255];
+
+    if(msg_status < 0) {
+        sprintf(log_msg, "Error while receiving end turn message: %d\n", msg_status);
+        serror(PLAYER_THREAD_NAME, (char*)&log_msg);
+        //set the other player as winner
+        server_set_winner(other_player);
+        return 1;
+    } else if (msg_status == 0) {
+        debug_player_message(log_msg, "Player %d has disconnected, waiting for him to reconnect.\n",
+                             my_player);
+
+        handle_disconnect(my_player);
+
+        return 1;
+    } else if (msg_status == 2) {
+        debug_player_message(log_msg, "Player %d quit. Other player wins the game.\n", my_player);
+
+        server_set_winner(other_player);
+        return 1;
+    } else {
+        debug_player_message(log_msg, "Player %d has ended his turn.\n", my_player);
+
+        return 0;
+    }
+}
+
+/*
  * A thread for one player. At first, nickname will be checked, then 
  * the thread waits for another player to be registered and the game begins.
  */
@@ -594,6 +635,7 @@ void *player_thread(void *arg) {
 	int nick_valid = 0;
 	int tmp;
     int winner;
+    int break_game_loop;
 
     /*
 	 * Index in the array of players.
@@ -676,7 +718,6 @@ void *player_thread(void *arg) {
 
         /* send message to player that the nick is ok */
         msg_status = send_ok_msg(socket);
-        /*send_greetings(socket);*/
         if(msg_status == 2) {
             sprintf(log_msg,"Socket %d closed connection.\n",socket);
             sinfo(PLAYER_THREAD_NAME, log_msg);
@@ -753,20 +794,9 @@ void *player_thread(void *arg) {
 
         // wait for end turn message
         msg_status = recv_end_turn(socket, tmp_p1_word, tmp_p2_word);
-        if(msg_status < 0) {
-            sprintf((char*)&log_msg, "Error while receiving end turn message: %d\n", msg_status);
-            serror(PLAYER_THREAD_NAME, (char*)&log_msg);
-            //set the other player as winner
-            server_set_winner(other_player);
+        break_game_loop = handle_end_turn_message(msg_status, my_player, other_player);
+        if(break_game_loop == 1) {
             break;
-        } else if (msg_status == 0) {
-            debug_player_message((char*)&log_msg, "Player %d has disconnected, waiting for him to reconnect.\n", my_player);
-
-            handle_disconnect(my_player);
-
-            break;
-        } else {
-            debug_player_message((char*)&log_msg, "Player %d has ended his turn.\n", my_player);
         }
 
         // validate the turn
@@ -872,10 +902,20 @@ void load_ip(char* argv, struct in_addr* addr) {
     }
 }
 
+void load_timeout(char* argv, int* timeout) {
+    char log_msg[100];
+    *timeout = (int)strtol(argv, NULL , 10);
+    if (*timeout < MIN_TIMEOUT || *timeout > MAX_TIMEOUT) {
+        sprintf(log_msg, "Provided timeout value %s is out of possible range, using default %d.\n", argv, DEF_TIMEOUT);
+        sdebug(SERVER_NAME, log_msg);
+        *timeout = DEF_TIMEOUT;
+    }
+}
+
 /*
  * Loads data from arguments and return 1 if the program should exist afterwards.
  */
-int load_arguments(int argc, char* argv[], int* port, struct in_addr* addr ) {
+int load_arguments(int argc, char* argv[], int* port, struct in_addr* addr, int* timeout) {
     int cntr = 1;
     char log_msg[100];
 
@@ -893,6 +933,11 @@ int load_arguments(int argc, char* argv[], int* port, struct in_addr* addr ) {
             // load ip
             cntr++;
             load_ip(argv[cntr], addr);
+            cntr++;
+        } else if (strcmp(argv[cntr], TIMEOUT_PARAM_NAME) == 0){
+            //load timeout
+            cntr++;
+            load_timeout(argv[cntr], timeout);
             cntr++;
         } else {
             // unknown parameter
@@ -926,7 +971,7 @@ int main(int argc, char *argv[])
 
     /* load arguments */
     ip_addr.s_addr = htonl(INADDR_ANY);
-    if(load_arguments(argc, argv, &port, &ip_addr) == 1) {
+    if(load_arguments(argc, argv, &port, &ip_addr, &timeout) == 1) {
         return 0;
     }
 

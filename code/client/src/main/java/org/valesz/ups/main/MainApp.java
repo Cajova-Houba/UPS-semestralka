@@ -24,8 +24,8 @@ public class MainApp extends Application{
 
 
     private static TcpClient tcpClient;
-    public static final int DEF_WIDTH = 855;
-    public static final int DEF_HEIGHT = 520;
+    public static final int DEF_WIDTH = 880;
+    public static final int DEF_HEIGHT = 550;
     public static final int DEF_LOGIN_WIDTH = 640;
     public static final int DEF_LOGIN_HEIGHT = 240;
     public static final String DEF_TITLE = "Senet - klient";

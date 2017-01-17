@@ -400,14 +400,43 @@ public class Game {
         for (int i = 0; i < Constraits.MAX_NUMBER_OF_STONES; i++) {
             if(p1Stones[i] == LAST_FIELD) {
                 p1Stones[i] = OUT_OF_BOARD;
+                if(!canThrowAgain()) {
+                    alreadyMoved = true;
+                }
                 return;
             }
 
             if(p2Stones[i] == LAST_FIELD) {
                 p2Stones[i] = OUT_OF_BOARD;
+                if(!canThrowAgain()) {
+                    alreadyMoved = true;
+                }
                 return;
             }
         }
+    }
+
+    /**
+     * Returns true if one of the current player's stone is
+     * on the last field.
+     * @return
+     */
+    public boolean currentPlayerOnLastField() {
+        int cp = getCurrentPlayerNum();
+        int[] stones;
+        if(cp == 1) {
+            stones = getFirstPlayer().getStones();
+        } else {
+            stones = getSecondPlayer().getStones();
+        }
+
+        for (int i = 0; i < stones.length; i++) {
+            if(stones[i] == LAST_FIELD) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
 

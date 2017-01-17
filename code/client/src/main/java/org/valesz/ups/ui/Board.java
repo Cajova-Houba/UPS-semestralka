@@ -146,20 +146,18 @@ public class Board extends Canvas {
 
         // first player
         for (int i = 0; i < Constraits.MAX_NUMBER_OF_STONES; i++) {
-            if(firstPlayerStones[i] == Game.OUT_OF_BOARD) {
-                continue;
-            }
             firstPlayersStones[i] = new Stone(1, firstPlayerStones[i], Stone.DEF_FIRST_PLAYER_COLOR);
-            firstPlayersStones[i].draw(gc);
+            if(firstPlayerStones[i] != Game.OUT_OF_BOARD) {
+                firstPlayersStones[i].draw(gc);
+            }
         }
 
         // second player
         for (int i = 0; i < Constraits.MAX_NUMBER_OF_STONES; i++) {
-            if(secondPlayerStones[i] == Game.OUT_OF_BOARD) {
-                continue;
-            }
             secondPlayersStones[i] = new Stone(2, secondPlayerStones[i], Stone.DEF_SECOND_PLAYER_COLOR);
-            secondPlayersStones[i].draw(gc);
+            if(secondPlayerStones[i] != Game.OUT_OF_BOARD) {
+                secondPlayersStones[i].draw(gc);
+            }
         }
     }
 

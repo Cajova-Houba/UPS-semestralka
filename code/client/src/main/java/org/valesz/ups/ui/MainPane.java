@@ -15,7 +15,6 @@ import org.apache.logging.log4j.Logger;
 import org.valesz.ups.controller.GameController;
 import org.valesz.ups.controller.LoginController;
 import org.valesz.ups.controller.ViewController;
-import org.valesz.ups.main.MainApp;
 import org.valesz.ups.model.game.Game;
 import org.valesz.ups.network.TcpClient;
 
@@ -127,10 +126,10 @@ public class MainPane extends BorderPane {
 
         HBox buttons = new HBox();
         buttons.setSpacing(5);
-        exitButton = new Button("Exit");
+        exitButton = new Button("Oejít");
         exitButton.setOnAction(event -> {onExitClick();});
         buttons.getChildren().add(exitButton);
-        endTurnButton = new Button("End turn");
+        endTurnButton = new Button("Ukončit tah");
         endTurnButton.setOnAction(event -> {onEndTurnClick();});
         buttons.getChildren().add(endTurnButton);
 
@@ -266,6 +265,14 @@ public class MainPane extends BorderPane {
 
     public void disableEndTurnButton() {
         endTurnButton.setDisable(true);
+    }
+
+    public void focusOnEndTurnButton() {
+        endTurnButton.requestFocus();
+    }
+
+    public void focusOnThrowButton() {
+        throwButton.requestFocus();
     }
 
     public void enableEndTurnButton() {

@@ -105,7 +105,7 @@ public class GameController {
             boardView.updateStones(Game.getInstance().getFirstPlayer().getStones(),
                     Game.getInstance().getSecondPlayer().getStones());
 
-            if(toField == 30) {
+            if(Game.getInstance().currentPlayerOnLastField()) {
                 view.showLeaveButton();
             } else {
                 view.hideLeaveButton();
@@ -124,7 +124,7 @@ public class GameController {
      */
     public int throwSticks() {
         int thrown;
-        if(Game.getInstance().alreadyThrown()) {
+        if(Game.getInstance().alreadyThrown() && !Game.getInstance().canThrowAgain()) {
             thrown = Game.getInstance().throwSticks();
         } else {
             thrown = Game.getInstance().throwSticks();
@@ -133,9 +133,12 @@ public class GameController {
         }
 
         if(Game.getInstance().canThrowAgain()) {
+            view.addLogMessage("Házej znovu.\n");
             view.disableEndTurnButton();
+            view.focusOnThrowButton();
         } else {
             view.enableEndTurnButton();
+            view.focusOnEndTurnButton();
         }
 
         return thrown;
@@ -233,6 +236,7 @@ public class GameController {
         view.newTurn();
         boardView.updateStones(Game.getInstance().getFirstPlayer().getStones(),
                 Game.getInstance().getSecondPlayer().getStones());
+        view.focusOnThrowButton();
     }
 
     /**
@@ -240,6 +244,19 @@ public class GameController {
      */
     public void leaveBoard() {
         int currentPlayer = Game.getInstance().getCurrentPlayerNum();
+
+        if(!Game.getInstance().isMyTurn()) {
+            logger.warn("Not my turn.");
+            view.addLogMessage("Nejsem na tahu!\n");
+            return;
+        }
+
+        if(Game.getInstance().isAlreadyMoved()) {
+            logger.warn("Already moved.");
+            view.addLogMessage("V tomto tahu už jsem hrál.\n");
+            return;
+        }
+
         Stone stone = boardView.getSelected();
         if(stone == null) {
             logger.warn("No stone selected.");
@@ -257,11 +274,12 @@ public class GameController {
         }
 
         Game.getInstance().leaveBoard();
-        view.addLogMessage("Kámen opustil hrací plochu.");
+        view.addLogMessage("Kámen opustil hrací plochu.\n");
         logger.debug("Pawn "+stone+" has leaved the game board");
         boardView.deselect();
         boardView.updateStones(Game.getInstance().getFirstPlayer().getStones(),
                                Game.getInstance().getSecondPlayer().getStones());
+        view.hideLeaveButton();
     }
 
     /**

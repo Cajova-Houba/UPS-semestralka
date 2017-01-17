@@ -12,6 +12,8 @@
 #define COMMON_NAME				"common"
 #define MESSAGE_NAME			"message"
 #define TIMER_THREAD_NAME       "timer"
+#define GAME_NAME               "game"
+#define DISPATCHER_NAME         "dispatcher"
 
 void sinfo(char *name, char *msg);
 void sdebug(char *name, char *msg);

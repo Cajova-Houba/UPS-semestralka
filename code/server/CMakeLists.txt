@@ -17,7 +17,7 @@ set(SOURCE_FILES
         common/slog.c
         common/slog.h
         core/player.h
-        core/server.c core/player.c core/game.h core/game.c core/parallel.h core/parallel.c)
+        core/server.c core/player.c core/game.h core/game.c core/parallel.h core/parallel.c core/queue.h core/queue.c)
 
 add_executable(server ${SOURCE_FILES})
 target_link_libraries(server Threads::Threads)

@@ -5,12 +5,19 @@
 #include <semaphore.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <elf.h>
 #include "../common/slog.h"
+#include "game.h"
+
+#define PLAYER_1_THREAD_TYPE      1
+#define PLAYER_2_THREAD_TYPE      2
+#define TIMER_THREAD_TYPE       3
+#define DISPATCHER_THREAD_TYPE  4
 
 /*
  * Arguments for timer thread.
  */
-typedef struct {
+typedef struct Timer_thread_struct{
 
     /*
      * An index to the timer_threads array in server.c
@@ -36,9 +43,27 @@ typedef struct {
     /* A pointer to the clearing function.
      * The thread will call this functions after all the work is done.
      */
-    void (*cleaning_function)(int);
-} Timer_thread_struct;
+    void (*cleaning_function)(int,int);
+};
 
+/*
+ * Arguments for player thread.
+ */
+typedef struct Thread_args{
+    // new - use those
+    struct Game_struct* game_instance;
+    int my_player;
+};
+
+/*
+ * Arguments for dispatcher thread.
+ */
+typedef struct Dispatcher_args{
+    int socket;
+    int thread_num;
+    uint32_t addr;
+    int port;
+};
 
 /*
  * Mutexes for critical sections.
@@ -54,11 +79,20 @@ pthread_mutex_t mutex_timer_threads;
 pthread_mutex_t mutex_winner;
 
 /*
+ * Mutex for obtaining a free game.
+ */
+pthread_mutex_t mutex_games;
+
+/*
+ * Mutex for inserting and removing items from queue.
+ */
+pthread_mutex_t mutex_queue;
+
+/*
  * Mutex and a condition variable for switching turns.
  */
 pthread_mutex_t mutex_is_my_turn;
-pthread_mutex_t mutex_turn;
-pthread_cond_t cond_turn;
+pthread_mutex_t mutex_switch_turn;
 
 /*
  * A semaphore for threads with players.

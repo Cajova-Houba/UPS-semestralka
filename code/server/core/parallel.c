@@ -25,11 +25,6 @@ int init_ms() {
         return 0;
     }
 
-    if (pthread_mutex_init(&mutex_turn, NULL) != 0) {
-        serror(SERVER_NAME, "Cleaner_index mutex initialization failed.\n");
-        return 0;
-    }
-
     if (pthread_mutex_init(&mutex_is_waiting, NULL) != 0) {
         serror(SERVER_NAME, "Waiting mutex initialization failed.\n");
         return 0;
@@ -55,8 +50,18 @@ int init_ms() {
         return 0;
     }
 
-    if (pthread_cond_init(&cond_turn, NULL) != 0) {
-        serror(SERVER_NAME, "Turn condition variable initialization failed.\n");
+    if (pthread_mutex_init(&mutex_switch_turn, NULL) != 0) {
+        serror(SERVER_NAME, "Switch turn mutex initialization failed.\n");
+        return 0;
+    }
+
+    if (pthread_mutex_init(&mutex_queue, NULL) != 0) {
+        serror(SERVER_NAME, "Queue mutex initialization failed.\n");
+        return 0;
+    }
+
+    if (pthread_mutex_init(&mutex_games, NULL) != 0) {
+        serror(SERVER_NAME, "Games mutex initialization failed.\n");
         return 0;
     }
 
@@ -90,8 +95,8 @@ int init_ms() {
  */
 void* timer_thread(void* args) {
 
-    Timer_thread_struct* tt_args = ((Timer_thread_struct *)args);
-    void (*cleaning_function)(int) = tt_args->cleaning_function;
+    struct Timer_thread_struct* tt_args = ((struct Timer_thread_struct *)args);
+    void (*cleaning_function)(int,int) = tt_args->cleaning_function;
     int t_number = tt_args->thread_number;
     char log_msg[255];
 
@@ -106,6 +111,6 @@ void* timer_thread(void* args) {
 
     // clean itself
     free(tt_args);
-    cleaning_function(t_number);
+    cleaning_function(t_number, TIMER_THREAD_TYPE);
 }
 

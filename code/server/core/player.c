@@ -4,7 +4,7 @@
  * Initializes a new player and stores it in the player variable.
  * Generates a new set of stones for player.
  */
-void initialize_player(Player* player, int id, char* nick, int socket, int second_player, __uint32_t addr, int port) {
+void initialize_player(struct Player* player, int id, char* nick, int socket, int second_player, __uint32_t addr, int port) {
     player->id = id;
     strcpy(player->nick, nick);
     player->socket = socket;
@@ -20,7 +20,7 @@ void initialize_player(Player* player, int id, char* nick, int socket, int secon
  * 2.
  *
  */
-void generate_new_stones(Player* player, int second_player) {
+void generate_new_stones(struct Player* player, int second_player) {
     int pos = 1;
     int i = 0;
     if(second_player) {
@@ -37,7 +37,7 @@ void generate_new_stones(Player* player, int second_player) {
 /*
  * Prints the player to the buffer.
  */
-void print_player(Player *p, char *buffer, int new_line) {
+void print_player(struct Player *p, char *buffer, int new_line) {
     struct in_addr addr;
     addr.s_addr = p->addr;
     if(new_line) {
@@ -50,7 +50,7 @@ void print_player(Player *p, char *buffer, int new_line) {
 /*
  * Updates the player's stones.
  */
-void update_players_stones(Player *p, char *new_stones) {
+void update_players_stones(struct Player *p, char *new_stones) {
     int i;
     for (i = 0; i < TURN_WORD_LENGTH; ++i) {
         p->turn_word[i] = new_stones[i];

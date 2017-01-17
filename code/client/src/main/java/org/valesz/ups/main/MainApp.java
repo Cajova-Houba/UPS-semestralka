@@ -25,7 +25,7 @@ public class MainApp extends Application{
 
     private static TcpClient tcpClient;
     public static final int DEF_WIDTH = 855;
-    public static final int DEF_HEIGHT = 520;
+    public static final int DEF_HEIGHT = 530;
     public static final int DEF_LOGIN_WIDTH = 640;
     public static final int DEF_LOGIN_HEIGHT = 240;
     public static final String DEF_TITLE = "Senet - klient";
@@ -52,17 +52,17 @@ public class MainApp extends Application{
         Application.launch(args);
     }
 
-    @Override
-    public void stop() throws Exception {
-        tcpClient.sendExitMessage(
-                event -> {
-                    logger.debug("Exit message sent.");
-                },
-                event -> {
-                    logger.error("Error while sending exit message.");
-                });
-        super.stop();
-    }
+//    @Override
+//    public void stop() throws Exception {
+//        tcpClient.sendExitMessage(
+//                event -> {
+//                    logger.debug("Exit message sent.");
+//                },
+//                event -> {
+//                    logger.error("Error while sending exit message.");
+//                });
+//        super.stop();
+//    }
 
     private static void initControllers() {
         viewController = new ViewController();

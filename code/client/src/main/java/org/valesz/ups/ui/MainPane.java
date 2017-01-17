@@ -1,5 +1,6 @@
 package org.valesz.ups.ui;
 
+import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -92,7 +93,7 @@ public class MainPane extends BorderPane {
      * Exit button callback.
      */
     public void onExitClick() {
-        MainApp.switchToMain();
+        Platform.exit();
     }
 
     /**
@@ -304,6 +305,7 @@ public class MainPane extends BorderPane {
         Optional<ButtonType> res = alert.showAndWait();
         if (res.get() == EndGameAlert.EXIT_BUTTON) {
             logger.debug("Exiting...");
+            onExitClick();
         } else if (res.get() == EndGameAlert.ANOTHER_SERVER_BUTTON) {
             // switch to login pane
             viewController.displayLoginPane();

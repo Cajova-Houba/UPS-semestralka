@@ -5,7 +5,7 @@
 /*
  * Resets all flags.
  */
-void init_new_game(Game_struct* game, int first_player) {
+void init_new_game(struct Game_struct* game, int first_player) {
     game->winner = -1;
     unset_game_flag(&(game->flags), GAME_STARTED_FLAG);
     unset_game_flag(&(game->flags), GAME_ENDED_FLAG);
@@ -44,7 +44,7 @@ int get_game_flag(int* flags, int flag_index) {
 /*
  * Sets the game_started flag to 1.
  */
-void start_game(Game_struct* game) {
+void start_game(struct Game_struct* game) {
     set_game_flag(&(game->flags), GAME_STARTED_FLAG);
     unset_game_flag(&(game->flags), GAME_ENDED_FLAG);
 }
@@ -52,7 +52,7 @@ void start_game(Game_struct* game) {
 /*
  * Sets the game_started flag to 0, game_ended to 1 and clears waiting flags.
  */
-void end_game(Game_struct* game) {
+void end_game(struct Game_struct* game) {
     unset_game_flag(&(game->flags), GAME_STARTED_FLAG);
     unset_game_flag(&(game->flags), WAITING_P1_FLAG);
     unset_game_flag(&(game->flags), WAITING_P2_FLAG);
@@ -63,7 +63,7 @@ void end_game(Game_struct* game) {
  * If at least one of the waiting flags is set to 1,
  * returns 1, otherwise returns 0.
  */
-int is_game_waiting(Game_struct* game) {
+int is_game_waiting(struct Game_struct* game) {
     if (get_game_flag(&(game->flags), WAITING_P1_FLAG) == 1 ) {
         return 1;
     }
@@ -79,7 +79,7 @@ int is_game_waiting(Game_struct* game) {
  * Compares the my_player value with turn value and either
  * returns 1 if it's my turn or 0 if not.
  */
-int is_my_turn(Game_struct* game, int my_player) {
+int is_my_turn(struct Game_struct* game, int my_player) {
     int turn = get_game_flag(&(game->flags), TURN_FLAG);
 
     return (turn == my_player) ? 1 : 0;
@@ -88,7 +88,7 @@ int is_my_turn(Game_struct* game, int my_player) {
 /*
  * Switches turn = sets the turn flag to opposite value.
  */
-void switch_turn(Game_struct* game, int current_turn) {
+void switch_turn(struct Game_struct* game, int current_turn) {
     if(current_turn == 0) {
         set_game_flag(&(game->flags), TURN_FLAG);
     } else {
@@ -99,7 +99,7 @@ void switch_turn(Game_struct* game, int current_turn) {
 /*
  * If the game ended flag is set, returns 1, otherwise 0.
  */
-int is_end_of_game(Game_struct* game) {
+int is_end_of_game(struct Game_struct* game) {
     return get_game_flag(&(game->flags), GAME_ENDED_FLAG);
 }
 
@@ -107,7 +107,7 @@ int is_end_of_game(Game_struct* game) {
  * If the player is 0 or 1, sets the winner variable and
  * the winner flag.
  */
-void set_winner(Game_struct* game, int player) {
+void set_winner(struct Game_struct* game, int player) {
     if(player == 0 || player == 1) {
         set_game_flag(&(game->flags), WINNER_FLAG);
         game->winner = player;
@@ -120,7 +120,7 @@ void set_winner(Game_struct* game, int player) {
  * If the winner flag is set, returns the value of winner variable.
  * Otherwise returns -1.
  */
-int get_winner(Game_struct* game) {
+int get_winner(struct Game_struct* game) {
     int is_winner = get_game_flag(&(game->flags), WINNER_FLAG);
     if(is_winner == 1) {
         return game->winner;
@@ -185,7 +185,7 @@ int check_winning_conditions(char* p1_turn_word, char* p2_turn_word) {
 /*
  * Prints game flags to buffer.
  */
-void print_flags(char *buffer, Game_struct *game) {
+void print_flags(char *buffer, struct Game_struct *game) {
     int gef = get_game_flag(&(game->flags), GAME_ENDED_FLAG);
     int gsf = get_game_flag(&(game->flags), GAME_STARTED_FLAG);
     int w1f = get_game_flag(&(game->flags), WAITING_P1_FLAG);

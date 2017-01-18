@@ -88,7 +88,7 @@ int cleaner_index;
 /*
  * Game instance.
  */
-Game_struct game;
+struct Game_struct game;
 
 /*
  * Initialized on the start of server.
@@ -128,12 +128,18 @@ void server_start_game() {
 /*
  * Handles the critical section and calls an end_game()
  * function from the game.h.
+ * Also clears the nicks in game struct.
  */ 
 void server_end_game() {
+    int i;
 	pthread_mutex_lock(&mutex_game_started);
 	
 	end_game(&game);
-	
+    for (i = 0; i < MAX_NICK_LENGTH; i++) {
+        game.players[0].nick[i] = '\0';
+        game.players[1].nick[i] = '\0';
+    }
+
 	pthread_mutex_unlock(&mutex_game_started);
 }
 
@@ -400,7 +406,7 @@ void waiting_thread_after(int waiting_for) {
 int start_waiting_thread(int waiting_for) {
     int tmp, thread_err;
     char err[250];
-    Timer_thread_struct* tt_args = malloc(sizeof(Timer_thread_struct));
+    struct Timer_thread_struct* tt_args = malloc(sizeof(struct Timer_thread_struct));
 
     get_timer_thread_num(&tmp);
 
@@ -475,7 +481,7 @@ int check_nick(char *nick, char *err_msg)
 {
 	int check_res;
 	
-	check_res = check_nickname(nick, NULL);
+	check_res = check_nickname(nick, NULL, game.players);
 	
 	switch(check_res) {
 //		case ERR_NICK_TOO_SHORT:

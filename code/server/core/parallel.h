@@ -10,7 +10,7 @@
 /*
  * Arguments for timer thread.
  */
-typedef struct {
+typedef struct Timer_thread_struct{
 
     /*
      * An index to the timer_threads array in server.c
@@ -37,7 +37,7 @@ typedef struct {
      * The thread will call this functions after all the work is done.
      */
     void (*cleaning_function)(int);
-} Timer_thread_struct;
+};
 
 
 /*

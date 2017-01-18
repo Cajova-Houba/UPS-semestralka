@@ -6,10 +6,10 @@
  * If the length is > MAX_LENGTH, 2 will be returned.
  * If the length is ok, 0 will be returned.
  */
-int check_lenght(char *nickname){
+int check_length(char *nickname){
 	int length = 0;
 	
-	length = strlen(nickname);
+	length = (int)strlen(nickname);
 	
 	if (length == 0) {
 		return 1;
@@ -28,7 +28,7 @@ int check_lenght(char *nickname){
  * 
  * If the nickname is ok, 0 will be returned.
  * If the first character is invalid, 1 will be returned.
- * If any onther character is invalid, 2 will be returned.
+ * If any other character is invalid, 2 will be returned.
  */
 int check_characters(char* nickname) {
 	/*
@@ -71,14 +71,19 @@ int check_characters(char* nickname) {
  * 
  * It is expected that length and character has already been checked.
  */
-int check_duplicity(char* nickname) {
-	
-	/*
-	 * TODO
-	 */
-	
+int check_nick_duplicity(char *nickname, struct Player *players) {
+
+	if(strcmp(players[0].nick, nickname) == 0) {
+		return 1;
+	}
+
+	if (strcmp(players[1].nick, nickname) == 0) {
+		return 1;
+	}
+
 	return 0;
 }
+
 
 /*
  * Checks the nickname for length, allowed chars and duplicity.
@@ -92,11 +97,11 @@ int check_duplicity(char* nickname) {
  * 		CONTAINS_INV_CHAR - nick contains invalid chars
  * 		NICK_ALREADY_EXISTS - nick already exists
  */ 
-int check_nickname(char* nickname, char *errmsg) {
+int check_nickname(char* nickname, char *errmsg, struct Player* players) {
 	
 	int check_res = 0;
 	
-	check_res = check_lenght(nickname);
+	check_res = check_length(nickname);
 	switch(check_res) {
 		case 1:
 		case 2: return ERR_NICKNAME;
@@ -108,7 +113,7 @@ int check_nickname(char* nickname, char *errmsg) {
 		case 2: return ERR_NICKNAME;
 	}
 	
-	check_res = check_duplicity(nickname);
+	check_res = check_nick_duplicity(nickname, players);
 	switch(check_res) {
 		case 1: return ERR_NICK_EXISTS;
 	}

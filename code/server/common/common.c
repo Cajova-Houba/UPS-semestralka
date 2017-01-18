@@ -31,7 +31,12 @@ int send_txt(int sock, char *txt)
   sdebug(COMMON_NAME, log_buffer);
   
   send_status = send(sock, (void *)txt, txtlen, 0);
-  sdebug(COMMON_NAME, "Sent.\n");
+  if (send_status < 0) {
+      sprintf(log_buffer, "Error while sending message: %s.\n", strerror(errno));
+      serror(COMMON_NAME,log_buffer);
+  } else {
+      sdebug(COMMON_NAME, "Sent.\n");
+  }
 
   return send_status;
 }

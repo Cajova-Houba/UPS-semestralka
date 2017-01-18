@@ -6,6 +6,7 @@
 
 #include "common.h"
 #include "seneterror.h"
+#include "../core/player.h"
 
 #define MIN_NICK_LENGTH			3
 #define MAX_NICK_LENGTH			8
@@ -21,7 +22,7 @@
  * 
  * It is expected that the nickname is '\0' terminated.
  */
-int check_lenght(char *nickname);
+int check_length(char *nickname);
 
 /*
  * Checks, if the nickanme consist only of allowe characters
@@ -43,7 +44,7 @@ int check_characters(char* nickname);
  * It is expected that length and character has already been checked.
  * It is expected that the length of players is MAX_PLAYERS.
  */
-int check_duplicity(char* nickname);
+int check_nick_duplicity(char *nickname, struct Player *players);
 
 /*
  * Checks the nickname for length, allowed chars and duplicity.
@@ -57,6 +58,6 @@ int check_duplicity(char* nickname);
  * 		ERR_CONTAINS_INV_CHAR - nick contains invalid chars
  * 		ERR_NICK_EXISTS - nick already exists
  */ 
-int check_nickname(char* nickname, char *errmsg);
+int check_nickname(char* nickname, char *errmsg, struct Player* players);
 
 #endif

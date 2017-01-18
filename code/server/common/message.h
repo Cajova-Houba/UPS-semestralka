@@ -2,7 +2,7 @@
 #define __SENET_MESSAGE_H
 
 /* some common messages */
-#define		OK_MESSAGE					"INFOK"
+#define		OK_MESSAGE					"OK"
 #define		OK_MESSAGE_LEN				5
 #define		START_GAME_MESSAGE			"INFSTART_GAME"
 #define		START_GAME_MESSAGE_LEN		13
@@ -56,6 +56,16 @@ int recv_nick(int socket, char* buffer);
  */
 int recv_end_turn(int socket, char* player1_turn_word, char* player2_turn_word);
 
+
+/*
+ * Receives OK message from socket.
+ *
+ * Returns:
+ *  1 : Ok was received.
+ *  0 : Socket closed connection.
+ *  MSG_TIMEOUT: Timeout.
+ */
+int recv_ok_msg(int socket);
 
 /*
  * Send OK_MESSAGE to socket. 

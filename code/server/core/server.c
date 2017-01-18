@@ -508,14 +508,15 @@ int check_nick(char *nick, char *err_msg)
 
 /*
  * Waits for nick to be received.
- * Returns 1 if the nick is received, or 0 if the sockes closes conneciton.
+ * Returns 1 if the nick is received, or 0 if the socket closes connection, MSG_TIMEOUT if
  */
 int wait_for_nick(int socket, char* buffer, char* log_msg) {
     int msg_status = recv_nick(socket, buffer);
     while (msg_status != 1) {
         if (msg_status == 0) {
             return 0;
-
+        } else if(msg_status == MSG_TIMEOUT) {
+            return msg_status;
         } else {
             /* print error from seneterror*/
             sprintf(log_msg, "Error occured while receiving nick: %i\n",msg_status);
@@ -620,6 +621,25 @@ int handle_end_turn_message(int msg_status, int my_player, int other_player) {
 }
 
 /*
+ * Call when the game is to be ended adn the winner is set.
+ */
+void player_thread_end_game(int socket, int my_player) {
+    /* end game */
+    char buffer[255];
+    int winner;
+    strcpy(buffer, "\0");
+    server_get_winner(&winner);
+    get_player_nick(winner, buffer);
+    send_end_game_msg(socket, buffer);
+    server_end_game();
+
+    /* wake the other thread */
+    switch_turn(&game, my_player);
+    pthread_mutex_unlock(&mutex_turn);
+    pthread_cond_broadcast(&cond_turn);
+}
+
+/*
  * A thread for one player. At first, nickname will be checked, then 
  * the thread waits for another player to be registered and the game begins.
  */
@@ -696,6 +716,11 @@ void *player_thread(void *arg) {
             sinfo(PLAYER_THREAD_NAME, log_msg);
             clean_me(thread_num);
             return NULL;
+        } else if (msg_status == MSG_TIMEOUT) {
+            sprintf(log_msg, "Socket %d timed out, disconnecting it.\n",socket);
+            sinfo(PLAYER_THREAD_NAME, log_msg);
+            clean_me(thread_num);
+            return NULL;
         }
 
 
@@ -762,6 +787,25 @@ void *player_thread(void *arg) {
         get_player_nick(0, p1name);
         get_player_nick(1, p2name);
         send_start_game_msg(socket, p1name, p2name);
+        // recv confirmation that the client is starting the game
+        msg_status = recv_ok_msg(socket);
+        if(msg_status == MSG_TIMEOUT) {
+            debug_player_message(log_msg, "Player %d has timed out, waiting for him to reconnect.\n",
+                                 my_player);
+            handle_disconnect(my_player);
+            clean_me(thread_num);
+            return NULL;
+        } else {
+            // error => other player wins
+            sprintf(log_msg, "Error while receiving start game acknowledge from player %d.\n", my_player);
+            serror(PLAYER_THREAD_NAME, log_msg);
+            server_set_winner(other_player);
+            server_end_game();
+            player_thread_end_game(socket, my_player);
+            decrement_players();
+            clean_me(thread_num);
+            return NULL;
+        }
     }
 
 
@@ -838,17 +882,7 @@ void *player_thread(void *arg) {
         return NULL;
     }
 
-    /* end game */
-    strcpy(buffer, "\0");
-    server_get_winner(&winner);
-    get_player_nick(winner, buffer);
-    send_end_game_msg(socket, buffer);
-    server_end_game();
-
-    /* wake the other thread */
-    switch_turn(&game, my_player);
-    pthread_mutex_unlock(&mutex_turn);
-    pthread_cond_broadcast(&cond_turn);
+    player_thread_end_game(socket, my_player);
 
 	sinfo(PLAYER_THREAD_NAME,"End of thread.\n");
 	
@@ -1035,39 +1069,26 @@ int main(int argc, char *argv[])
 	/* listening loop - wait for players*/
 	while (1) 
 	{	
-		/* new connection */
+		//new connection
 		incoming_addr_len = sizeof(incoming_addr);
     	incoming_sock = accept(sock, (struct sockaddr*)&incoming_addr, 
                       &incoming_addr_len);
-
-		/* error during accepting a new connection*/
 		if (incoming_sock < 0)
 		{
 			close(sock);
 			serror("server","Error while accepting a new connection.");
 		}
-		
-		/* connection info */
 		sprintf(log_msg, "Connection from %s:%i\n",
 	        	inet_ntoa(incoming_addr.sin_addr),
 	        	ntohs(incoming_addr.sin_port)
 		);
 		sinfo("server",log_msg);
-
-		/* 
-		 * new thread which will validate the nickname 
-		 * and accept a new player.
-		 */
-		
-		
-		/* !!! critical section !!! */
 		get_curr_conn(&tmp_curr_conn);
-		
 		if(tmp_curr_conn == MAX_CONNECTIONS - 1) {
 			sinfo(SERVER_NAME,"Server can't accept any new connections.");
 			continue;
 		}
-		
+
 		thread_args[tmp_curr_conn].thread_number = tmp_curr_conn;
 		thread_args[tmp_curr_conn].socket = incoming_sock;
         thread_args[tmp_curr_conn].addr = incoming_addr.sin_addr.s_addr;

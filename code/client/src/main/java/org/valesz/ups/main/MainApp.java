@@ -40,9 +40,9 @@ public class MainApp extends Application{
     /**
      * Controllers used in app.
      */
-    private static ViewController viewController;
-    private static LoginController loginController;
-    private static GameController gameController;
+    public static ViewController viewController;
+    public static LoginController loginController;
+    public static GameController gameController;
 
     public static void main(String[] args) {
         logger.info("Initializing main app.");

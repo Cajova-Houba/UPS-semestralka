@@ -56,6 +56,8 @@ public class Message {
         return new Message(mt, content);
     }
 
+
+
     /**
      * Creates a message of type CMD with content where the
      * first byte is length of the nick and the rest of the content is the nick
@@ -68,6 +70,8 @@ public class Message {
         nick = ((char)nickLen) + nick;
         return new Message(MessageType.CMD, nick);
     }
+
+    public static Message createOKMessage(){return new Message(MessageType.INF, "OK");}
 
     /**
      * Creates a message of type INF with EXIT string as a content.

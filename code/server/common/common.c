@@ -8,7 +8,31 @@
  * If other error occurs, returns -1. 
  */
 int recv_bytes(int sock, char* buffer, int byte_count) {
-  return recv(sock, (void *)buffer, byte_count, 0);
+    return recv(sock, (void *)buffer, byte_count, 0);
+}
+
+/*
+ * Same as recv_bytes, only returns MSG_TIMEOUT on timeout.
+ */
+int recv_bytes_timeout(int sock, char* buffer, int byte_count, int ms_timeout) {
+    struct pollfd fd;
+    int ret_stat;
+    char log_msg[255];
+
+    fd.fd = sock;
+    fd.events = POLLIN;
+    ret_stat = poll(&fd, 1, ms_timeout);
+    switch (ret_stat) {
+        case -1:
+            sprintf(log_msg,"Error while receiving %d bytes: %s.\n",byte_count, strerror(errno));
+            serror(COMMON_NAME, log_msg);
+            return -1;
+        case 0:
+            serror(COMMON_NAME, "Timed out while receiving message.\n");
+            return MSG_TIMEOUT;
+        default:
+            return recv(sock, (void *)buffer, byte_count, 0);
+    }
 }
 
 /****************************************************************************/
@@ -46,22 +70,26 @@ int send_txt(int sock, char *txt)
 /** @return 1 if OK, 0 otherwise */
 int recv_txt(int sock)
 {
-  char buf[MAX_TXT_LENGTH + 1];
-  int txtlen;
-  uint32_t txtlen_net;
+    char buf[MAX_TXT_LENGTH + 1];
+    int txtlen;
+    uint32_t txtlen_net;
+    int recv_status;
 
-  if (recv(sock, (void *)&txtlen_net, sizeof(txtlen_net), 0) < 0) return 0;
-  txtlen = ntohl(txtlen_net);
-  if (txtlen > MAX_TXT_LENGTH) {
-	   serror(COMMON_NAME,"Message too long.\n");
-	   return 0;
-  }
+    recv_status =recv(sock, (void *)&txtlen_net, sizeof(txtlen_net), 0);
+    if ( recv_status < 0) {
+        serror(COMMON_NAME, "Error while receiving message length.\n");
+    }
+    txtlen = ntohl(txtlen_net);
+    if (txtlen > MAX_TXT_LENGTH) {
+       serror(COMMON_NAME,"Message too long.\n");
+       return 0;
+    }
 
-  if (recv(sock, (void *)buf, txtlen, 0) < 0) return 0;
-  buf[txtlen] = '\0'; /* C string terminator */
+    if (recv(sock, (void *)buf, txtlen, 0) < 0) return 0;
+    buf[txtlen] = '\0'; /* C string terminator */
 
-  printf("received: %s\n", buf);
-  return 1;
+    printf("received: %s\n", buf);
+    return 1;
 }
 
 /****************************************************************************/

@@ -189,6 +189,21 @@ public class TcpClient {
         return Error.NO_ERROR();
     }
 
+    public Error sendOkMessage(EventHandler<WorkerStateEvent> successCallback,
+                               EventHandler<WorkerStateEvent> failCallback) {
+        if(isConnected()) {
+            return Error.GENERAL_ERROR("No active connection.");
+        }
+
+        OkService okService = new OkService();
+        okService.setOutToServer(outToServer);
+        okService.setOnSucceeded(successCallback);
+        okService.setOnFailed(failCallback);
+        okService.restart();
+
+        return Error.NO_ERROR();
+    }
+
     public NickService getNickService() {
         return nickService;
     }

@@ -8,6 +8,7 @@
  * The nick is checked only for length by this method.
  * 
  * Returns:
+ *  2 : Socket timed out.
  * 	1 : Nick was received.
  *  0: Socket closed connection.
  *  Error from seneterror.h
@@ -17,7 +18,7 @@ int recv_nick(int socket, char* buffer) {
 	int nick_len = 0;
 	int recv_status = 0;
 	
-	recv_status = recv_bytes(socket, nbuffer, MSG_TYPE_LEN);
+	recv_status = recv_bytes_timeout(socket, nbuffer, MSG_TYPE_LEN, MAX_SOCKET_TIMEOUT);
 	if(recv_status != MSG_TYPE_LEN) {
 		serror(MESSAGE_NAME,"Error while receiving nick message.\n");
 		return recv_status;
@@ -111,6 +112,42 @@ int recv_end_turn(int socket, char* player1_turn_word, char* player2_turn_word) 
     }
 
     return 1;
+}
+
+/*
+ * Receives OK message from socket.
+ *
+ * Returns:
+ *  1 : Ok was received.
+ *  0 : Socket closed connection.
+ *  MSG_TIMEOUT: Timeout.
+ */
+int recv_ok_msg(int socket) {
+	char nbuffer[3]; // 3 is max length of OK message + '\0'
+	int recv_status = 0;
+	int i;
+
+	sdebug(MESSAGE_NAME, "Waiting for end turn message.\n");
+	recv_status = recv_bytes_timeout(socket, nbuffer, MSG_TYPE_LEN, MAX_SOCKET_TIMEOUT);
+	if(recv_status != MSG_TYPE_LEN) {
+		serror(MESSAGE_NAME,"Error while receiving ok message.\n");
+		return recv_status;
+	}
+
+	/* the type must be INF */
+	nbuffer[3] = '\0';
+	if(strcmp(nbuffer, MSG_TYPE_INF) != 0) {
+		serror(MESSAGE_NAME, "Wrong message type received, expecting INF.\n");
+		return ERR_MSG_TYPE;
+	}
+
+	/* try to receive the rest of the OK message */
+	recv_status = recv_bytes_timeout(socket, nbuffer, EXIT_MSG_LEN, MAX_SOCKET_TIMEOUT);
+	if (recv_status == EXIT_MSG_LEN && strcmp(nbuffer, OK_MESSAGE) == 0) {
+		return 1;
+	} else {
+		return recv_status;
+	}
 }
 
 /*

@@ -3,6 +3,7 @@ package org.valesz.ups.controller;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.valesz.ups.common.message.received.*;
+import org.valesz.ups.main.MainApp;
 import org.valesz.ups.model.game.Game;
 import org.valesz.ups.network.TcpClient;
 import org.valesz.ups.ui.Board;
@@ -39,6 +40,7 @@ public class GameController {
     /**
      * Waits for the message from server indicating start of game.
      */
+    //TODO: test sending the ok message / timeout in server
     public void waitForStartGame() {
         tcpClient.getResponse(
                 event -> {
@@ -48,7 +50,17 @@ public class GameController {
                     if (startGame == null) {
                         // wrong response
                         logger.error("Wrong message received. Expected START_GAME, received: "+response);
+                        tcpClient.disconnect();
+                        MainApp.viewController.displayLoginPane();
                     } else {
+                        // send ok
+                        tcpClient.sendOkMessage(event1 -> {},
+                                                event1 -> {
+                                                    logger.error("Error while sending OK message to server.");
+                                                    tcpClient.disconnect();
+                                                    MainApp.viewController.displayLoginPane();
+                                                });
+
                         Game.getInstance().startGame(startGame.getFirstNickname(),startGame.getSecondNickname());
                         logger.info("The game has started");
 
@@ -68,6 +80,8 @@ public class GameController {
                     // failure
                     String error = tcpClient.getReceivingService().getException().getMessage();
                     logger.debug("Error while receiving response: "+error);
+                    tcpClient.disconnect();
+                    MainApp.viewController.displayLoginPane();
                 }
         );
     }

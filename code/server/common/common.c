@@ -51,15 +51,15 @@ int send_txt(int sock, char *txt)
   int send_status = -1;
 
   /* send the message */
-  sprintf(log_buffer,"Sending: %s\n", txt);
-  sdebug(COMMON_NAME, log_buffer);
+//  sprintf(log_buffer,"Sending: %s\n", txt);
+//  sdebug(COMMON_NAME, log_buffer);
   
   send_status = send(sock, (void *)txt, txtlen, 0);
   if (send_status < 0) {
       sprintf(log_buffer, "Error while sending message: %s.\n", strerror(errno));
       serror(COMMON_NAME,log_buffer);
   } else {
-      sdebug(COMMON_NAME, "Sent.\n");
+//      sdebug(COMMON_NAME, "Sent.\n");
   }
 
   return send_status;

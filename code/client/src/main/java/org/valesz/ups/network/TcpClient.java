@@ -191,7 +191,7 @@ public class TcpClient {
 
     public Error sendOkMessage(EventHandler<WorkerStateEvent> successCallback,
                                EventHandler<WorkerStateEvent> failCallback) {
-        if(isConnected()) {
+        if(!isConnected()) {
             return Error.GENERAL_ERROR("No active connection.");
         }
 

@@ -9,8 +9,9 @@
 #define MSG_TIMEOUT             -2
 /*
  * Response is expected to be received in this time.
+ * In ms.
  */
-#define MAX_SOCKET_TIMEOUT      30
+#define MAX_SOCKET_TIMEOUT      5000
 
 #include <stdio.h>
 #include <string.h>

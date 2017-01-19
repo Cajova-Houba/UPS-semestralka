@@ -42,6 +42,7 @@ public class GameController {
      */
     //TODO: test sending the ok message / timeout in server
     public void waitForStartGame() {
+        view.disableButtons();
         tcpClient.getResponse(
                 event -> {
                     // response
@@ -54,26 +55,31 @@ public class GameController {
                         MainApp.viewController.displayLoginPane();
                     } else {
                         // send ok
-                        tcpClient.sendOkMessage(event1 -> {},
-                                                event1 -> {
-                                                    logger.error("Error while sending OK message to server.");
-                                                    tcpClient.disconnect();
-                                                    MainApp.viewController.displayLoginPane();
-                                                });
+                        logger.debug("Start game received.");
+                        tcpClient.sendOkMessage(
+                                event1 -> {
+                                    logger.debug("Ok message sent.");
+                                    Game.getInstance().startGame(startGame.getFirstNickname(),startGame.getSecondNickname());
+                                    logger.info("The game has started");
 
-                        Game.getInstance().startGame(startGame.getFirstNickname(),startGame.getSecondNickname());
-                        logger.info("The game has started");
+                                    // update graphical components
+                                    view.startGame();
+                                    boardView.placeStones(Game.getInstance().getFirstPlayer().getStones(),
+                                            Game.getInstance().getSecondPlayer().getStones());
 
-                        // update graphical components
-                        view.startGame();
-                        boardView.placeStones(Game.getInstance().getFirstPlayer().getStones(),
-                                              Game.getInstance().getSecondPlayer().getStones());
-
-                        // if this is the second player, wait for start turn message
-                        if(!Game.getInstance().isMyTurn()) {
-                            view.disableButtons();
-                            waitForNewTurn();
-                        }
+                                    // if this is the second player, wait for start turn message
+                                    if(!Game.getInstance().isMyTurn()) {
+                                        view.disableButtons();
+                                        waitForNewTurn();
+                                    } else {
+                                        view.enableButtons();
+                                    }
+                                },
+                                event1 -> {
+                                    logger.error("Error while sending OK message to server.");
+                                    tcpClient.disconnect();
+                                    MainApp.viewController.displayLoginPane();
+                                });
                     }
                 },
                 event -> {

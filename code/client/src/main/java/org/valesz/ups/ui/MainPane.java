@@ -82,7 +82,6 @@ public class MainPane extends BorderPane {
         setLeft(getControlPane());
         setCenter(getMainPane());
         setBottom(getStatusPane());
-//        setRight(getClientInfoPane());
         setTop(getClientInfoPane());
         canvas.setGameController(controller);
         this.controller.setBoardView(canvas);

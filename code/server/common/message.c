@@ -71,7 +71,7 @@ int recv_end_turn(int socket, char* player1_turn_word, char* player2_turn_word) 
     int recv_status = 0;
 	int i;
 
-    sdebug(MESSAGE_NAME, "Waiting for end turn message.\n");
+//    sdebug(MESSAGE_NAME, "Waiting for end turn message.\n");
     recv_status = recv_bytes(socket, nbuffer, MSG_TYPE_LEN);
     if(recv_status != MSG_TYPE_LEN) {
         serror(MESSAGE_NAME,"Error while receiving end turn message.\n");
@@ -130,7 +130,7 @@ int recv_ok_msg(int socket) {
 	sdebug(MESSAGE_NAME, "Waiting for end turn message.\n");
 	recv_status = recv_bytes_timeout(socket, nbuffer, MSG_TYPE_LEN, MAX_SOCKET_TIMEOUT);
 	if(recv_status != MSG_TYPE_LEN) {
-		serror(MESSAGE_NAME,"Error while receiving ok message.\n");
+		serror(MESSAGE_NAME,"Error while receiving ok message type.\n");
 		return recv_status;
 	}
 
@@ -143,7 +143,8 @@ int recv_ok_msg(int socket) {
 
 	/* try to receive the rest of the OK message */
 	recv_status = recv_bytes_timeout(socket, nbuffer, EXIT_MSG_LEN, MAX_SOCKET_TIMEOUT);
-	if (recv_status == EXIT_MSG_LEN && strcmp(nbuffer, OK_MESSAGE) == 0) {
+    nbuffer[2] = '\0';
+	if (recv_status == OK_MESSAGE_LEN && strcmp(nbuffer, OK_MESSAGE) == 0) {
 		return 1;
 	} else {
 		return recv_status;
@@ -160,7 +161,11 @@ int recv_ok_msg(int socket) {
  * 
  */
 int send_ok_msg(int socket) {
-	return send_txt(socket, OK_MESSAGE);
+    char buffer[MSG_TYPE_LEN+OK_MESSAGE_LEN+1];
+    strcpy(buffer, MSG_TYPE_INF);
+    strcpy(&buffer[MSG_TYPE_LEN], OK_MESSAGE);
+    buffer[MSG_TYPE_LEN+OK_MESSAGE_LEN] = '\0';
+	return send_txt(socket, buffer);
 }
 
 /*

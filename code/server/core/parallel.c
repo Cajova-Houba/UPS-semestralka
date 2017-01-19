@@ -80,6 +80,15 @@ int init_ms() {
         return 0;
     }
 
+    if(sem_init(&p1_sem, 0, 0) < 0) {
+        serror(SERVER_NAME, "Player 1 turn semaphore initialization failed.\n");
+        return 0;
+    }
+
+    if(sem_init(&p2_sem, 0, 0) < 0) {
+        serror(SERVER_NAME, "Player 2 turn semaphore initialization failed.\n");
+        return 0;
+    }
 
     return 1;
 }

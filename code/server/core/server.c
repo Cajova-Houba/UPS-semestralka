@@ -390,9 +390,12 @@ void waiting_thread_after(int waiting_for) {
         server_end_game();
 
         // wake waiting player threads
-        switch_turn(&game, waiting_for);
-        pthread_mutex_unlock(&mutex_turn);
-        pthread_cond_signal(&cond_turn);
+//        switch_turn(&game, waiting_for);
+        if(waiting_for == 0) {
+            sem_post(&p2_sem);
+        } else {
+            sem_post(&p1_sem);
+        }
     } else {
         sprintf(log_msg, "The game is not waiting for player %d anymore.\n", waiting_for);
         sdebug(TIMER_THREAD_NAME, log_msg);
@@ -634,9 +637,39 @@ void player_thread_end_game(int socket, int my_player) {
     server_end_game();
 
     /* wake the other thread */
-    switch_turn(&game, my_player);
-    pthread_mutex_unlock(&mutex_turn);
-    pthread_cond_broadcast(&cond_turn);
+//    switch_turn(&game, my_player);
+    if(my_player == 0) {
+        sem_post(&p2_sem);
+    } else {
+        sem_post(&p1_sem);
+    }
+}
+
+/*
+ * Sends a start turn message to player.
+ *
+ * Returns:
+ *  0: start turn message sent
+ *  1: error, game loop should be broken.
+ */
+int send_start_turn_to_player(int socket, int my_player, int other_player) {
+    int msg_status;
+    char log_msg[255];
+    if(is_end_of_game(&game) == 1) {
+        return 1;
+    } else {
+        msg_status = send_start_turn_msg(socket, game.players[0].turn_word, game.players[1].turn_word);
+        debug_player_message(log_msg, "Start turn status: %d\n", msg_status);
+        if(msg_status < 2) {
+            serror(PLAYER_THREAD_NAME, "Error while sending start turn message.\n");
+            //set the other player as winner
+            server_set_winner(other_player);
+            server_end_game();
+            return  1;
+        }
+    }
+
+    return  0;
 }
 
 /*
@@ -788,6 +821,7 @@ void *player_thread(void *arg) {
         get_player_nick(1, p2name);
         send_start_game_msg(socket, p1name, p2name);
         // recv confirmation that the client is starting the game
+        sdebug(PLAYER_THREAD_NAME, "Waiting for start game ACK.\n");
         msg_status = recv_ok_msg(socket);
         if(msg_status == MSG_TIMEOUT) {
             debug_player_message(log_msg, "Player %d has timed out, waiting for him to reconnect.\n",
@@ -795,52 +829,34 @@ void *player_thread(void *arg) {
             handle_disconnect(my_player);
             clean_me(thread_num);
             return NULL;
-        } else {
+        } else if (msg_status != 1){
             // error => other player wins
             sprintf(log_msg, "Error while receiving start game acknowledge from player %d.\n", my_player);
             serror(PLAYER_THREAD_NAME, log_msg);
             server_set_winner(other_player);
-            server_end_game();
             player_thread_end_game(socket, my_player);
             decrement_players();
             clean_me(thread_num);
             return NULL;
+        } else {
+            sdebug(PLAYER_THREAD_NAME, "Start game ACK received received.\n");
         }
     }
 
 
     // game loop
     while(1) {
-        pthread_mutex_lock(&mutex_turn);
+        if(my_player != 0) {
+            // I'm not the first player, I have to wait for my turn
+            sdebug(PLAYER_THREAD_NAME, "Player 1 is waiting for his turn.\n");
+            sem_wait(&p2_sem);
 
-        // wait for my turn
-        if(!is_my_turn(&game, my_player)) {
-            debug_player_message(log_msg, "Player %d is waiting for his turn.\n", my_player);
-            while(!is_my_turn(&game, my_player)) {
-                pthread_cond_wait(&cond_turn, &mutex_turn);
-            }
-            // send start turn message or end game message
-            // other thread is sleeping
-            if(is_end_of_game(&game) == 1) {
+            // start turn message for the second player
+            break_game_loop = send_start_turn_to_player(socket, my_player, other_player);
+            if(break_game_loop == 1) {
                 break;
-            } else {
-                msg_status = send_start_turn_msg(socket, game.players[0].turn_word, game.players[1].turn_word);
-                debug_player_message(log_msg, "Start turn status: %d\n", msg_status);
-                if(msg_status < 2) {
-                    serror(PLAYER_THREAD_NAME, "Error while sending start turn message.\n");
-                    //set the other player as winner
-                    server_set_winner(other_player);
-                    server_end_game();
-                    break;
-                }
             }
         }
-        // if end game => break through the second while
-        if(is_end_of_game(&game) == 1) {
-            break;
-        }
-
-        debug_player_message(log_msg, "Player %d has started his turn.\n", my_player);
 
         // wait for end turn message
         msg_status = recv_end_turn(socket, tmp_p1_word, tmp_p2_word);
@@ -866,9 +882,20 @@ void *player_thread(void *arg) {
 
 
         // switch the turn
-        switch_turn(&game, my_player);
-        pthread_mutex_unlock(&mutex_turn);
-        pthread_cond_signal(&cond_turn);
+        if(my_player == 0) {
+            // wake up second player and wait for my turn
+            sem_post(&p2_sem);
+            sdebug(PLAYER_THREAD_NAME, "Player 0 is waiting for his turn.\n");
+            sem_wait(&p1_sem);
+            // start turn message for the first player
+            break_game_loop = send_start_turn_to_player(socket, my_player, other_player);
+            if(break_game_loop == 1) {
+                break;
+            }
+        } else {
+            // wake up the first player
+            sem_post(&p1_sem);
+        }
     } // end of the game loop
 
     server_is_game_waiting(&tmp);
@@ -1011,6 +1038,7 @@ int main(int argc, char *argv[])
 
     /* load arguments */
     ip_addr.s_addr = htonl(INADDR_ANY);
+    timeout = DEF_TIMEOUT;
     if(load_arguments(argc, argv, &port, &ip_addr, &timeout) == 1) {
         return 0;
     }

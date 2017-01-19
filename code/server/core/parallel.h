@@ -59,6 +59,8 @@ pthread_mutex_t mutex_winner;
 pthread_mutex_t mutex_is_my_turn;
 pthread_mutex_t mutex_turn;
 pthread_cond_t cond_turn;
+sem_t p1_sem;
+sem_t p2_sem;
 
 /*
  * A semaphore for threads with players.

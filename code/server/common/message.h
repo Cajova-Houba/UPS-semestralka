@@ -3,7 +3,7 @@
 
 /* some common messages */
 #define		OK_MESSAGE					"OK"
-#define		OK_MESSAGE_LEN				5
+#define		OK_MESSAGE_LEN				2
 #define		START_GAME_MESSAGE			"INFSTART_GAME"
 #define		START_GAME_MESSAGE_LEN		13
 #define 	END_GAME_MESSAGE			"INFEND_GAME"

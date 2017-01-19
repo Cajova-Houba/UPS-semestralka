@@ -495,19 +495,20 @@ int check_nick(char *nick, char *err_msg)
 //			sprintf(err_msg,"Nick '%s' is too long.\n",nick);
 //			return 0;
 //		case ERR_FIRST_CHAR_INV:
-//			sprintf(err_msg,"Nick '%s' starts with invlid character.\n",nick);
+//			sprintf(err_msg,"Nick '%s' starts with invalid character.\n",nick);
 //			return 0;
 //		case ERR_CONTAINS_INV_CHAR:
 //			sprintf(err_msg,"Nick '%s' contains invalid characters.\n",nick);
 //			return 0;
         case ERR_NICKNAME:
             sprintf(err_msg,"Nick '%s' is too short or contains bad characters.\n", nick);
+            return ERR_NICKNAME;
 		case ERR_NICK_EXISTS:
 			sprintf(err_msg,"Nick '%s' already exists.\n",nick);
-			return 0;
+			return ERR_NICK_EXISTS;
 	}
 	
-	return 1;
+	return NICK_OK;
 }
 
 /*
@@ -764,7 +765,7 @@ void *player_thread(void *arg) {
         /* check nick */
         nick_valid = check_nick(buffer, log_msg);
         /* nick validation failed */
-        if(!nick_valid) {
+        if(nick_valid != NICK_OK) {
             serror(PLAYER_THREAD_NAME, log_msg);
 
             /* send error */

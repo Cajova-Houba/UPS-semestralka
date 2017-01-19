@@ -28,6 +28,7 @@ public class TcpClient {
     private NickService nickService;
     private ReceivingService receivingService;
     private TurnService turnService;
+    private ConnectionService connectionService;
     private DataOutputStream outToServer;
     private DataInputStream inFromServer;
 
@@ -42,15 +43,15 @@ public class TcpClient {
                          EventHandler<WorkerStateEvent> successCallback,
                          EventHandler<WorkerStateEvent> failCallback) {
 
-        ConnectionService cs = new ConnectionService(address, port);
-        cs.setOnFailed(event -> {
+        connectionService = new ConnectionService(address, port);
+        connectionService.setOnFailed(event -> {
             String err = String.format("Error while connecting to %s:%d",address, port);
             logger.error(err);
 
             failCallback.handle(event);
         });
-        cs.setOnSucceeded(event -> {
-            this.socket = cs.getValue();
+        connectionService.setOnSucceeded(event -> {
+            this.socket = connectionService.getValue();
             try {
                 socket.setReuseAddress(true);
                 socket.getKeepAlive();
@@ -71,7 +72,7 @@ public class TcpClient {
 
             successCallback.handle(event);
         });
-        cs.restart();
+        connectionService.restart();
 
         return Error.NO_ERROR();
     }
@@ -218,5 +219,9 @@ public class TcpClient {
 
     public LoginData getLastSuccessfulConnection() {
         return lastSuccessfulConnection;
+    }
+
+    public ConnectionService getConnectionService() {
+        return connectionService;
     }
 }

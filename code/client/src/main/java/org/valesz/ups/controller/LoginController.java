@@ -14,6 +14,8 @@ import org.valesz.ups.model.game.Game;
 import org.valesz.ups.network.TcpClient;
 import org.valesz.ups.ui.LoginPane;
 
+import java.net.SocketTimeoutException;
+
 /**
  * Controller for fetching login and displaying errors in login pane.
  *
@@ -78,16 +80,26 @@ public class LoginController {
             return;
         }
 
+        view.disableLoginButton();
+        view.displayMessage("");
         tcpClient.connect(loginData.getAddress(), loginData.getPort(),
                 event -> {
                     //ok
                     logger.debug("Connected.");
+                    view.enableLoginButton();
                     login(loginData);
                 },
                 event -> {
                     // not ok
-                    logger.error(String.format("Error while connecting to %s:%d",loginData.getAddress(), loginData.getPort()));
-                    view.displayMessage(String.format("Klient se nemohl připojit k %s:%d.", loginData.getAddress(), loginData.getPort()));
+                    Throwable ex = tcpClient.getConnectionService().getException();
+                    if(ex instanceof SocketTimeoutException ) {
+                        logger.error(String.format("Connection to %s:%d timed out.",loginData.getAddress(), loginData.getPort()));
+                        view.displayMessage(String.format("Během připojování k %s:%d vypršel čas.", loginData.getAddress(), loginData.getPort()));
+                    } else {
+                        logger.error(String.format("Error while connecting to %s:%d. Cause: %s",loginData.getAddress(), loginData.getPort(), ex.getMessage()));
+                        view.displayMessage(String.format("Klient se nemohl připojit k %s:%d.", loginData.getAddress(), loginData.getPort()));
+                    }
+                    view.enableLoginButton();
                 });
 
     }

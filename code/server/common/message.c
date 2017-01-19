@@ -178,9 +178,10 @@ int send_ok_msg(int socket) {
  * 
  */
 int send_err_msg(int socket, int err_code) {
-	char buff[4];
+	char buff[5];
 	strcpy(buff, MSG_TYPE_ERR);
 	buff[3] = (char)err_code;
+    buff[4] = '\0';
 	
 	return send_txt(socket, buff);
 }

@@ -15,11 +15,14 @@ public class ErrorMessages {
     public static final String RECEIVING_RESPONSE = "Chyba příjimání odpovědi ze serveru.";
     public static final String BAD_NICKNAME = "Nickname má chybný tvar.";
     public static final String SERVER_FULL = "Server je plný.";
+    public static final String NICK_ALREADY_EXISTS = "Hráč s tímto nickem již existuje.";
 
     public static String getErrorForCode(ErrorCode errorCode) {
         switch (errorCode) {
             case BAD_NICKNAME:
                 return BAD_NICKNAME;
+            case NICK_ALREADY_EXIST:
+                return NICK_ALREADY_EXISTS;
             case SERVER_FULL:
                 return SERVER_FULL;
             default:

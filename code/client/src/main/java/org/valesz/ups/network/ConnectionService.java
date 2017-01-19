@@ -3,6 +3,7 @@ package org.valesz.ups.network;
 import javafx.concurrent.Service;
 import javafx.concurrent.Task;
 
+import java.net.InetSocketAddress;
 import java.net.Socket;
 
 /**
@@ -11,6 +12,11 @@ import java.net.Socket;
  * @author Zdenek Vales
  */
 public class ConnectionService extends Service<Socket>{
+
+    /**
+     * Maximum waiting time for connection. In ms.
+     */
+    public static final int MAX_TIMEOUT = 30000;
 
     private final String address;
     private final int port;
@@ -30,7 +36,9 @@ public class ConnectionService extends Service<Socket>{
 
         @Override
         protected Socket call() throws Exception {
-            return new Socket(address, port);
+            Socket s = new Socket();
+            s.connect(new InetSocketAddress(address, port), MAX_TIMEOUT);
+            return s;
         }
     }
 

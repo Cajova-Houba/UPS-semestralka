@@ -13,15 +13,8 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.valesz.ups.common.Constraits;
-import org.valesz.ups.common.error.Error;
-import org.valesz.ups.common.message.received.AbstractReceivedMessage;
-import org.valesz.ups.common.message.received.ReceivedMessageTypeResolver;
 import org.valesz.ups.controller.LoginController;
-import org.valesz.ups.main.MainApp;
 import org.valesz.ups.model.LoginData;
-import org.valesz.ups.model.game.Game;
-import org.valesz.ups.network.NickService;
 import org.valesz.ups.network.TcpClient;
 
 /**
@@ -44,6 +37,8 @@ public class LoginPane extends GridPane {
     private TcpClient tcpClient;
 
     private LoginController controller;
+
+    private Button loginButton;
 
     public LoginPane(TcpClient tcpClient, LoginController loginController) {
         super();
@@ -86,11 +81,11 @@ public class LoginPane extends GridPane {
         feedback.setFill(Color.FIREBRICK);
         add(feedback, 0, 6, 2, 1);
 
-        Button btn = new Button("Connect");
-        btn.setOnAction(e -> {onLoginClick();});
+        loginButton = new Button("Připojit");
+        loginButton.setOnAction(e -> {onLoginClick();});
         HBox hbBtn = new HBox(10);
         hbBtn.setAlignment(Pos.BOTTOM_RIGHT);
-        hbBtn.getChildren().add(btn);
+        hbBtn.getChildren().add(loginButton);
         add(hbBtn, 1, 5);
     }
 
@@ -133,7 +128,6 @@ public class LoginPane extends GridPane {
         String nick = getNick();
         LoginData loginData = new LoginData(nick, addr, p);
         controller.connect(loginData);
-
     }
 
     /**
@@ -143,4 +137,15 @@ public class LoginPane extends GridPane {
     public void displayMessage(String message) {
         feedback.setText(message);
     }
+
+    public void enableLoginButton() {
+        loginButton.setDisable(false);
+        loginButton.setText("Připojit");
+    }
+
+    public void disableLoginButton() {
+        loginButton.setDisable(true);
+        loginButton.setText("Připojuji...");
+    }
+
 }

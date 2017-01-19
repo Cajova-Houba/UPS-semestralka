@@ -25,22 +25,12 @@ int init_ms() {
         return 0;
     }
 
-    if (pthread_mutex_init(&mutex_turn, NULL) != 0) {
-        serror(SERVER_NAME, "Cleaner_index mutex initialization failed.\n");
-        return 0;
-    }
-
     if (pthread_mutex_init(&mutex_is_waiting, NULL) != 0) {
         serror(SERVER_NAME, "Waiting mutex initialization failed.\n");
         return 0;
     }
 
     if (pthread_mutex_init(&mutex_players_check, NULL) != 0) {
-        serror(SERVER_NAME, "Players checking mutex initialization failed.\n");
-        return 0;
-    }
-
-    if (pthread_mutex_init(&mutex_is_my_turn, NULL) != 0) {
         serror(SERVER_NAME, "Players checking mutex initialization failed.\n");
         return 0;
     }
@@ -52,11 +42,6 @@ int init_ms() {
 
     if (pthread_mutex_init(&mutex_timer_threads, NULL) != 0) {
         serror(SERVER_NAME, "Timer threads mutex initialization failed.\n");
-        return 0;
-    }
-
-    if (pthread_cond_init(&cond_turn, NULL) != 0) {
-        serror(SERVER_NAME, "Turn condition variable initialization failed.\n");
         return 0;
     }
 
@@ -116,5 +101,22 @@ void* timer_thread(void* args) {
     // clean itself
     free(tt_args);
     cleaning_function(t_number);
+}
+
+/*
+ * Re-initializes turn semaphores of both players.
+ */
+int reinit_player_sem() {
+    if(sem_init(&p1_sem, 0, 0) < 0) {
+        serror(SERVER_NAME, "Player 1 turn semaphore initialization failed.\n");
+        return 0;
+    }
+
+    if(sem_init(&p2_sem, 0, 0) < 0) {
+        serror(SERVER_NAME, "Player 2 turn semaphore initialization failed.\n");
+        return 0;
+    }
+
+    return 1;
 }
 

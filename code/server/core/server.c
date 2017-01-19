@@ -121,6 +121,7 @@ void server_start_game() {
 	pthread_mutex_lock(&mutex_game_started);
 
     start_game(&game);
+    reinit_player_sem();
 	
 	pthread_mutex_unlock(&mutex_game_started);
 }
@@ -658,8 +659,9 @@ int send_start_turn_to_player(int socket, int my_player, int other_player) {
     if(is_end_of_game(&game) == 1) {
         return 1;
     } else {
+        debug_player_message(log_msg, "Sending start turn message to player %d.\n", my_player);
         msg_status = send_start_turn_msg(socket, game.players[0].turn_word, game.players[1].turn_word);
-        debug_player_message(log_msg, "Start turn status: %d\n", msg_status);
+//        debug_player_message(log_msg, "Start turn status: %d\n", msg_status);
         if(msg_status < 2) {
             serror(PLAYER_THREAD_NAME, "Error while sending start turn message.\n");
             //set the other player as winner

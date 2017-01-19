@@ -54,11 +54,8 @@ pthread_mutex_t mutex_timer_threads;
 pthread_mutex_t mutex_winner;
 
 /*
- * Mutex and a condition variable for switching turns.
+ * Semaphores for switching turns.
  */
-pthread_mutex_t mutex_is_my_turn;
-pthread_mutex_t mutex_turn;
-pthread_cond_t cond_turn;
 sem_t p1_sem;
 sem_t p2_sem;
 
@@ -109,5 +106,12 @@ int init_ms();
  * It will also free the passed argument structure.
  */
 void* timer_thread(void* args);
+
+/*
+ * Re-initializes turn semaphores of both players.
+ *
+ * Returns 1 if error occurs.
+ */
+int reinit_player_sem();
 
 #endif //SERVER_PARALEL_H

@@ -8,7 +8,7 @@
  * The nick is checked only for length by this method.
  * 
  * Returns:
- *  2 : Socket timed out.
+ *  -2 : Socket timed out.
  * 	1 : Nick was received.
  *  0: Socket closed connection.
  *  Error from seneterror.h
@@ -61,6 +61,7 @@ int recv_nick(int socket, char* buffer) {
  * Both turn words are expected to have length equal to TURN_WORD_LENGTH.
  *
  * Returns:
+ *  -2 : timed out
  *  2 : Client quit.
  * 	1 : Both turn words received.
  *  0: Socket closed connection.
@@ -72,8 +73,10 @@ int recv_end_turn(int socket, char* player1_turn_word, char* player2_turn_word) 
 	int i;
 
 //    sdebug(MESSAGE_NAME, "Waiting for end turn message.\n");
-    recv_status = recv_bytes(socket, nbuffer, MSG_TYPE_LEN);
-    if(recv_status != MSG_TYPE_LEN) {
+    recv_status = recv_bytes_timeout(socket, nbuffer, MSG_TYPE_LEN, MAX_NICK_WAITING_TIMEOUT);
+    if(recv_status == MSG_TIMEOUT) {
+        return MSG_TIMEOUT;
+    } else if(recv_status != MSG_TYPE_LEN) {
         serror(MESSAGE_NAME,"Error while receiving end turn message.\n");
         return recv_status;
     }
@@ -86,7 +89,7 @@ int recv_end_turn(int socket, char* player1_turn_word, char* player2_turn_word) 
     }
 
 	/* try to receive first 4 bytes and check exit message */
-	recv_status = recv_bytes(socket, nbuffer, EXIT_MSG_LEN);
+	recv_status = recv_bytes_timeout(socket, nbuffer, EXIT_MSG_LEN, MAX_NICK_WAITING_TIMEOUT);
 	if (recv_status == EXIT_MSG_LEN && strcmp(nbuffer, EXIT_MSG) == 0) {
 		sdebug(MESSAGE_NAME, "EXIT message received.\n");
 		return 2;
@@ -99,14 +102,18 @@ int recv_end_turn(int socket, char* player1_turn_word, char* player2_turn_word) 
 
     /* receive the remaining 1 byte of the first turn word */
     recv_status = recv_bytes(socket, &player1_turn_word[TURN_WORD_LENGTH-1], 1);
-    if(recv_status != 1) {
+    if (recv_status == MSG_TIMEOUT) {
+        return MSG_TIMEOUT;
+    } else if(recv_status != 1) {
         serror(MESSAGE_NAME, "Error while receiving first turn word of end turn message.\n");
         return ERR_MSG_CONTENT;
     }
 
     /* second 5 bytes are 2 turn word */
     recv_status = recv_bytes(socket, player2_turn_word, TURN_WORD_LENGTH);
-    if(recv_status != TURN_WORD_LENGTH) {
+    if (recv_status == MSG_TIMEOUT) {
+        return MSG_TIMEOUT;
+    } else if(recv_status != TURN_WORD_LENGTH) {
         serror(MESSAGE_NAME, "Error while receiving second turn word of end turn message.");
         return ERR_MSG_CONTENT;
     }

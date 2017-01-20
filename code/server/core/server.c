@@ -136,9 +136,12 @@ void server_end_game() {
 	pthread_mutex_lock(&mutex_game_started);
 	
 	end_game(&game);
-    for (i = 0; i < MAX_NICK_LENGTH; i++) {
-        game.players[0].nick[i] = '\0';
-        game.players[1].nick[i] = '\0';
+    get_players(&i);
+    if(i <= 1) {
+        for (i = 0; i < MAX_NICK_LENGTH; i++) {
+            game.players[0].nick[i] = '\0';
+            game.players[1].nick[i] = '\0';
+        }
     }
 
 	pthread_mutex_unlock(&mutex_game_started);
@@ -600,10 +603,9 @@ void handle_disconnect(int disconnected_player) {
 int handle_end_turn_message(int msg_status, int my_player, int other_player) {
     char log_msg[255];
 
-    if(msg_status < 0) {
-        sprintf(log_msg, "Error while receiving end turn message: %d\n", msg_status);
-        serror(PLAYER_THREAD_NAME, (char*)&log_msg);
-        //set the other player as winner
+    if (msg_status == MSG_TIMEOUT) {
+        sprintf(log_msg, "Player %d timed out.\n");
+        serror(PLAYER_THREAD_NAME, log_msg);
         server_set_winner(other_player);
         return 1;
     } else if (msg_status == 0) {
@@ -613,7 +615,13 @@ int handle_end_turn_message(int msg_status, int my_player, int other_player) {
         handle_disconnect(my_player);
 
         return 1;
-    } else if (msg_status == 2) {
+    } if(msg_status < 0) {
+        sprintf(log_msg, "Error while receiving end turn message: %d\n", msg_status);
+        serror(PLAYER_THREAD_NAME, log_msg);
+        //set the other player as winner
+        server_set_winner(other_player);
+        return 1;
+    }  else if (msg_status == 2) {
         debug_player_message(log_msg, "Player %d quit. Other player wins the game.\n", my_player);
 
         server_set_winner(other_player);
@@ -637,6 +645,7 @@ void player_thread_end_game(int socket, int my_player) {
     get_player_nick(winner, buffer);
     send_end_game_msg(socket, buffer);
     server_end_game();
+    decrement_players();
 
     /* wake the other thread */
 //    switch_turn(&game, my_player);
@@ -915,8 +924,7 @@ void *player_thread(void *arg) {
     player_thread_end_game(socket, my_player);
 
 	sinfo(PLAYER_THREAD_NAME,"End of thread.\n");
-	
-	decrement_players();
+
 	clean_me(thread_num);
 	return NULL;
 } 

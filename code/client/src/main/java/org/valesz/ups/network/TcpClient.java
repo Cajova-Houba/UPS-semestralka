@@ -5,12 +5,15 @@ import javafx.event.EventHandler;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.valesz.ups.common.error.Error;
+import org.valesz.ups.common.error.ReceivingException;
 import org.valesz.ups.common.message.Message;
+import org.valesz.ups.common.message.received.AbstractReceivedMessage;
 import org.valesz.ups.model.LoginData;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketException;
 
@@ -22,6 +25,11 @@ import java.net.SocketException;
 public class TcpClient {
 
     public static final Logger logger = LogManager.getLogger(TcpClient.class);
+
+    /**
+     * Max time to wait for new turn message.
+     */
+    public static final int MAX_WAITING_TIMEOUT = 60000;
 
     private LoginData lastSuccessfulConnection;
     private Socket socket;
@@ -54,7 +62,8 @@ public class TcpClient {
             this.socket = connectionService.getValue();
             try {
                 socket.setReuseAddress(true);
-                socket.getKeepAlive();
+//                socket.getKeepAlive();
+                socket.setSoTimeout(MAX_WAITING_TIMEOUT);
                 nickService = new NickService();
                 inFromServer = new DataInputStream(socket.getInputStream());
                 outToServer = new DataOutputStream(socket.getOutputStream());
@@ -223,5 +232,36 @@ public class TcpClient {
 
     public ConnectionService getConnectionService() {
         return connectionService;
+    }
+
+    /**
+     * Receives message from current connection. Blocking operation.
+     * @return
+     */
+    public AbstractReceivedMessage receiveMessageBlocking() throws IOException, ReceivingException {
+        MessageReceiver mr = new MessageReceiver(inFromServer, false);
+        return mr.getResponse();
+    }
+
+    /**
+     * Checks, if the other side of current connection is still alive.
+     * @param maxTimeout
+     * @return
+     */
+    public boolean isAlive(int maxTimeout) {
+        if(!isConnected()) {
+            return false;
+        }
+
+        Socket s = new Socket();
+
+        try {
+            s.connect(new InetSocketAddress(socket.getInetAddress().getHostAddress(), socket.getPort()), maxTimeout);
+            s.close();
+            return true;
+        } catch (Exception e) {
+            return  false;
+        }
+
     }
 }

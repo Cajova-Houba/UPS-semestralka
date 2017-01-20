@@ -2,6 +2,7 @@ package org.valesz.ups.controller;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.valesz.ups.common.error.Error;
 import org.valesz.ups.common.message.received.*;
 import org.valesz.ups.main.MainApp;
 import org.valesz.ups.model.game.Game;
@@ -10,7 +11,10 @@ import org.valesz.ups.ui.Board;
 import org.valesz.ups.ui.MainPane;
 import org.valesz.ups.ui.Stone;
 
+import java.net.SocketTimeoutException;
 import java.util.Arrays;
+import java.util.Timer;
+import java.util.TimerTask;
 
 /**
  * Game controller. Starts game, makes turns etc.
@@ -21,11 +25,20 @@ public class GameController {
 
     private static final Logger logger = LogManager.getLogger(GameController.class);
 
+    /**
+     * Max time for turn = 2 minutes.
+     */
+    public static final int MAX_TURN_TIME = 2*60;
+
     private MainPane view;
     private Board boardView;
     private TcpClient tcpClient;
+    private Timer timer;
+    private int timeCntr;
+    private boolean timerPassed;
 
     public GameController(TcpClient tcpClient) {
+
         this.tcpClient = tcpClient;
     }
 
@@ -43,7 +56,8 @@ public class GameController {
     //TODO: test sending the ok message / timeout in server
     public void waitForStartGame() {
         view.disableButtons();
-        tcpClient.getResponse(
+        view.addLogMessage("Čekám na dalšího hráče...\n");
+        Error err = tcpClient.getResponse(
                 event -> {
                     // response
                     AbstractReceivedMessage response = tcpClient.getReceivingService().getValue();
@@ -64,6 +78,7 @@ public class GameController {
 
                                     // update graphical components
                                     view.startGame();
+                                    displayStartGameInfo();
                                     boardView.placeStones(Game.getInstance().getFirstPlayer().getStones(),
                                             Game.getInstance().getSecondPlayer().getStones());
 
@@ -73,6 +88,7 @@ public class GameController {
                                         waitForNewTurn();
                                     } else {
                                         view.enableButtons();
+                                        startTimer();
                                     }
                                 },
                                 event1 -> {
@@ -84,12 +100,42 @@ public class GameController {
                 },
                 event -> {
                     // failure
-                    String error = tcpClient.getReceivingService().getException().getMessage();
-                    logger.debug("Error while receiving response: "+error);
-                    tcpClient.disconnect();
-                    MainApp.viewController.displayLoginPane();
+                    Throwable ex = tcpClient.getReceivingService().getException();
+                    if(ex instanceof SocketTimeoutException) {
+                        // check if the server is alive
+                        logger.debug("Checking if the server is still alive...");
+                        boolean alive = tcpClient.isAlive(TcpClient.MAX_WAITING_TIMEOUT);
+                        if(!alive) {
+                            logger.error("Error: server died.");
+                            tcpClient.disconnect();
+                            MainApp.viewController.displayLoginPane();
+                        } else {
+                            // server is alive, continue waiting for start game
+                            waitForStartGame();
+                        }
+                    } else {
+                        logger.error("Error while waiting for start game message.");
+                        tcpClient.disconnect();
+                        MainApp.viewController.displayLoginPane();
+                    }
                 }
         );
+
+        if(!err.equals(Error.NO_ERROR())) {
+            logger.error("Error while waiting for start game message: "+err);
+            tcpClient.disconnect();
+            MainApp.viewController.displayLoginPane();
+        }
+    }
+
+    public void displayStartGameInfo() {
+        view.addLogMessage("NOVÁ HRA\n");
+        view.addLogMessage("Na každý tah máte 2 minuty, pak bude automaticky přepnut.\n");
+        view.addLogMessage("Pokud pade 4, nebo 5, musíte házet znovu.\n");
+        view.addLogMessage("Můžete táhnout dopředu i dozadu, ale nemusíte táhnout vůbec.\n");
+        view.addLogMessage("Začíná hráč s bílými kameny. Cílem hry, je dostat všechny kameny z hracího pole.\n");
+        view.addLogMessage("Pokud je na poli kámen druhého hráče, můžete se s ním vyměnit. Pokud má ale hráč\n");
+        view.addLogMessage("dva a více kamenů za sebou, výměna není možná.\n\n");
     }
 
     /**
@@ -125,6 +171,8 @@ public class GameController {
             boardView.updateStones(Game.getInstance().getFirstPlayer().getStones(),
                     Game.getInstance().getSecondPlayer().getStones());
 
+            view.addLogMessage("Kámen posunut z "+fromField+" na "+toField+".\n");
+
             if(Game.getInstance().currentPlayerOnLastField()) {
                 view.showLeaveButton();
             } else {
@@ -149,11 +197,15 @@ public class GameController {
         } else {
             thrown = Game.getInstance().throwSticks();
             logger.debug("Thrown: "+thrown+"\n");
-            view.addLogMessage("Hozeno: "+thrown+"\n");
+
+            if(Game.getInstance().canThrowAgain()) {
+                view.addLogMessage("Hozeno: "+thrown+". Házej znovu.\n");
+            } else {
+                view.addLogMessage("Hozeno: "+thrown+".\n");
+            }
         }
 
         if(Game.getInstance().canThrowAgain()) {
-            view.addLogMessage("Házej znovu.\n");
             view.disableEndTurnButton();
             view.focusOnThrowButton();
         } else {
@@ -168,11 +220,14 @@ public class GameController {
      * Ends the turn and waits for START_TURN message
      */
     public void endTurn() {
-        if(Game.getInstance().canThrowAgain()) {
+        if(Game.getInstance().canThrowAgain() && !timerPassed) {
             logger.error("Cannot end turn if player can throw again!");
             view.addLogMessage("Hráč musí házet znovu!\n");
             return;
         }
+
+        stopTimer();
+        view.resetTimerText();
         Game.getInstance().endTurn();
         view.disableButtons();
         sendEndTurnMessage(1);
@@ -239,14 +294,34 @@ public class GameController {
                 },
                 event -> {
                     // failure
-                    String error = tcpClient.getReceivingService().getException().getMessage();
-                    logger.debug("Error while receiving response: "+error);
+                    Throwable ex = tcpClient.getReceivingService().getException();
+                    if(ex instanceof SocketTimeoutException) {
+                        logger.debug("Checking if the server is still alive...");
+                        // check if the server is alive
+                        boolean alive = tcpClient.isAlive(TcpClient.MAX_WAITING_TIMEOUT);
+                        if(!alive) {
+                            logger.error("Error: server died.");
+                            tcpClient.disconnect();
+                            MainApp.viewController.displayLoginPane();
+                        } else {
+                            logger.debug("Alive.");
+                            // server is alive, continue waiting for new turn
+                            waitForNewTurn();
+                        }
+                    } else {
+                        String error = ex.getMessage();
+                        logger.debug("Error while receiving response: "+error);
+                        Game.getInstance().resetGame();
+                        tcpClient.disconnect();
+                        MainApp.viewController.displayLoginPane();
+                    }
                 }
         );
     }
 
     /**
      * Starts the new turn with updated stones.
+     * Also starts the turn timer.
      * @param firstPlayerStones
      * @param secondPlayerStones
      */
@@ -257,6 +332,24 @@ public class GameController {
         boardView.updateStones(Game.getInstance().getFirstPlayer().getStones(),
                 Game.getInstance().getSecondPlayer().getStones());
         view.focusOnThrowButton();
+        startTimer();
+    }
+
+    public void startTimer() {
+        timeCntr = 0;
+        timerPassed = false;
+        timer = new Timer();
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                turnTimerAction();
+            }
+            // tick every second
+        }, 1000, 1000);
+    }
+
+    public void stopTimer() {
+        timer.cancel();
     }
 
     /**
@@ -309,5 +402,19 @@ public class GameController {
         Game.getInstance().resetGame();
         tcpClient.disconnect();
         view.displayEndGameDialog(winner);
+    }
+
+    /**
+     * Turn must be done in 2 minutes, after that
+     * it's automatically ended.
+     */
+    public void turnTimerAction() {
+        timeCntr++;
+        view.updateTimerText(timeCntr);
+        if(timeCntr == MAX_TURN_TIME) {
+            timerPassed = true;
+            logger.debug("Time for turn expired.");
+            this.endTurn();
+        }
     }
 }

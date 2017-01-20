@@ -46,6 +46,7 @@ public class MainPane extends BorderPane {
     private TextArea infoArea;
     private Board canvas;
     private Text p1Text, p2Text, turnText, throwText, nickText, portText;
+    private Text timerText;
     private Button exitButton, endTurnButton, throwButton, leaveButton;
 
     public MainPane(TcpClient tcpClient, GameController gameController, ViewController viewController, LoginController loginController) {
@@ -171,6 +172,12 @@ public class MainPane extends BorderPane {
         turnTextCaption.getChildren().add(turnText);
         gameInfoContainer.getChildren().add(turnTextCaption);
 
+        HBox timerBox = new HBox();
+        timerBox.getChildren().add(new Text("Čas: "));
+        timerText = new Text("-:-");
+        timerBox.getChildren().add(timerText);
+        gameInfoContainer.getChildren().add(timerBox);
+
         VBox throwBox = new VBox();
         HBox throwTextCaption = new HBox();
         throwTextCaption.getChildren().add(new Text("Hozeno: "));
@@ -182,6 +189,7 @@ public class MainPane extends BorderPane {
         throwButton.setOnAction(event -> onThrowClick());
         throwBox.getChildren().add(throwButton);
         gameInfoContainer.getChildren().add(throwBox);
+
 
         return gameInfoContainer;
     }
@@ -329,6 +337,24 @@ public class MainPane extends BorderPane {
     public void showPortAndNick(int port, String nick) {
         nickText.setText(nick);
         portText.setText(Integer.toString(port));
+    }
+
+    /**
+     * Sets time text to MAX_TURN_TIME - passedTime.
+     * @param passedTime
+     */
+    public void updateTimerText(int passedTime) {
+        int time = GameController.MAX_TURN_TIME - passedTime;
+        if(time < 0) {
+            time = 0;
+        }
+        int minutes = time / 60;
+        time = time - minutes*60;
+        timerText.setText(String.format("%d:%d", minutes, time));
+    }
+
+    public void resetTimerText() {
+        timerText.setText("-:-");
     }
 
 }

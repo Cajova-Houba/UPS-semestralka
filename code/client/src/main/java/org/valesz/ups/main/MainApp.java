@@ -61,6 +61,7 @@ public class MainApp extends Application{
                 event -> {
                     logger.error("Error while sending exit message.");
                 });
+        gameController.stopTimer();
         super.stop();
     }
 

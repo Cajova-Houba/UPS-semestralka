@@ -140,21 +140,21 @@ int validate_turn(char* p1_old_tw, char* p2_old_tw, char* p1_new_tw, char* p2_ne
     // check the field numbers
     for (i = 0; i < TURN_WORD_LENGTH; i++) {
         if(!(p1_new_tw[i] >=1 && p1_new_tw[i] <= 31) ) {
-            return 0;
+            return ERR_TURN;
         }
 
         if(!(p2_new_tw[i] >=1 && p2_new_tw[i] <= 31) ) {
-            return 0;
+            return ERR_TURN;
         }
     }
-    return 1;
+    return OK;
 }
 
 /*
  * Checks the winning conditions and returns:
- * -1: no winner
- *  0: player 1 wins
- *  1: player 2 wins
+ *  OK: no winner
+ *  P1_WINS
+ *  P2_WINS
  */
 int check_winning_conditions(char* p1_turn_word, char* p2_turn_word) {
     int win = 0;

@@ -2,6 +2,7 @@
 #define SERVER_GAME_H
 
 #include "player.h"
+#include "../common/seneterror.h"
 
 #define MAX_PLAYERS				2
 

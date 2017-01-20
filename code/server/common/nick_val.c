@@ -118,7 +118,7 @@ int check_nickname(char* nickname, char *errmsg, Player* players) {
 		case 1: return ERR_NICK_EXISTS;
 	}
 	
-	return NICK_OK;
+	return OK;
 }
 
 

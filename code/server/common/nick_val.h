@@ -11,9 +11,6 @@
 #define MIN_NICK_LENGTH			3
 #define MAX_NICK_LENGTH			8
 
-/* check nick results */
-#define NICK_OK					0
-
 /*
  * Checks, if the length is > 0 and <= MAX_NICK_LENGTH.
  * If the length < MIN_NICK_LENGTH, 1 will be returned.

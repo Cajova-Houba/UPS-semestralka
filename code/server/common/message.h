@@ -44,6 +44,22 @@
 int recv_nick(int socket, char* buffer);
 
 /*
+ * Receives nick from socket and stores it to the buffer.
+ * The buffer should have adequate size = MAX_NICK_LENGTH+1.
+ *
+ * Nick length is expected to be 1 char from '3' - '8'.
+ *
+ * The nick is checked only for length by this method.
+ * The nick will end with \0.
+ *
+ * Returns:
+ * 	1 : Nick was received.
+ *  0: Socket closed connection.
+ *  Error from seneterror.h
+ */
+int recv_nick_alphanum(int socket, char* buffer);
+
+/*
  * Receives a message from the socket indicating the end of turn.
  * player1_turn_word and player2_turn_word are buffers for updated turn words.
  * Both turn words are expected to have length equal to TURN_WORD_LENGTH.

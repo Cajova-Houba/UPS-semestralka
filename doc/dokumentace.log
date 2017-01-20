@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.14159265-2.6-1.40.15 (TeX Live 2015/dev/Debian) (preloaded format=pdflatex 2017.1.7)  13 JAN 2017 00:10
+This is pdfTeX, Version 3.14159265-2.6-1.40.15 (TeX Live 2015/dev/Debian) (preloaded format=pdflatex 2017.1.7)  20 JAN 2017 01:10
 entering extended mode
  restricted \write18 enabled.
  file:line:error style messages enabled.
@@ -542,18 +542,18 @@ LaTeX Font Info:    ... okay on input line 11.
 
 {/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}] [2] (./dokumentace.aux) ) 
 Here is how much of TeX's memory you used:
- 5470 strings out of 494422
- 78355 string characters out of 6164717
- 189095 words of memory out of 5000000
- 8661 multiletter control sequences out of 15000+600000
+ 5475 strings out of 494422
+ 78395 string characters out of 6164717
+ 191095 words of memory out of 5000000
+ 8666 multiletter control sequences out of 15000+600000
  6785 words of font info for 25 fonts, out of 8000000 for 9000
  360 hyphenation exceptions out of 8191
- 54i,7n,51p,323b,220s stack positions out of 5000i,500n,10000p,200000b,80000s
+ 54i,7n,51p,402b,220s stack positions out of 5000i,500n,10000p,200000b,80000s
 <
 /usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/sh
 are/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr12.pfb></usr/share/tex
 live/texmf-dist/fonts/type1/public/amsfonts/cm/cmssbx10.pfb>
-Output written on dokumentace.pdf (2 pages, 33990 bytes).
+Output written on dokumentace.pdf (2 pages, 44462 bytes).
 PDF statistics:
  23 PDF objects out of 1000 (max. 8388607)
  15 compressed objects within 1 object stream

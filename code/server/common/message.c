@@ -18,7 +18,7 @@ int recv_nick(int socket, char* buffer) {
 	int nick_len = 0;
 	int recv_status = 0;
 	
-	recv_status = recv_bytes_timeout(socket, nbuffer, MSG_TYPE_LEN, MAX_SOCKET_TIMEOUT);
+	recv_status = recv_bytes_timeout(socket, nbuffer, MSG_TYPE_LEN, MAX_NICK_TIMEOUT);
 	if(recv_status != MSG_TYPE_LEN) {
 		serror(MESSAGE_NAME,"Error while receiving nick message.\n");
 		return recv_status;
@@ -56,6 +56,63 @@ int recv_nick(int socket, char* buffer) {
 }
 
 /*
+ * Receives nick from socket and stores it to the buffer.
+ * The buffer should have adequate size = MAX_NICK_LENGTH+1.
+ *
+ * Nick length is expected to be 1 char from '3' - '8'.
+ *
+ * The nick is checked only for length by this method.
+ * The nick will end with \0.
+ *
+ * Returns:
+ * 	1 : Nick was received.
+ *  0: Socket closed connection.
+ *  Error from seneterror.h
+ */
+int recv_nick_alphanum(int socket, char* buffer) {
+	char nbuffer[4]; // 4 is max length of msg type + '\0'
+	int nick_len = 0;
+	int recv_status = 0;
+
+	// get message type
+	recv_status = recv_bytes_timeout(socket, nbuffer, MSG_TYPE_LEN, MAX_NICK_TIMEOUT);
+	if(recv_status != MSG_TYPE_LEN) {
+		serror(MESSAGE_NAME,"Error while receiving nick message.\n");
+		return recv_status;
+	}
+
+	// the type must be CMD
+	nbuffer[3] = '\0';
+	if(strcmp(nbuffer, MSG_TYPE_CMD) != 0) {
+		return ERR_MSG_TYPE;
+	}
+
+	// receive one more byte to gain the length of the nick
+	recv_status = recv_bytes(socket, nbuffer, 1);
+	if(recv_status != 1) {
+		serror(MESSAGE_NAME, "Error while receiving the nick length.\n");
+		return recv_status;
+	}
+	nick_len = nbuffer[0] - '0';
+	if(nick_len < MIN_NICK_LENGTH || nick_len > MAX_NICK_LENGTH) {
+		serror(MESSAGE_NAME, "Nick has wrong length.\n");
+		return ERR_MSG_CONTENT;
+	}
+
+	// receive the rest of the nick
+	recv_status = recv_bytes(socket, buffer, nick_len);
+	if(recv_status != nick_len) {
+		serror(MESSAGE_NAME, "Error while receiving the rest of the nick.\n");
+		return recv_status;
+	}
+
+	buffer[nick_len] = '\0';
+
+
+	return 1;
+}
+
+/*
  * Receives a message from the socket indicating the end of turn.
  * player1_turn_word and player2_turn_word are buffers for updated turn words.
  * Both turn words are expected to have length equal to TURN_WORD_LENGTH.
@@ -73,7 +130,7 @@ int recv_end_turn(int socket, char* player1_turn_word, char* player2_turn_word) 
 	int i;
 
 //    sdebug(MESSAGE_NAME, "Waiting for end turn message.\n");
-    recv_status = recv_bytes_timeout(socket, nbuffer, MSG_TYPE_LEN, MAX_NICK_WAITING_TIMEOUT);
+    recv_status = recv_bytes_timeout(socket, nbuffer, MSG_TYPE_LEN, MAX_TURN_WAITING_TIMEOUT);
     if(recv_status == MSG_TIMEOUT) {
         return MSG_TIMEOUT;
     } else if(recv_status != MSG_TYPE_LEN) {
@@ -89,7 +146,7 @@ int recv_end_turn(int socket, char* player1_turn_word, char* player2_turn_word) 
     }
 
 	/* try to receive first 4 bytes and check exit message */
-	recv_status = recv_bytes_timeout(socket, nbuffer, EXIT_MSG_LEN, MAX_NICK_WAITING_TIMEOUT);
+	recv_status = recv_bytes_timeout(socket, nbuffer, EXIT_MSG_LEN, MAX_TURN_WAITING_TIMEOUT);
 	if (recv_status == EXIT_MSG_LEN && strcmp(nbuffer, EXIT_MSG) == 0) {
 		sdebug(MESSAGE_NAME, "EXIT message received.\n");
 		return 2;
@@ -135,7 +192,7 @@ int recv_ok_msg(int socket) {
 	int i;
 
 	sdebug(MESSAGE_NAME, "Waiting for end turn message.\n");
-	recv_status = recv_bytes_timeout(socket, nbuffer, MSG_TYPE_LEN, MAX_SOCKET_TIMEOUT);
+	recv_status = recv_bytes_timeout(socket, nbuffer, MSG_TYPE_LEN, MAX_NICK_TIMEOUT);
 	if(recv_status != MSG_TYPE_LEN) {
 		serror(MESSAGE_NAME,"Error while receiving ok message type.\n");
 		return recv_status;
@@ -149,7 +206,7 @@ int recv_ok_msg(int socket) {
 	}
 
 	/* try to receive the rest of the OK message */
-	recv_status = recv_bytes_timeout(socket, nbuffer, EXIT_MSG_LEN, MAX_SOCKET_TIMEOUT);
+	recv_status = recv_bytes_timeout(socket, nbuffer, EXIT_MSG_LEN, MAX_NICK_TIMEOUT);
     nbuffer[2] = '\0';
 	if (recv_status == OK_MESSAGE_LEN && strcmp(nbuffer, OK_MESSAGE) == 0) {
 		return 1;

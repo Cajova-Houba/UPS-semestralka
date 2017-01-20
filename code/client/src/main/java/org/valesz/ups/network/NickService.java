@@ -32,8 +32,8 @@ public class NickService extends Service<Object>{
 
     @Override
     protected Task<Object> createTask() {
-        byte nickLen = (byte)nick.length();
-        nick = ((char)nickLen) + nick;
+        char nickLen = Integer.toString(nick.length()).charAt(0);
+        nick = nickLen + nick;
         return new MessageSender(new Message(MessageType.CMD, nick), outToServer);
     }
 }

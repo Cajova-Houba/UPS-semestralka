@@ -2,6 +2,7 @@
 #define __SENET_ERROR_H
 
 typedef enum {
+	TOO_MAY_ATTEMPTS = -4,
 	MSG_TIMEOUT = -3,
 	GENERAL_ERR = -1,
 	ERR_MSG = 1,

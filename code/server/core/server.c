@@ -35,6 +35,11 @@
  */
 #define DEF_TIMEOUT             10
 
+/*
+ * Max number of attempts for player to send a correct nick.
+ */
+#define MAX_NICK_ATTEMPTS       3
+
 
 /*
  * Possible parameter names.
@@ -517,10 +522,14 @@ int check_nick(char *nick, char *err_msg)
 /*
  * Waits for nick to be received.
  * Returns 1 if the nick is received, or 0 if the socket closes connection, MSG_TIMEOUT if
+ * the socket times out. There are 3 possible attempts to receive nick. If all them fail,
+ * -1 will be returned.
  */
 int wait_for_nick(int socket, char* buffer, char* log_msg) {
-    int msg_status = recv_nick(socket, buffer);
-    while (msg_status != 1) {
+//    int msg_status = recv_nick(socket, buffer);
+    int msg_status = recv_nick_alphanum(socket, buffer);
+    int attempt = 0;
+    while (msg_status != 1 && attempt < MAX_NICK_ATTEMPTS) {
         if (msg_status == 0) {
             return 0;
         } else if(msg_status == MSG_TIMEOUT) {
@@ -530,7 +539,12 @@ int wait_for_nick(int socket, char* buffer, char* log_msg) {
             sprintf(log_msg, "Error occured while receiving nick: %i\n",msg_status);
             serror(PLAYER_THREAD_NAME, log_msg);
         }
-        msg_status = recv_nick(socket, buffer);
+        msg_status = recv_nick_alphanum(socket, buffer);
+        attempt++;
+    }
+
+    if(attempt == MAX_NICK_ATTEMPTS) {
+        return TOO_MAY_ATTEMPTS;
     }
 
     return 1;
@@ -707,6 +721,7 @@ void *player_thread(void *arg) {
 	int tmp;
     int winner;
     int break_game_loop;
+    int turn_valid;
 
     /*
 	 * Index in the array of players.
@@ -757,7 +772,12 @@ void *player_thread(void *arg) {
         /* wait for correct nick */
         msg_status = wait_for_nick(socket, buffer, log_msg);
         if(msg_status == 0) {
-            sprintf(log_msg,"Socket %d closed connection.\n",socket);
+            sprintf(log_msg, "Socket %d closed connection.\n", socket);
+            sinfo(PLAYER_THREAD_NAME, log_msg);
+            clean_me(thread_num);
+            return NULL;
+        } else if(msg_status == TOO_MAY_ATTEMPTS) {
+            sprintf(log_msg, "Maximum number of possible attempts to send nick reached on socket %d.\n", socket);
             sinfo(PLAYER_THREAD_NAME, log_msg);
             clean_me(thread_num);
             return NULL;
@@ -878,11 +898,16 @@ void *player_thread(void *arg) {
         }
 
         // validate the turn
-        debug_player_message((char*)&log_msg, "Validating player %d turn.\n", my_player);
+        debug_player_message(log_msg, "Validating player %d turn.\n", my_player);
+        turn_valid = validate_turn(game.players[0].turn_word, game.players[1].turn_word, tmp_p1_word, tmp_p2_word, my_player);
+        if (turn_valid != 1) {
+            debug_player_message(log_msg, "Turn of player %d is not valid, skipping it!\n", my_player);
+        } else {
+            // turn valid -> update the player's stones
+            update_players_stones(&(game.players[0]), tmp_p1_word);
+            update_players_stones(&(game.players[1]), tmp_p2_word);
+        }
 
-        // update the player's stones
-        update_players_stones(&(game.players[0]), tmp_p1_word);
-        update_players_stones(&(game.players[1]), tmp_p2_word);
 
         // check the winning conditions
         winner = check_winning_conditions(game.players[0].turn_word, game.players[1].turn_word);

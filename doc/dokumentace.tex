@@ -17,9 +17,14 @@
 	\newpage
 	
 	\section{Zadání}
+	Naprogramuje síťovou verzi hry Senet. Server naprogramuje v jazyce C, klient může být naprogramován v Jave.
 	
+	Obojí musí být přeložitelné a spustitelné na školních počítačích, za pomocí automatizačních nástrojů (make, scons, ant, maven).
 	
 	\section{Popis hry Senet}
+	Senet je staroegyptská desková hra pro dva hráče. Každý hráč má 5 kamenů, které jsou na přeskáčku rozestavěny na hrací desce (1. hráč má kámen na poli 1). Hází se dřívky, možné hodnoty jsou 1 - 5 (na rozdíl od kostky mají různou pravděpodobnost). 
+	
+	Hráč si během tahu vybere jeden kámen, kterým se posune o hozenou hodnotu. Může se pohnout dopředu i do zadu, případně může tah přeskočit. Pokud je na poli, kam se chce hráč pohnout kámen druhého hráče kameny se vymění. Pokud má druhý hráč za sebou dva a více kamenů, výměna není možná. Cílem hry je dostat všechny kameny z hrací desky.
 	
 	\section{Popis řešení}
 	

@@ -4,16 +4,16 @@
 #define SRV_PORT				65000
 #define MAX_TXT_LENGTH			50
 /*
- * Response is expected to be received in this time.
+ * Nick is expected to be delivered after connection in this time.
  * In ms.
  */
-#define MAX_SOCKET_TIMEOUT      5000
+#define MAX_NICK_TIMEOUT      10000
 
 /*
  * Waiting for turn - 2 minutes and 5 seconds (in client it's just 2 minutes), after that it is assumed, that player
  * has disconnected and the waiting process starts.
  */
-#define MAX_NICK_WAITING_TIMEOUT     125000
+#define MAX_TURN_WAITING_TIMEOUT     125000
 
 #include <stdio.h>
 #include <string.h>

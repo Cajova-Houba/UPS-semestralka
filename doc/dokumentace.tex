@@ -29,13 +29,35 @@
 	\section{Popis řešení}
 	
 	\subsection{Protokol}
+	Protokol je textově-binární a každá zpráva se skládá ze dvou částí: typ zprávy a obsah zprávy. Typ zprávy je řetězec o právě třech znacích, obsah zprávy má různou délku.
 	
+	Jednotlivé zprávy jsou uvedeny v následující tabulce:
+	
+	\begin{tabular} {c | c}
+	\end{tabular}
+
+	\subsection{Tahové slovo}
+	Tahové slovo uchovává informaci o tahu. Jedná se o pole 5 bytů, na každém indexu je uložena pozice kamene hráče. Každý hráč má zřejmě své tahové slovo.
+	
+	\subsection{Herní smyčka}
+		
 	\subsection{Server}
 	
 	\subsection{Klient}
 	
 	\section{Postup na sestavení a spuštění}
-	
+	\subsection{Server}
+	Pro úspěšný překlad serveru je nutná knihovna \verb|pthread.h|. Překlad a sestavení lze provést pomocí příkazů \verb|scons|, nebo \verb|cmake| v adresáři \verb|code/server|. Spustitelný soubor \verb|server| je v adresáři \verb|code/server/build|.
+	\subsection{Klient}
+	Klient lze přeložit a vyexportovat do spustitelného jar pomocí příkazu:
+	\begin{lstlisting}
+		mvn clean compile assembly:single
+	\end{lstlisting}
+	v adresáři \verb|code/client|. Vyexportovaný jar pak lze spustit příkazem
+	\begin{lstlisting}
+		java -jar target/*.jar
+	\end{lstlisting} v adresáři \verb|code/client|. Seznam závislostí se náchází v souboru \verb|code/client/pom.ml|.
+		
 	\section{Závěr}
 	
 	

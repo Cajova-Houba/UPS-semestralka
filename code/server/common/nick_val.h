@@ -44,7 +44,7 @@ int check_characters(char* nickname);
  * It is expected that length and character has already been checked.
  * It is expected that the length of players is MAX_PLAYERS.
  */
-int check_nick_duplicity(char *nickname, struct Player *players);
+int check_nick_duplicity(char *nickname, Player *players);
 
 /*
  * Checks the nickname for length, allowed chars and duplicity.
@@ -58,6 +58,6 @@ int check_nick_duplicity(char *nickname, struct Player *players);
  * 		ERR_CONTAINS_INV_CHAR - nick contains invalid chars
  * 		ERR_NICK_EXISTS - nick already exists
  */ 
-int check_nickname(char* nickname, char *errmsg, struct Player* players);
+int check_nickname(char* nickname, char *errmsg, Player* players);
 
 #endif

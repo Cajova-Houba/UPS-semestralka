@@ -93,7 +93,7 @@ int cleaner_index;
 /*
  * Game instance.
  */
-struct Game_struct game;
+Game_struct game;
 
 /*
  * Initialized on the start of server.
@@ -128,27 +128,6 @@ void server_start_game() {
     start_game(&game);
     reinit_player_sem();
 	
-	pthread_mutex_unlock(&mutex_game_started);
-}
-
-/*
- * Handles the critical section and calls an end_game()
- * function from the game.h.
- * Also clears the nicks in game struct.
- */ 
-void server_end_game() {
-    int i;
-	pthread_mutex_lock(&mutex_game_started);
-	
-	end_game(&game);
-    get_players(&i);
-    if(i <= 1) {
-        for (i = 0; i < MAX_NICK_LENGTH; i++) {
-            game.players[0].nick[i] = '\0';
-            game.players[1].nick[i] = '\0';
-        }
-    }
-
 	pthread_mutex_unlock(&mutex_game_started);
 }
 
@@ -227,7 +206,7 @@ void get_curr_conn(int *variable) {
 	pthread_mutex_lock(&mutex_curr_conn);
 	
 	for(i = 0; i < MAX_CONNECTIONS; i++) {
-		if(connections[i] == NULL) {
+		if(connections[i] == NO_THREAD) {
 			*variable = i;
 			break;
 		}
@@ -350,11 +329,32 @@ void unset_waiting_for(int player) {
 void get_timer_thread_num(int *variable) {
     int cnt = 0;
 
-    while(cnt < MAX_TIMER_THREADS && timer_threads[cnt] != NULL) {
+    while(cnt < MAX_TIMER_THREADS && timer_threads[cnt] != NO_THREAD) {
         cnt ++;
     }
 
     *variable = cnt;
+}
+
+/*
+ * Handles the critical section and calls an end_game()
+ * function from the game.h.
+ * Also clears the nicks in game struct.
+ */
+void server_end_game() {
+    int i;
+    pthread_mutex_lock(&mutex_game_started);
+
+    end_game(&game);
+    get_players(&i);
+    if(i <= 1) {
+        for (i = 0; i < MAX_NICK_LENGTH; i++) {
+            game.players[0].nick[i] = '\0';
+            game.players[1].nick[i] = '\0';
+        }
+    }
+
+    pthread_mutex_unlock(&mutex_game_started);
 }
 
 
@@ -418,7 +418,7 @@ void waiting_thread_after(int waiting_for) {
 int start_waiting_thread(int waiting_for) {
     int tmp, thread_err;
     char err[250];
-    struct Timer_thread_struct* tt_args = malloc(sizeof(struct Timer_thread_struct));
+    Timer_thread_struct* tt_args = malloc(sizeof(Timer_thread_struct));
 
     get_timer_thread_num(&tmp);
 
@@ -459,12 +459,12 @@ void *cleaner(void *arg) {
             sprintf(log_msg, "Cleaning player thread on index: %d.\n", thread_index);
             sdebug(SERVER_NAME, log_msg);
             pthread_join(connections[thread_index], NULL);
-            connections[thread_index] = NULL;
+            connections[thread_index] = NO_THREAD;
         } else if( thread_index >= -MAX_TIMER_THREADS && thread_index <= -1) {
             sprintf(log_msg, "Cleaning timer thread on index: %d.\n", -thread_index -1);
             sdebug(SERVER_NAME, log_msg);
             pthread_join(timer_threads[-thread_index -1], NULL);
-            timer_threads[-thread_index -1] = NULL;
+            timer_threads[-thread_index -1] = NO_THREAD;
         } else {
             break;
         }
@@ -1059,30 +1059,32 @@ int load_arguments(int argc, char* argv[], int* port, struct in_addr* addr, int*
  */ 
 int main(int argc, char *argv[])
 {
-	int sock, incoming_sock;
-    int port = SRV_PORT;
-	int optval;
-	struct sockaddr_in addr, incoming_addr;
+	int sock = 0;
+    int incoming_sock = 0;
+	int optval = 0;
+    struct sockaddr_in addr, incoming_addr;
     struct in_addr ip_addr;
-	unsigned int incoming_addr_len;
-    pthread_t cleaner_thread;
+    unsigned int incoming_addr_len = 0;
+    pthread_t cleaner_thread = NO_THREAD;
     thread_arg thread_args[MAX_CONNECTIONS];
-    int thread_err;
+    int thread_err = 0;
     char log_msg[255];
-    int tmp_curr_conn;
-    int tmp;
+    int tmp_curr_conn = 0;
+    int tmp = 0;
+    int port = SRV_PORT;
+    timeout = DEF_TIMEOUT;
+
+    /* init timer threads */
+    for (tmp = 0; tmp < MAX_TIMER_THREADS; tmp++) {
+        timer_threads[tmp] = NO_THREAD;
+    }
 
     /* load arguments */
     ip_addr.s_addr = htonl(INADDR_ANY);
-    timeout = DEF_TIMEOUT;
     if(load_arguments(argc, argv, &port, &ip_addr, &timeout) == 1) {
         return 0;
     }
 
-    /* init timer threads */
-    for (tmp = 0; tmp < MAX_TIMER_THREADS; tmp++) {
-        timer_threads[tmp] = NULL;
-    }
 
 	printf("\n\n");
 	printf("==========================\n");

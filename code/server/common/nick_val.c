@@ -71,7 +71,7 @@ int check_characters(char* nickname) {
  * 
  * It is expected that length and character has already been checked.
  */
-int check_nick_duplicity(char *nickname, struct Player *players) {
+int check_nick_duplicity(char *nickname, Player *players) {
 
 	if(strcmp(players[0].nick, nickname) == 0) {
 		return 1;
@@ -97,7 +97,7 @@ int check_nick_duplicity(char *nickname, struct Player *players) {
  * 		CONTAINS_INV_CHAR - nick contains invalid chars
  * 		NICK_ALREADY_EXISTS - nick already exists
  */ 
-int check_nickname(char* nickname, char *errmsg, struct Player* players) {
+int check_nickname(char* nickname, char *errmsg, Player* players) {
 	
 	int check_res = 0;
 	

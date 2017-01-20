@@ -84,7 +84,7 @@ int init_ms() {
  */
 void* timer_thread(void* args) {
 
-    struct Timer_thread_struct* tt_args = ((struct Timer_thread_struct *)args);
+    Timer_thread_struct* tt_args = ((Timer_thread_struct *)args);
     void (*cleaning_function)(int) = tt_args->cleaning_function;
     int t_number = tt_args->thread_number;
     char log_msg[255];

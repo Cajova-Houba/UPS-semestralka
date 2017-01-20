@@ -8,9 +8,14 @@
 #include "../common/slog.h"
 
 /*
+ * Free slot for thread
+ */
+#define NO_THREAD       ((pthread_t)-1)
+
+/*
  * Arguments for timer thread.
  */
-typedef struct Timer_thread_struct{
+typedef struct {
 
     /*
      * An index to the timer_threads array in server.c
@@ -37,7 +42,7 @@ typedef struct Timer_thread_struct{
      * The thread will call this functions after all the work is done.
      */
     void (*cleaning_function)(int);
-};
+} Timer_thread_struct;
 
 
 /*

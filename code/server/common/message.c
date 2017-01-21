@@ -27,6 +27,39 @@ char POSSIBLE_ALIVE_MSG_CHARS[5][2] = {
 };
 
 /*
+ * Checks if the message is alive message.
+ * Returns ok if it is or 0 if it isn't.
+ */
+int is_alive(Message* message) {
+    if (message == NULL) {
+        return 0;
+    }
+
+    if (message->message_type_int == INF_TYPE && strcmp(message->content, ALIVE_MSG) == 0) {
+        return OK;
+    }
+
+    return 0;
+}
+/*
+ * Checks if the message is nick.
+ * Returns ok if it is or 0 if it isn't.
+ */
+int is_nick(Message* message) {
+    if (message == NULL) {
+        return 0;
+    }
+
+    if (message->message_type_int == CMD_TYPE) {
+        return OK;
+    }
+
+    return 0;
+}
+
+
+
+/*
  * Checks the message type and returns Message_type
  */
 int get_msg_type(char* msg_type) {
@@ -65,9 +98,17 @@ int recv_msg_type(int socket, int timeout, Message* message) {
         if(msg_status < 0) {
             return msg_status;
         }
+
+
+
         switch (m_type) {
             // determine the message type by first char
             case -1:
+                // filter out some white space chars
+                if (buffer[i] == '\n' || buffer[i] == ' ') {
+                    continue;
+                }
+
                 k = 0;
                 while(k < 3 && m_type == -1){
                     j = 0;
@@ -192,7 +233,7 @@ int recv_err_message(int socket, Message* message, int timeout) {
         return ERR_MSG_CONTENT;
     }
     strcpy(message->content, buffer);
-    if((-err_code) < GENERAL_ERR || (-err_code) > ERR_TURN) {
+    if((-err_code) < GENERAL_ERR || (-err_code) > ERR_LAST - 1) {
         message->error_code = GENERAL_ERR;
     } else {
         message->error_code = (senetError)-err_code;
@@ -290,7 +331,7 @@ int recv_inf_message(int socket, Message* message, int timeout) {
             }
 
             buffer[ALIVE_MSG_LEN] = '\0';
-            strcpy(message->content, buffer);
+            strcpy(message->content, ALIVE_MSG);
             return OK;
     }
 
@@ -298,12 +339,12 @@ int recv_inf_message(int socket, Message* message, int timeout) {
     // receive remaining 9 bytes of data.
     if(buffer[0] >= '0' && buffer[0] <= '9') {
         // receive turn words
-        recv_status = recv_bytes_timeout(socket, &buffer[1], 9, timeout);
-        if(recv_status != 9) {
+        recv_status = recv_bytes_timeout(socket, &buffer[1], 2*TURN_WORD_LENGTH-1, timeout);
+        if(recv_status != 2*TURN_WORD_LENGTH-1) {
             return recv_status;
         }
 
-        buffer[10] = '\0';
+        buffer[2*TURN_WORD_LENGTH] = '\0';
         strcpy(message->content, buffer);
         return OK;
     } else {
@@ -515,7 +556,7 @@ int recv_end_turn(int socket, char* player1_turn_word, char* player2_turn_word) 
 		}
 	}
 
-    /* receive the remaining 1 byte of the first turn word */
+    /* receive the remaining 6 byte of the first turn word */
     recv_status = recv_bytes(socket, &player1_turn_word[TURN_WORD_LENGTH-1], 1);
     if (recv_status == MSG_TIMEOUT) {
         return MSG_TIMEOUT;
@@ -524,7 +565,7 @@ int recv_end_turn(int socket, char* player1_turn_word, char* player2_turn_word) 
         return ERR_MSG_CONTENT;
     }
 
-    /* second 5 bytes are 2 turn word */
+    /* second 10 bytes are 2 turn word */
     recv_status = recv_bytes(socket, player2_turn_word, TURN_WORD_LENGTH);
     if (recv_status == MSG_TIMEOUT) {
         return MSG_TIMEOUT;
@@ -562,7 +603,6 @@ int recv_end_turn_alphanum(int socket, char* player1_turn_word, char* player2_tu
 int recv_ok_msg(int socket) {
 	char nbuffer[3]; // 3 is max length of OK message + '\0'
 	int recv_status = 0;
-	int i;
 
 	sdebug(MESSAGE_NAME, "Waiting for end turn message.\n");
 	recv_status = recv_bytes_timeout(socket, nbuffer, MSG_TYPE_LEN, MAX_NICK_TIMEOUT);
@@ -592,17 +632,21 @@ int recv_ok_msg(int socket) {
  * Send OK_MESSAGE to socket. 
  * 
  * Returns:
- * 1: OK message was sent.
- * 0: Error occured.
- * 2: Socket closed the connection.
+ * OK: message was sent.
+ * ERR_MSG: error while sendig message.
+ * CLOSED_CONNECTION: connection closed.
  * 
  */
 int send_ok_msg(int socket) {
-    char buffer[MSG_TYPE_LEN+OK_MESSAGE_LEN+1];
-    strcpy(buffer, MSG_TYPE_INF);
-    strcpy(&buffer[MSG_TYPE_LEN], OK_MESSAGE);
-    buffer[MSG_TYPE_LEN+OK_MESSAGE_LEN] = '\0';
-	return send_txt(socket, buffer);
+    int send_status = 0;
+    char buffer[50];
+    sprintf(buffer,"%s%s\n\0", MSG_TYPE_INF, OK_MESSAGE);
+    send_status = send_txt(socket, buffer);
+    if(send_status != MSG_TYPE_LEN+OK_MESSAGE_LEN+1) {
+        return send_status;
+    } else {
+        return OK;
+    }
 }
 
 /*
@@ -619,7 +663,7 @@ int send_err_msg(int socket, int err_code) {
     if(err_code < 0) {
         err_code = -err_code;
     }
-    sprintf(buff, "%s%02d\0",MSG_TYPE_ERR, err_code);
+    sprintf(buff, "%s%02d\n\0",MSG_TYPE_ERR, err_code);
 
     state = send_txt(socket, buff);
 	if(state > 0) {
@@ -634,6 +678,7 @@ int send_err_msg(int socket, int err_code) {
  * The message will look like this: INFSTART_GAME<player1>,<player2>;.
  *
  * Returns:
+ * TODO: change to OK/ERR
  * 1: Message was sent.
  * 0: Socket closed the connection.
  * <0: Error occurred.
@@ -642,7 +687,7 @@ int send_start_game_msg(int sock, char* player1, char* player2) {
 	//the length of the message will not be bigger than 31.
 	char buff[40];
 	strcpy(buff, START_GAME_MESSAGE);
-	sprintf(&buff[START_GAME_MESSAGE_LEN], "%s,%s;", player1, player2);
+	sprintf(&buff[START_GAME_MESSAGE_LEN], "%s,%s;\n", player1, player2);
 
 	return send_txt(sock, buff);
 }
@@ -669,14 +714,15 @@ int send_end_game_msg(int sock, char* winner) {
  * Sends a start turn message to the socket.
  * The message will look like this: CMD<p1turnword><p2turnword>
  *
+ * TODO: change to ok
  * Returns:
  * 13: Message was sent.
  * 2: Socket closed the connection.
  * <0: Error occurred.
  */
 int send_start_turn_msg(int sock, char* player1_turn_word, char* player2_turn_word) {
-    char buff[START_TURN_MESSAGE_LEN+1];
-    sprintf(buff, "CMD%s%s", player1_turn_word, player2_turn_word);
+    char buff[50];
+    sprintf(buff, "CMD%s%s\n\0", player1_turn_word, player2_turn_word);
 
     return send_txt(sock, buff);
 }

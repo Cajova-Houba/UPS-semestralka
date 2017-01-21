@@ -23,12 +23,16 @@ void initialize_player(Player* player, int id, char* nick, int socket, int secon
 void generate_new_stones(Player* player, int second_player) {
     int pos = 1;
     int i = 0;
+    char buffer[5];
     if(second_player) {
         pos = 2;
     }
 
-    for(i=0; i < TURN_WORD_LENGTH; i++) {
-        player->turn_word[i] = (char)pos;
+    while(i < TURN_WORD_LENGTH) {
+        sprintf(buffer,"%2d",pos);
+        player->turn_word[i++] = buffer[0];
+        player->turn_word[i++] = buffer[1];
+
         pos += 2;
     }
     player->turn_word[TURN_WORD_LENGTH] = '\0';

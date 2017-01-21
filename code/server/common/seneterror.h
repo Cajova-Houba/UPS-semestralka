@@ -10,7 +10,15 @@ typedef enum {
 	ERR_NICK_EXISTS,
 	ERR_NICK_LEN,
 	ERR_SERVER_FULL,
-	ERR_TURN
+	ERR_NOT_MY_TURN,
+	ERR_GAME_ALREADY_RUNNING,
+	ERR_TURN,
+	ERR_TIMEOUT,
+	ERR_TOO_MANY_ATTEMPTS,
+	ERR_UNEXPECTED_MSG,
+
+	// to be used while iterating over errors
+	ERR_LAST
 } senetError;
 
 /*

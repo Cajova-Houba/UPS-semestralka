@@ -45,7 +45,7 @@ int recv_bytes_timeout(int sock, char* buffer, int byte_count, int ms_timeout) {
             serror(COMMON_NAME, log_msg);
             return ERR_MSG;
         case 0:
-            serror(COMMON_NAME, "Timed out while receiving message.\n");
+//            serror(COMMON_NAME, "Timed out while receiving message.\n");
             return MSG_TIMEOUT;
         default:
             return recv(sock, (void *)buffer, byte_count, 0);
@@ -64,20 +64,22 @@ int recv_bytes_timeout(int sock, char* buffer, int byte_count, int ms_timeout) {
  */ 
 int send_txt(int sock, char *txt)
 {
-  char log_buffer[255];
-  int txtlen = strlen(txt);
-  int send_status = -1;
+    char log_buffer[255];
+    int txtlen = (int)strlen(txt);
+    int send_status = -1;
 
-  /* send the message */
-  send_status = send(sock, (void *)txt, txtlen, 0);
-  if (send_status < 0) {
+    // add new line at the end of the message
+
+    /* send the message */
+    send_status = (int)send(sock, (void *)txt, txtlen, 0);
+    if (send_status < 0) {
       sprintf(log_buffer, "Error while sending message: %s.\n", strerror(errno));
       serror(COMMON_NAME,log_buffer);
       if(errno == ENOTCONN) {
           return CLOSED_CONNECTION;
       }
       return ERR_MSG;
-  }
+    }
 
   return send_status;
 }

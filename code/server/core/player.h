@@ -1,7 +1,7 @@
 #ifndef __SENET_PLAYER_H
 #define __SENET_PLAYER_H
 
-#define     TURN_WORD_LENGTH        5
+#define     TURN_WORD_LENGTH        10
 
 #include <stdlib.h>
 #include <string.h>

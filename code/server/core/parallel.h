@@ -63,6 +63,7 @@ pthread_mutex_t mutex_winner;
  */
 sem_t p1_sem;
 sem_t p2_sem;
+pthread_mutex_t mutex_get_turn;
 
 /*
  * A semaphore for threads with players.

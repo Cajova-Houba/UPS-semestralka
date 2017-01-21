@@ -49,9 +49,12 @@ int recv_bytes(int sock, char* buffer, int byte_count);
 int recv_bytes_timeout(int sock, char* buffer, int byte_count, int ms_timeout);
 
 /*
- * Send a message to the socket.
- * Returns:
+ * Sends text to the socket.
  *
+ * Returns:
+ * ERR_MSG: error while sending message.
+ * CLOSED_CONNECTION: connection to socket is closed.
+ * or number of bytes send
  */
 int send_txt(int sock, char *txt);
 

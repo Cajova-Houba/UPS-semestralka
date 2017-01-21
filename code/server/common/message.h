@@ -8,7 +8,7 @@
 #define		START_GAME_MESSAGE_LEN		13
 #define 	END_GAME_MESSAGE			"INFEND_GAME"
 #define 	END_GAME_MESSAGE_LEN		11
-#define     START_TURN_MESSAGE_LEN      13
+#define     START_TURN_MESSAGE_LEN      23
 #define     WAIT_FOR_PLAYER_MESSAGE     "INFWAITING"
 #define     WAIT_FOR_PLAYER_MESSAGE_LEN 10
 #define     EXIT_MSG                    "EXIT"
@@ -48,6 +48,18 @@ typedef struct {
     char content[MAX_CONTENT_SIZE];
     senetError error_code;
 } Message;
+
+/*
+ * Checks if the message is alive message.
+ * Returns ok if it is or 0 if it isn't.
+ */
+int is_alive(Message* message);
+
+/*
+ * Checks if the message is nick.
+ * Returns ok if it is or 0 if it isn't.
+ */
+int is_nick(Message* message);
 
 /*
  * Receives message from socket.
@@ -130,9 +142,9 @@ int recv_ok_msg(int socket);
  * Send OK_MESSAGE to socket. 
  * 
  * Returns:
- * 1 : OK message was sent.
- * 0 : Socket closed the connection.
- * <0: Error occured.
+ * OK: message was sent.
+ * ERR_MSG: error while sendig message.
+ * CLOSED_CONNECTION: connection closed.
  * 
  */
 int send_ok_msg(int socket);

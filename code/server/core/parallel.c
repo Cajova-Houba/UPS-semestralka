@@ -45,6 +45,11 @@ int init_ms() {
         return 0;
     }
 
+    if (pthread_mutex_init(&mutex_get_turn, NULL) != 0) {
+        serror(SERVER_NAME, "Get turn mutex initialization failed.\n");
+        return 0;
+    }
+
     if (sem_init(&player_sem, 0, 0) < 0) {
         serror("server","Players semaphore initialization failed.\n");
         return 0;

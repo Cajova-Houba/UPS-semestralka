@@ -46,6 +46,16 @@
  * ======================
  */
 
+typedef enum {
+    WAIT_FOR_END_TURN = 1,
+    VALIDATE_TURN,
+    CHECK_WINNING_COND,
+    WAIT_FOR_MY_TURN,
+    START_TURN,
+    SWITCH_TURN,
+    BREAK_LOOP
+} Game_loop_state;
+
 /*
  * Game structure. Contains both players and game flags.
  */

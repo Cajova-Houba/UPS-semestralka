@@ -36,6 +36,11 @@
 #define DEF_TIMEOUT             10
 
 /*
+ * Timeout for messages while the thread is waiting
+ */
+#define WAITING_TIMEOUT         1000
+
+/*
  * Max number of attempts for player to send a correct nick.
  */
 #define MAX_NICK_ATTEMPTS       3
@@ -139,6 +144,7 @@ void server_set_winner(int winner){
     pthread_mutex_lock(&mutex_winner);
 
     set_winner(&game, winner);
+    end_game(&game);
 
     pthread_mutex_unlock(&mutex_winner);
 }
@@ -154,7 +160,51 @@ void server_get_winner(int* variable) {
 
     pthread_mutex_unlock(&mutex_winner);
 }
- 
+
+/*
+ * Handles the critical section and stores the TURN flag in the variable.
+ * 0 = 1st player, 1 = 2nd player.
+ */
+void server_get_current_turn(int* variable) {
+    pthread_mutex_lock(&mutex_get_turn);
+
+    *variable = get_game_flag(&(game.flags), TURN_FLAG);
+
+    pthread_mutex_unlock(&mutex_get_turn);
+}
+
+/*
+ * Handles the critical section and if the game has already ended,
+ * stores OK into variable.
+ */
+void server_is_game_end(int *variable) {
+    int i = 0;
+    pthread_mutex_lock(&mutex_winner);
+
+    i = get_game_flag(&(game.flags), GAME_ENDED_FLAG);
+    if(i == 1) {
+        *variable = OK;
+    } else {
+        *variable = 0;
+    }
+
+
+    pthread_mutex_unlock(&mutex_winner);
+}
+
+/*
+ * Handles the critical section and changes the turn.
+ */
+void server_switch_turn() {
+    int i = 0;
+    pthread_mutex_lock(&mutex_get_turn);
+
+    i = get_game_flag(&(game.flags), TURN_FLAG);
+    switch_turn(&game, i);
+
+    pthread_mutex_unlock(&mutex_get_turn);
+}
+
 /*
  * Stores the actual value of players_count in variable.
  * Critical section handled.
@@ -520,38 +570,87 @@ int check_nick(char *nick, char *err_msg)
 }
 
 /*
- * Waits for nick to be received.
+ * Waits for nick to be received. Received and checked nick is stored to buffer.
+ *
  * Returns:
- * OK: Nick is received
- * CLOSED_CONNECTION: socket closed the connection.
- * MSG_TIMEOUT: socket timed out.
- * TOO_MANY_ATTEMPTS: max number of attempts reached.
+ * OK: Nick is received and checked.
+ * 0: error while receiving nick. The error will be handled in this function.
  */
-int wait_for_nick(int socket, char* buffer, char* log_msg) {
+int wait_for_nick(int socket, char* buffer) {
 //    int msg_status = recv_nick(socket, buffer);
-    int msg_status = recv_nick_alphanum(socket, buffer);
+    Message message;
+    char log_msg[255];
+    int msg_status = 0;
     int attempt = 0;
-    while (msg_status != OK && attempt < MAX_NICK_ATTEMPTS) {
+    int nick_ok = 0;
+    while (nick_ok != OK && attempt < MAX_NICK_ATTEMPTS) {
+        msg_status = recv_message(socket, &message, MAX_NICK_TIMEOUT);
+
+        // handle connection errors
         switch (msg_status) {
             case MSG_TIMEOUT:
-                return MSG_TIMEOUT;
-            case CLOSED_CONNECTION:
-                return CLOSED_CONNECTION;
-            default:
-                /* print error from seneterror*/
-                sprintf(log_msg, "Error occured while receiving nick: %i\n",msg_status);
+                sprintf(log_msg, "Socket %d timed out while waiting for nick.\n", socket);
                 serror(PLAYER_THREAD_NAME, log_msg);
-                send_err_msg(socket, msg_status);
+                send_err_msg(socket, ERR_TIMEOUT);
+                return 0;
+            case CLOSED_CONNECTION:
+                sprintf(log_msg, "Socket %d closed connection.\n", socket);
+                return 0;
         }
-        msg_status = recv_nick_alphanum(socket, buffer);
-        attempt++;
-    }
+
+        // handle message errors
+        if(msg_status != OK) {
+            sprintf(log_msg, "Error while receiving message from socket %d.\n", socket);
+            serror(PLAYER_THREAD_NAME, log_msg);
+            if(msg_status < GENERAL_ERR || msg_status >= ERR_LAST) {
+                msg_status = GENERAL_ERR;
+            }
+            send_err_msg(socket, msg_status);
+            attempt++;
+
+        // handle messages
+        } else {
+
+            if(is_alive(&message) == OK) {
+                // response to is alive message
+                send_ok_msg(socket);
+
+            } else if (is_nick(&message) != OK) {
+                // something other than nick
+                send_err_msg(socket, ERR_UNEXPECTED_MSG);
+                attempt++;
+
+            } else {
+                // message is nick, check it
+                sprintf(log_msg,"Nick received: %s\n",message.content);
+                sinfo(PLAYER_THREAD_NAME,log_msg);
+                // check nick
+                nick_ok = check_nick(message.content, log_msg);
+                // nick validation failed
+                if(nick_ok != OK) {
+                    serror(PLAYER_THREAD_NAME, log_msg);
+
+                    /* send error */
+                    send_err_msg(socket, nick_ok);
+
+                    attempt++;
+                } else {
+
+                    // nick is OK return OK
+                    strcpy(buffer, message.content);
+                    return OK;
+                }
+
+            }
+        }
+    } // while end
 
     if(attempt == MAX_NICK_ATTEMPTS) {
-        return TOO_MAY_ATTEMPTS;
+        sprintf(log_msg, "Maximum number of nick attempts reached for socket %d.\n", socket);
+        send_err_msg(socket, ERR_TOO_MANY_ATTEMPTS);
     }
 
-    return OK;
+    return 0;
 }
 
 /*
@@ -713,6 +812,198 @@ void set_cleanme_close_sock(int threadnum, int sock) {
 }
 
 /*
+ * Handles incoming messages while the thread is waiting for another player to start the game.
+ *
+ * Returns:
+ * OK: message handled.
+ * STOP_GAME_LOOP: if error occurs and thread should stop waiting.
+ */
+int handle_message_waiting(int socket, int timeout, int my_player) {
+    int recv_status = 0;
+    Message received_message;
+    char log_msg[255];
+
+    recv_status = recv_message(socket, &received_message, timeout);
+    switch (recv_status) {
+        case OK:
+            if(is_alive(&received_message) == OK) {
+                send_ok_msg(socket);
+            } else {
+                // send not my turn error
+                send_err_msg(socket, ERR_UNEXPECTED_MSG);
+            }
+            break;
+
+        case MSG_TIMEOUT:
+            return OK;
+
+        case CLOSED_CONNECTION:
+            sprintf(log_msg, "Player %d closed connection.\n", my_player);
+            return STOP_GAME_LOOP;
+
+        default:
+            // send error back to client
+            if(recv_status < 0) {
+                if (recv_status >= GENERAL_ERR && recv_status <= ERR_LAST - 1) {
+                    send_err_msg(socket, recv_status);
+                    return OK;
+                } else {
+                    send_err_msg(socket, GENERAL_ERR);
+                    return OK;
+                }
+            }
+
+    }
+
+    return OK;
+}
+
+/*
+ * Handles incoming messages while thread is currently waiting for
+ * its turn. If needed (due to connection error for example), sets the other
+ * player as winner and ends the game.
+ *
+ * The timeout should be around 1s (maybe even smaller).
+ *
+ * Returns STOP_GAME_LOOP if the game loop should stop. Otherwise returns OK.
+ */
+int handle_message_waiting_turn(int socket, int timeout, int my_player, int other_player) {
+    int recv_status = 0;
+    Message received_message;
+
+    recv_status = recv_message(socket, &received_message, timeout);
+    switch (recv_status) {
+        case OK:
+            if(is_alive(&received_message) == OK) {
+                send_ok_msg(socket);
+            } else {
+                // send not my turn error
+                send_err_msg(socket, ERR_NOT_MY_TURN);
+            }
+            break;
+
+        case MSG_TIMEOUT:
+            return OK;
+
+        case CLOSED_CONNECTION:
+            server_set_winner(other_player);
+            return STOP_GAME_LOOP;
+
+        default:
+            // send error back to client
+            if(recv_status < 0) {
+                if (recv_status >= GENERAL_ERR && recv_status <= ERR_LAST - 1) {
+                    send_err_msg(socket, recv_status);
+                    return OK;
+                } else {
+                    send_err_msg(socket, GENERAL_ERR);
+                    return OK;
+                }
+            }
+
+    }
+
+    return OK;
+}
+
+void game_loop(int socket, int my_player, int other_player) {
+    char log_msg[255];
+    int break_game_loop = 0;
+    char tmp_p1_word[TURN_WORD_LENGTH];
+    char tmp_p2_word[TURN_WORD_LENGTH];
+    int msg_status = 0;
+    int winner = 0;
+    int turn_valid = 0;
+    int game_loop_state = WAIT_FOR_MY_TURN;
+    int tmp = 0;
+    int end_game = 0;
+
+    while (game_loop_state != BREAK_LOOP) {
+        switch (game_loop_state) {
+            case WAIT_FOR_END_TURN:
+                //TODO: implement proper method for receiving end turn
+//                msg_status = recv_end_turn(socket, tmp_p1_word, tmp_p2_word);
+                msg_status = recv_end_turn(socket, tmp_p1_word, tmp_p2_word);
+                break_game_loop = handle_end_turn_message(msg_status, my_player, other_player);
+                if(break_game_loop == STOP_GAME_LOOP) {
+                    game_loop_state = BREAK_LOOP;
+                } else {
+                    game_loop_state = VALIDATE_TURN;
+                }
+                break;
+
+            case VALIDATE_TURN:
+                debug_player_message(log_msg, "Validating player %d turn.\n", my_player);
+                turn_valid = validate_turn(game.players[0].turn_word, game.players[1].turn_word, tmp_p1_word, tmp_p2_word, my_player);
+                if (turn_valid != OK) {
+                    debug_player_message(log_msg, "Turn of player %d is not valid, skipping it!\n", my_player);
+                } else {
+                    // turn valid -> update the player's stones
+                    update_players_stones(&(game.players[0]), tmp_p1_word);
+                    update_players_stones(&(game.players[1]), tmp_p2_word);
+                }
+                game_loop_state = CHECK_WINNING_COND;
+                break;
+
+            case CHECK_WINNING_COND:
+                winner = check_winning_conditions(game.players[0].turn_word, game.players[1].turn_word);
+                if(winner != OK) {
+                    server_set_winner(winner == P1_WINS ? 0 : 1);
+                    debug_player_message(log_msg, "Player %d wins the game!\n", winner);
+                    game_loop_state = BREAK_LOOP;
+                } else {
+                    game_loop_state = SWITCH_TURN;
+                }
+                break;
+
+            case WAIT_FOR_MY_TURN:
+                server_get_current_turn(&tmp);
+                end_game = 0;
+                if(tmp != my_player) {
+                    debug_player_message(log_msg, "Player %d is waiting for his turn.\n", my_player);
+                    while (tmp != my_player) {
+                        // handle incoming messages
+                        handle_message_waiting_turn(socket, WAITING_TIMEOUT, my_player, other_player);
+
+                        // check that the game haven't ended yet
+                        server_is_game_end(&end_game);
+                        if(end_game == OK) {
+                            break;
+                        }
+
+                        // check my turn
+                        server_get_current_turn(&tmp);
+                    }
+                    if(end_game == OK) {
+                        game_loop_state = BREAK_LOOP;
+                    } else {
+                        game_loop_state = START_TURN;
+                    }
+                } else {
+                    game_loop_state = START_TURN;
+                }
+                break;
+
+            case START_TURN:
+                debug_player_message(log_msg, "Player %d starts his turn.\n", my_player);
+                break_game_loop = send_start_turn_to_player(socket, my_player, other_player);
+                if(break_game_loop == STOP_GAME_LOOP) {
+                    game_loop_state = BREAK_LOOP;
+                } else {
+                    game_loop_state = WAIT_FOR_END_TURN;
+                }
+                break;
+
+            case SWITCH_TURN:
+                server_switch_turn();
+                game_loop_state = WAIT_FOR_MY_TURN;
+
+                break;
+        }
+    }
+}
+
+/*
  * A thread for one player. At first, nickname will be checked, then 
  * the thread waits for another player to be registered and the game begins.
  */
@@ -721,8 +1012,6 @@ void *player_thread(void *arg) {
 	char log_msg[255];
     char p1name[10];
     char p2name[10];
-    char tmp_p1_word[TURN_WORD_LENGTH];
-    char tmp_p2_word[TURN_WORD_LENGTH];
 	
 	char buffer[MAX_TXT_LENGTH + 1];
     thread_arg* args = ((thread_arg *)arg);
@@ -733,9 +1022,8 @@ void *player_thread(void *arg) {
     int port = args->port;
 	int nick_valid = 0;
 	int tmp = 0;
-    int winner = 0;
-    int break_game_loop = 0;
-    int turn_valid = 0;
+
+    Message message;
 
     /*
 	 * Index in the array of players.
@@ -746,208 +1034,114 @@ void *player_thread(void *arg) {
 	sprintf(log_msg, "Starting new thread with id=%d.\n",thread_num);
 	sinfo(PLAYER_THREAD_NAME, log_msg);
 
+    // check if the server isn't already full
+    get_players(&my_player);
+    get_game_started(&tmp);
+    if(my_player == 2) {
+        serror(PLAYER_THREAD_NAME,"Server full, sorry.\n");
+        send_err_msg(socket, ERR_SERVER_FULL);
+        set_cleanme_close_sock(thread_num, socket);
+        return NULL;
+    } else if (tmp) {
+        serror(PLAYER_THREAD_NAME, "Game is already running, sorry.\n");
+        send_err_msg(socket, ERR_GAME_ALREADY_RUNNING);
+        set_cleanme_close_sock(thread_num, socket);
+        return NULL;
+    }
+
+    // wait for nick
+    tmp = wait_for_nick(socket, buffer);
+    if(tmp != OK) {
+        set_cleanme_close_sock(thread_num, socket);
+        return NULL;
+    }
+
+    /*
+     * Nickname passed validation,
+     * register a new player.
+     *
+     * Wait for the second thread.
+     */
+    sdebug(PLAYER_THREAD_NAME, "Nick validation ok.\n");
+
+    // send message to player that the nick is ok
+    msg_status = send_ok_msg(socket);
+    if (msg_status != OK) {
+        sprintf(log_msg, "Error occurred while sending OK message to socket %d.\n", socket);
+        serror(PLAYER_THREAD_NAME, log_msg);
+        send_err_msg(socket, msg_status);
+        set_cleanme_close_sock(thread_num, socket);
+        return NULL;
+    }
+
+    // check again if the server isn't full and initialize new player
+    get_players(&my_player);
+    if(my_player >= 2) {
+        serror(PLAYER_THREAD_NAME,"Server full, sorry.\n");
+        send_err_msg(socket, ERR_SERVER_FULL);
+        set_cleanme_close_sock(thread_num, socket);
+        return NULL;
+    }
+
+    // initialize player
+    initialize_player(&(game.players[my_player]), my_player, buffer, socket, my_player, addr, port);
+    print_player(&(game.players[my_player]), log_msg, 1);
+    sinfo(PLAYER_THREAD_NAME, log_msg);
+    increment_players();
+    if(my_player == 1) {
+        /* one thread is already in queue - wake it up and lets play */
+        other_player = 0;
+        sinfo(PLAYER_THREAD_NAME, "THE GAME HAS STARTED!\n");
+        server_start_game();
+    } else {
+        // no thread has finished validation yet, wait for another thread
+        sinfo(PLAYER_THREAD_NAME, "Waiting for other player.\n");
+        other_player = 1;
+        init_new_game(&game, my_player);
+
+        while (tmp < 2) {
+            // handle incoming messages
+            msg_status = handle_message_waiting(socket, WAITING_TIMEOUT, my_player);
+            if(msg_status == STOP_GAME_LOOP) {
+                decrement_players();
+                set_cleanme_close_sock(thread_num, socket);
+                return NULL;
+            }
+
+            get_players(&tmp);
+        }
+    }
+
+    // send start game message
+    get_player_nick(0, p1name);
+    get_player_nick(1, p2name);
+    send_start_game_msg(socket, p1name, p2name);
+
     /*
      * Check if any player has disconnected and the game is waiting for him
      * to reconnect.
      */
-    check_waiting_player(addr, port, &my_player);
-    if(my_player != GAME_NOT_WAITING) {
-        // player has returned
-        debug_player_message(log_msg, "Player %d has returned to the game!\n", my_player);
-
-        // set other_player
-        other_player = (my_player == 0 ? 1 : 0 );
-
-        // unset the waiting flag
-        unset_waiting_for(my_player);
-
-        // send the message to other client, the the player has returned - is this even necessary?
-        //TODO: implement this
-
-    } else {
-        // standard procedure
-        /* check if the server isn't already full */
-        get_players(&my_player);
-        get_game_started(&tmp);
-        if(my_player == 2) {
-            serror(PLAYER_THREAD_NAME,"Server full, sorry.\n");
-            send_err_msg(socket, ERR_SERVER_FULL);
-            set_cleanme_close_sock(thread_num, socket);
-            return NULL;
-        } else if (tmp) {
-            serror(PLAYER_THREAD_NAME, "Game is already running, sorry.\n");
-            send_err_msg(socket, ERR_SERVER_FULL);
-            set_cleanme_close_sock(thread_num, socket);
-            return NULL;
-        }
-        sprintf(log_msg,"Waiting for nick from socket: %d.\n",socket);
-        sinfo(PLAYER_THREAD_NAME,log_msg);
-
-        /* wait for correct nick */
-        msg_status = wait_for_nick(socket, buffer, log_msg);
-        if(msg_status == 0) {
-            sprintf(log_msg, "Socket %d closed connection.\n", socket);
-            sinfo(PLAYER_THREAD_NAME, log_msg);
-            set_cleanme_close_sock(thread_num, socket);
-            return NULL;
-        } else if(msg_status == TOO_MAY_ATTEMPTS) {
-            sprintf(log_msg, "Maximum number of possible attempts to send nick reached on socket %d.\n", socket);
-            sinfo(PLAYER_THREAD_NAME, log_msg);
-            set_cleanme_close_sock(thread_num, socket);
-            return NULL;
-        } else if (msg_status == MSG_TIMEOUT) {
-            sprintf(log_msg, "Socket %d timed out, disconnecting it.\n",socket);
-            sinfo(PLAYER_THREAD_NAME, log_msg);
-            set_cleanme_close_sock(thread_num, socket);
-            return NULL;
-        }
+//    check_waiting_player(addr, port, &my_player);
+//    if(my_player != GAME_NOT_WAITING) {
+//        // player has returned
+//        debug_player_message(log_msg, "Player %d has returned to the game!\n", my_player);
+//
+//        // set other_player
+//        other_player = (my_player == 0 ? 1 : 0 );
+//
+//        // unset the waiting flag
+//        unset_waiting_for(my_player);
+//
+//        // send the message to other client, the the player has returned - is this even necessary?
+//        //TODO: implement this
+//
+//    } else {
 
 
-        sprintf(log_msg,"Nick received: %s\n",buffer);
-        sinfo(PLAYER_THREAD_NAME,log_msg);
-        /* check nick */
-        nick_valid = check_nick(buffer, log_msg);
-        /* nick validation failed */
-        if(nick_valid != OK) {
-            serror(PLAYER_THREAD_NAME, log_msg);
+//    }
 
-            /* send error */
-            send_err_msg(socket, nick_valid);
-
-            set_cleanme_close_sock(thread_num, socket);
-            return NULL;
-        }
-
-        /*
-         * Nickname passed validation,
-         * register a new player.
-         *
-         * Wait for the second thread.
-         */
-        sdebug(PLAYER_THREAD_NAME, "Nick validation ok.\n");
-
-        /* send message to player that the nick is ok */
-        msg_status = send_ok_msg(socket);
-        if(msg_status == 2) {
-            sprintf(log_msg,"Socket %d closed connection.\n",socket);
-            sinfo(PLAYER_THREAD_NAME, log_msg);
-
-            set_cleanme_close_sock(thread_num, socket);
-            return NULL;
-        } else if(msg_status == 0) {
-            serror(PLAYER_THREAD_NAME, "Some unexpected error occurred while sending the OK message.");
-        }
-        /* check if the server isn't already full */
-        get_players(&my_player);
-        if(my_player >= 2) {
-            serror(PLAYER_THREAD_NAME,"Server full, sorry.\n");
-            set_cleanme_close_sock(thread_num, socket);
-            return NULL;
-        }
-
-        initialize_player(&(game.players[my_player]), my_player, buffer, socket, my_player, addr, port);
-        print_player(&(game.players[my_player]), log_msg, 1);
-        sinfo(PLAYER_THREAD_NAME, log_msg);
-        increment_players();
-        if(my_player == 1) {
-            /* one thread is already in queue - wake it up and lets play */
-            other_player = 0;
-            sem_post(&player_sem);
-            sinfo(PLAYER_THREAD_NAME, "THE GAME HAS STARTED!\n");
-            server_start_game();
-        } else {
-            /* no thread has finished validation yet, wait for another thread */
-            other_player = 1;
-            sinfo(PLAYER_THREAD_NAME, "Waiting for other player.\n");
-            init_new_game(&game, my_player);
-            sem_wait(&player_sem);
-        }
-        // send start game message to client
-        get_player_nick(0, p1name);
-        get_player_nick(1, p2name);
-        send_start_game_msg(socket, p1name, p2name);
-        // recv confirmation that the client is starting the game
-        sdebug(PLAYER_THREAD_NAME, "Waiting for start game ACK.\n");
-        msg_status = recv_ok_msg(socket);
-        if(msg_status == MSG_TIMEOUT) {
-            debug_player_message(log_msg, "Player %d has timed out, waiting for him to reconnect.\n",
-                                 my_player);
-            handle_disconnect(my_player);
-            set_cleanme_close_sock(thread_num, socket);
-            return NULL;
-        } else if (msg_status != 1){
-            // error => other player wins
-            sprintf(log_msg, "Error while receiving start game acknowledge from player %d.\n", my_player);
-            serror(PLAYER_THREAD_NAME, log_msg);
-            server_set_winner(other_player);
-            player_thread_end_game(socket, my_player);
-            decrement_players();
-            set_cleanme_close_sock(thread_num, socket);
-            return NULL;
-        } else {
-            sdebug(PLAYER_THREAD_NAME, "Start game ACK received received.\n");
-        }
-    }
-
-
-    // game loop
-    while(1) {
-        if(my_player != 0) {
-            // I'm not the first player, I have to wait for my turn
-            sdebug(PLAYER_THREAD_NAME, "Player 1 is waiting for his turn.\n");
-            sem_wait(&p2_sem);
-
-            // start turn message for the second player
-            break_game_loop = send_start_turn_to_player(socket, my_player, other_player);
-            if(break_game_loop == 1) {
-                break;
-            }
-        }
-
-        // wait for end turn message
-        msg_status = recv_end_turn(socket, tmp_p1_word, tmp_p2_word);
-        break_game_loop = handle_end_turn_message(msg_status, my_player, other_player);
-        if(break_game_loop == STOP_GAME_LOOP) {
-            break;
-        }
-
-        // validate the turn
-        debug_player_message(log_msg, "Validating player %d turn.\n", my_player);
-        turn_valid = validate_turn(game.players[0].turn_word, game.players[1].turn_word, tmp_p1_word, tmp_p2_word, my_player);
-        if (turn_valid != OK) {
-            debug_player_message(log_msg, "Turn of player %d is not valid, skipping it!\n", my_player);
-        } else {
-            // turn valid -> update the player's stones
-            update_players_stones(&(game.players[0]), tmp_p1_word);
-            update_players_stones(&(game.players[1]), tmp_p2_word);
-        }
-
-
-        // check the winning conditions
-        winner = check_winning_conditions(game.players[0].turn_word, game.players[1].turn_word);
-        if(winner != OK) {
-            server_set_winner(winner == P1_WINS ? 0 : 1);
-            debug_player_message(log_msg, "Player %d wins the game!\n", winner);
-            break;
-        }
-
-
-        // switch the turn
-        if(my_player == 0) {
-            // wake up second player and wait for my turn
-            sem_post(&p2_sem);
-            sdebug(PLAYER_THREAD_NAME, "Player 0 is waiting for his turn.\n");
-            sem_wait(&p1_sem);
-            // start turn message for the first player
-            break_game_loop = send_start_turn_to_player(socket, my_player, other_player);
-            if(break_game_loop == STOP_GAME_LOOP) {
-                break;
-            }
-        } else {
-            // wake up the first player
-            sem_post(&p1_sem);
-        }
-    } // end of the game loop
+    // whole game loop handled inside this function
+    game_loop(socket, my_player, other_player);
 
     server_is_game_waiting(&tmp);
     if(tmp == 1) {

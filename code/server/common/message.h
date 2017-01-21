@@ -13,6 +13,8 @@
 #define     WAIT_FOR_PLAYER_MESSAGE_LEN 10
 #define     EXIT_MSG                    "EXIT"
 #define     EXIT_MSG_LEN                4
+#define     ALIVE_MSG                   "ALIVE"
+#define     ALIVE_MSG_LEN               5
 
 /* message types */
 #define		MSG_TYPE_INF				"INF\0"
@@ -20,14 +22,43 @@
 #define		MSG_TYPE_ERR				"ERR\0"
 #define		MSG_TYPE_LEN				3
 
-#include <string.h>
-#include <stdio.h>
+#define     MAX_CONTENT_SIZE            255
 
+#include <string.h>
+
+#include <stdio.h>
 #include "common.h"
 #include "seneterror.h"
 #include "slog.h"
 #include "nick_val.h"
+
+
 #include "../core/player.h"
+
+typedef enum {
+    NO_TYPE = -1,
+    ERR_TYPE = 1,
+    CMD_TYPE,
+    INF_TYPE
+} Message_type;
+
+typedef struct {
+    int message_type_int;
+    char message_type[MSG_TYPE_LEN+1];
+    char content[MAX_CONTENT_SIZE];
+    senetError error_code;
+} Message;
+
+/*
+ * Receives message from socket.
+ *
+ * Returns:
+ * OK: Message was received.
+ * CLOSED_CONNECTION: Connection is closed.
+ * MSG_TIMEOUT: Socket timet out.
+ * or error from senneterror.h
+ */
+int recv_message(int socket, Message* message, int timeout);
 
 /*
  * Receives nick from socket and stores it to the buffer. 
@@ -72,6 +103,18 @@ int recv_nick_alphanum(int socket, char* buffer);
  */
 int recv_end_turn(int socket, char* player1_turn_word, char* player2_turn_word);
 
+/*
+ * Receives a message from the socket indicating the end of turn.
+ * player1_turn_word and player2_turn_word are buffers for updated turn words.
+ * Both turn words are expected to have length equal to TURN_WORD_LENGTH.
+ *
+ * Returns:
+ * OK: both turn words received.
+ * CLOSED_CONNECTION: connection to socket is closed.
+ * MSG_TIMEOUT: timeout
+ * or error from seneterror.h
+ */
+int recv_end_turn_alphanum(int socket, char* player1_turn_word, char* player2_turn_word);
 
 /*
  * Receives OK message from socket.

@@ -521,23 +521,27 @@ int check_nick(char *nick, char *err_msg)
 
 /*
  * Waits for nick to be received.
- * Returns 1 if the nick is received, or 0 if the socket closes connection, MSG_TIMEOUT if
- * the socket times out. There are 3 possible attempts to receive nick. If all them fail,
- * -1 will be returned.
+ * Returns:
+ * OK: Nick is received
+ * CLOSED_CONNECTION: socket closed the connection.
+ * MSG_TIMEOUT: socket timed out.
+ * TOO_MANY_ATTEMPTS: max number of attempts reached.
  */
 int wait_for_nick(int socket, char* buffer, char* log_msg) {
 //    int msg_status = recv_nick(socket, buffer);
     int msg_status = recv_nick_alphanum(socket, buffer);
     int attempt = 0;
-    while (msg_status != 1 && attempt < MAX_NICK_ATTEMPTS) {
-        if (msg_status == 0) {
-            return 0;
-        } else if(msg_status == MSG_TIMEOUT) {
-            return msg_status;
-        } else {
-            /* print error from seneterror*/
-            sprintf(log_msg, "Error occured while receiving nick: %i\n",msg_status);
-            serror(PLAYER_THREAD_NAME, log_msg);
+    while (msg_status != OK && attempt < MAX_NICK_ATTEMPTS) {
+        switch (msg_status) {
+            case MSG_TIMEOUT:
+                return MSG_TIMEOUT;
+            case CLOSED_CONNECTION:
+                return CLOSED_CONNECTION;
+            default:
+                /* print error from seneterror*/
+                sprintf(log_msg, "Error occured while receiving nick: %i\n",msg_status);
+                serror(PLAYER_THREAD_NAME, log_msg);
+                send_err_msg(socket, msg_status);
         }
         msg_status = recv_nick_alphanum(socket, buffer);
         attempt++;
@@ -547,7 +551,7 @@ int wait_for_nick(int socket, char* buffer, char* log_msg) {
         return TOO_MAY_ATTEMPTS;
     }
 
-    return 1;
+    return OK;
 }
 
 /*
@@ -701,6 +705,14 @@ int send_start_turn_to_player(int socket, int my_player, int other_player) {
 }
 
 /*
+ * Sets clean me and closes the socket.
+ */
+void set_cleanme_close_sock(int threadnum, int sock) {
+    clean_me(threadnum);
+    close(sock);
+}
+
+/*
  * A thread for one player. At first, nickname will be checked, then 
  * the thread waits for another player to be registered and the game begins.
  */
@@ -720,10 +732,10 @@ void *player_thread(void *arg) {
     uint32_t addr = args->addr;
     int port = args->port;
 	int nick_valid = 0;
-	int tmp;
-    int winner;
-    int break_game_loop;
-    int turn_valid;
+	int tmp = 0;
+    int winner = 0;
+    int break_game_loop = 0;
+    int turn_valid = 0;
 
     /*
 	 * Index in the array of players.
@@ -760,12 +772,12 @@ void *player_thread(void *arg) {
         if(my_player == 2) {
             serror(PLAYER_THREAD_NAME,"Server full, sorry.\n");
             send_err_msg(socket, ERR_SERVER_FULL);
-            clean_me(thread_num);
+            set_cleanme_close_sock(thread_num, socket);
             return NULL;
         } else if (tmp) {
             serror(PLAYER_THREAD_NAME, "Game is already running, sorry.\n");
             send_err_msg(socket, ERR_SERVER_FULL);
-            clean_me(thread_num);
+            set_cleanme_close_sock(thread_num, socket);
             return NULL;
         }
         sprintf(log_msg,"Waiting for nick from socket: %d.\n",socket);
@@ -776,17 +788,17 @@ void *player_thread(void *arg) {
         if(msg_status == 0) {
             sprintf(log_msg, "Socket %d closed connection.\n", socket);
             sinfo(PLAYER_THREAD_NAME, log_msg);
-            clean_me(thread_num);
+            set_cleanme_close_sock(thread_num, socket);
             return NULL;
         } else if(msg_status == TOO_MAY_ATTEMPTS) {
             sprintf(log_msg, "Maximum number of possible attempts to send nick reached on socket %d.\n", socket);
             sinfo(PLAYER_THREAD_NAME, log_msg);
-            clean_me(thread_num);
+            set_cleanme_close_sock(thread_num, socket);
             return NULL;
         } else if (msg_status == MSG_TIMEOUT) {
             sprintf(log_msg, "Socket %d timed out, disconnecting it.\n",socket);
             sinfo(PLAYER_THREAD_NAME, log_msg);
-            clean_me(thread_num);
+            set_cleanme_close_sock(thread_num, socket);
             return NULL;
         }
 
@@ -802,7 +814,7 @@ void *player_thread(void *arg) {
             /* send error */
             send_err_msg(socket, nick_valid);
 
-            clean_me(thread_num);
+            set_cleanme_close_sock(thread_num, socket);
             return NULL;
         }
 
@@ -820,7 +832,7 @@ void *player_thread(void *arg) {
             sprintf(log_msg,"Socket %d closed connection.\n",socket);
             sinfo(PLAYER_THREAD_NAME, log_msg);
 
-            clean_me(thread_num);
+            set_cleanme_close_sock(thread_num, socket);
             return NULL;
         } else if(msg_status == 0) {
             serror(PLAYER_THREAD_NAME, "Some unexpected error occurred while sending the OK message.");
@@ -829,7 +841,7 @@ void *player_thread(void *arg) {
         get_players(&my_player);
         if(my_player >= 2) {
             serror(PLAYER_THREAD_NAME,"Server full, sorry.\n");
-            clean_me(thread_num);
+            set_cleanme_close_sock(thread_num, socket);
             return NULL;
         }
 
@@ -861,7 +873,7 @@ void *player_thread(void *arg) {
             debug_player_message(log_msg, "Player %d has timed out, waiting for him to reconnect.\n",
                                  my_player);
             handle_disconnect(my_player);
-            clean_me(thread_num);
+            set_cleanme_close_sock(thread_num, socket);
             return NULL;
         } else if (msg_status != 1){
             // error => other player wins
@@ -870,7 +882,7 @@ void *player_thread(void *arg) {
             server_set_winner(other_player);
             player_thread_end_game(socket, my_player);
             decrement_players();
-            clean_me(thread_num);
+            set_cleanme_close_sock(thread_num, socket);
             return NULL;
         } else {
             sdebug(PLAYER_THREAD_NAME, "Start game ACK received received.\n");
@@ -944,7 +956,7 @@ void *player_thread(void *arg) {
 
         sprintf((char*)&log_msg, "Player %d disconnected. Ending his thread.\n", my_player);
         sinfo(PLAYER_THREAD_NAME, log_msg);
-        clean_me(thread_num);
+        set_cleanme_close_sock(thread_num, socket);
         return NULL;
     }
 
@@ -952,7 +964,7 @@ void *player_thread(void *arg) {
 
 	sinfo(PLAYER_THREAD_NAME,"End of thread.\n");
 
-	clean_me(thread_num);
+	set_cleanme_close_sock(thread_num, socket);
 	return NULL;
 } 
 

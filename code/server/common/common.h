@@ -29,16 +29,30 @@
 
 /*
  * Receives byte_count of bytes and stores them to the buffer.
- * Returns received number of bytes or -1 if error occurs.
- * 
+ *
+ * Returns:
+ * Number of received bytes if everything is ok.
+ * CLOSED_CONNECTION: if ENOTCONN raises
+ * ERR_MSG: any other error.
  */
 int recv_bytes(int sock, char* buffer, int byte_count);
 
+/*
+ * Receives byte_count of bytes and stores them to the buffer.
+ *
+ * Returns:
+ * Number of received bytes if everything is ok.
+ * CLOSED_CONNECTION: if ENOTCONN raises
+ * MSG_TIMEOUT: Socket timed out.
+ * ERR_MSG: any other error.
+ */
 int recv_bytes_timeout(int sock, char* buffer, int byte_count, int ms_timeout);
 
+/*
+ * Send a message to the socket.
+ * Returns:
+ *
+ */
 int send_txt(int sock, char *txt);
-int recv_txt(int sock);
-void send_greetings(int sock);
-int recv_txt_buffer(int sock, char *buffer);
 
 #endif

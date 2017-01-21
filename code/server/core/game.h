@@ -137,9 +137,9 @@ int validate_turn(char* p1_old_tw, char* p2_old_tw, char* p1_new_tw, char* p2_ne
 
 /*
  * Checks the winning conditions and returns:
- * -1: no winner
- *  0: player 1 wins
- *  1: player 2 wins
+ *  OK: no winner
+ *  P1_WINS
+ *  P2_WINS
  */
 int check_winning_conditions(char* p1_turn_word, char* p2_turn_word);
 

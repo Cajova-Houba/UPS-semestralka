@@ -157,23 +157,23 @@ int validate_turn(char* p1_old_tw, char* p2_old_tw, char* p1_new_tw, char* p2_ne
  *  P2_WINS
  */
 int check_winning_conditions(char* p1_turn_word, char* p2_turn_word) {
-    int win = 0;
+    int win = P1_WINS;
     int i = 0;
     int j = 0;
 
     // check the first player
     for (i = 0; i < TURN_WORD_LENGTH; ++i) {
         if(p1_turn_word[i] != 31) {
-            win = 1;
+            win = P2_WINS;
             break;
         }
     }
 
     // check the second player
-    if (win == 1) {
+    if (win == P2_WINS) {
         for (j = 0; j < TURN_WORD_LENGTH; ++j) {
             if(p2_turn_word[j] != 31) {
-                win = -1;
+                win = OK;
                 break;
             }
         }

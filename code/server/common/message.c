@@ -191,12 +191,13 @@ int recv_msg_type(int socket, int timeout, Message* message) {
  * OK: Message was received.
  * CLOSED_CONNECTION
  * MSG_TIMEOUT
- * or error from senneterror.h (ERR_NICK_LENGTH)
+ * or error from senneterror.h (ERR_MSG_CONTENT,ERR_NICK_LENGTH)
  */
 int recv_cmd_message(int socket, Message* message, int timeout) {
     char buffer[10];
     int nick_len = 0;
     int recv_status = 0;
+    int i = 0;
     message->message_type_int = CMD_TYPE;
 
     // only possible CMD message to be received is nick
@@ -215,13 +216,25 @@ int recv_cmd_message(int socket, Message* message, int timeout) {
         return ERR_NICK_LEN;
     }
 
-    /* receive the rest of the nick */
-    recv_status = recv_bytes_timeout(socket, buffer, nick_len, timeout);
-    switch (recv_status) {
-        case MSG_TIMEOUT:
-        case CLOSED_CONNECTION:
-        case ERR_MSG:
-            return recv_status;
+    // receive the rest of the nick
+    while(i < nick_len) {
+        recv_status = recv_bytes_timeout(socket, &buffer[i], 1, timeout);
+        switch (recv_status) {
+            case MSG_TIMEOUT:
+            case CLOSED_CONNECTION:
+            case ERR_MSG:
+                return recv_status;
+        }
+
+        // check invalid chars
+        if(buffer[i] < '0'  ||
+           (buffer[i] > '9' && buffer[i] < 'A') ||
+           (buffer[i] > 'Z' && buffer[i] < 'a') ||
+           (buffer[i] > 'z')) {
+            return ERR_MSG_CONTENT;
+        }
+
+        i++;
     }
 
     buffer[nick_len] = '\0';

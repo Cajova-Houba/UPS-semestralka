@@ -661,7 +661,6 @@ int wait_for_end_turn(int socket, int timeout, int my_player, int other_player, 
  * 0: error while receiving nick. The error will be handled in this function.
  */
 int wait_for_nick(int socket, char* buffer) {
-//    int msg_status = recv_nick(socket, buffer);
     Message message;
     char log_msg[255];
     int msg_status = 0;
@@ -698,6 +697,11 @@ int wait_for_nick(int socket, char* buffer) {
             if(is_alive(&message) == OK) {
                 // response to is alive message
                 send_ok_msg(socket);
+            } else if (is_exit(&message) == OK) {
+                // exit received, disconnect
+                sprintf(log_msg, "Socket %d quit.\n", socket);
+                sinfo(PLAYER_THREAD_NAME, log_msg);
+                return 0;
 
             } else if (is_nick(&message) != OK) {
                 // something other than nick

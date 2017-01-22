@@ -57,6 +57,38 @@ int is_nick(Message* message) {
     return 0;
 }
 
+/*
+ * Checks if the message is end turn.
+ * Returns ok if it is or 0 if it isn't.
+ */
+int is_end_turn(Message* message) {
+    if (message == NULL) {
+        return 0;
+    }
+
+    if (message->message_type_int == INF_TYPE && strlen(message->content) == 2*TURN_WORD_LENGTH) {
+        return OK;
+    }
+
+    return 0;
+}
+
+/*
+ * Checks if the message is exit message.
+ * Returns ok if it is or 0 if it isn't.
+ */
+int is_exit(Message* message) {
+    if (message == NULL) {
+        return 0;
+    }
+
+    if (message->message_type_int == INF_TYPE && strcmp(message->content, EXIT_MSG) == 0) {
+        return OK;
+    }
+
+    return 0;
+}
+
 
 
 /*
@@ -300,7 +332,7 @@ int recv_inf_message(int socket, Message* message, int timeout) {
             }
 
             buffer[EXIT_MSG_LEN] = '\0';
-            strcpy(message->content, buffer);
+            strcpy(message->content, EXIT_MSG);
             return OK;
 
         case 'A':

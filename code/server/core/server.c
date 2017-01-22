@@ -570,6 +570,90 @@ int check_nick(char *nick, char *err_msg)
 }
 
 /*
+ * Waits for end turn to be received. Timeout should be very small, about 1 second.
+ * For every non-end turn message timeout will be added to counter and when the counter
+ * reaches MAX_TURN_WAITING_TIMEOUT, makes other player a winner and returns STOP_GAME_LOOP.
+ *
+ * Returns:
+ * OK: Nick is received.
+ * STOP_GAME_LOOP: error while receiving nick.
+ */
+int wait_for_end_turn(int socket, int timeout, int my_player, int other_player, char* p1_tw, char* p2_tw) {
+    Message message;
+    char log_msg[255];
+    int msg_status = 0;
+    int end_turn_recv = 0;
+    int i = 0;
+    int cntr = 0;
+
+    while (end_turn_recv != OK && cntr < MAX_TURN_WAITING_TIMEOUT) {
+
+        // receive message
+        msg_status = recv_message(socket, &message, timeout);
+
+        // handle connection errors
+        switch(msg_status) {
+            case MSG_TIMEOUT:
+                cntr += timeout;
+                continue;
+            case CLOSED_CONNECTION:
+                sprintf(log_msg, "Socket %d closed the connection while waiting for the end turn message.\n", socket);
+                server_set_winner(other_player);
+                return STOP_GAME_LOOP;
+        }
+
+        // handle message errors
+        if(msg_status != OK) {
+            sprintf(log_msg, "Error while receiving message from socket %d.\n", socket);
+            serror(PLAYER_THREAD_NAME, log_msg);
+            if (msg_status < GENERAL_ERR || msg_status >= ERR_LAST) {
+                msg_status = GENERAL_ERR;
+            }
+            send_err_msg(socket, msg_status);
+            cntr += timeout;
+
+        } else {
+            // handle possible messages
+            if (is_alive(&message) == OK) {
+                // response to is alive message
+                send_ok_msg(socket);
+                cntr += timeout;
+
+            } else if (is_exit(&message) == OK) {
+                // handle exit => other player wins
+                server_set_winner(other_player);
+                return STOP_GAME_LOOP;
+
+            } else if (is_end_turn(&message) == OK) {
+                // end turn message
+                // copy turn word from message to provided variables
+                for(i = 0; i < TURN_WORD_LENGTH; i++) {
+                    p1_tw[i] = message.content[i];
+                    p2_tw[i] = message.content[i+TURN_WORD_LENGTH];
+                }
+                sprintf(log_msg, "End turn message received: %s\n", message.content);
+                sinfo(PLAYER_THREAD_NAME, log_msg);
+                end_turn_recv = OK;
+
+            } else {
+                // something else
+                send_err_msg(socket, ERR_UNEXPECTED_MSG);
+                cntr += timeout;
+            }
+        }
+    }
+
+    if (cntr >= MAX_TURN_WAITING_TIMEOUT) {
+        sprintf(log_msg, "Max time for player's %d end turn message reached.\n", my_player);
+        server_set_winner(other_player);
+        return STOP_GAME_LOOP;
+    }
+
+    return OK;
+}
+
+
+/*
  * Waits for nick to be received. Received and checked nick is stored to buffer.
  *
  * Returns:
@@ -768,11 +852,6 @@ void player_thread_end_game(int socket, int my_player) {
 
     /* wake the other thread */
 //    switch_turn(&game, my_player);
-    if(my_player == 0) {
-        sem_post(&p2_sem);
-    } else {
-        sem_post(&p1_sem);
-    }
 }
 
 /*
@@ -807,8 +886,8 @@ int send_start_turn_to_player(int socket, int my_player, int other_player) {
  * Sets clean me and closes the socket.
  */
 void set_cleanme_close_sock(int threadnum, int sock) {
-    clean_me(threadnum);
     close(sock);
+    clean_me(threadnum);
 }
 
 /*
@@ -876,6 +955,10 @@ int handle_message_waiting_turn(int socket, int timeout, int my_player, int othe
         case OK:
             if(is_alive(&received_message) == OK) {
                 send_ok_msg(socket);
+            } else if (is_exit(&received_message) == OK) {
+                // exit, other player wins
+                server_set_winner(other_player);
+                return STOP_GAME_LOOP;
             } else {
                 // send not my turn error
                 send_err_msg(socket, ERR_NOT_MY_TURN);
@@ -923,8 +1006,9 @@ void game_loop(int socket, int my_player, int other_player) {
             case WAIT_FOR_END_TURN:
                 //TODO: implement proper method for receiving end turn
 //                msg_status = recv_end_turn(socket, tmp_p1_word, tmp_p2_word);
-                msg_status = recv_end_turn(socket, tmp_p1_word, tmp_p2_word);
-                break_game_loop = handle_end_turn_message(msg_status, my_player, other_player);
+//                msg_status = recv_end_turn(socket, tmp_p1_word, tmp_p2_word);
+//                break_game_loop = handle_end_turn_message(msg_status, my_player, other_player);
+                break_game_loop = wait_for_end_turn(socket, WAITING_TIMEOUT, my_player, other_player, tmp_p1_word, tmp_p2_word);
                 if(break_game_loop == STOP_GAME_LOOP) {
                     game_loop_state = BREAK_LOOP;
                 } else {
@@ -934,7 +1018,8 @@ void game_loop(int socket, int my_player, int other_player) {
 
             case VALIDATE_TURN:
                 debug_player_message(log_msg, "Validating player %d turn.\n", my_player);
-                turn_valid = validate_turn(game.players[0].turn_word, game.players[1].turn_word, tmp_p1_word, tmp_p2_word, my_player);
+//                turn_valid = validate_turn(game.players[0].turn_word, game.players[1].turn_word, tmp_p1_word, tmp_p2_word, my_player);
+                turn_valid = OK;
                 if (turn_valid != OK) {
                     debug_player_message(log_msg, "Turn of player %d is not valid, skipping it!\n", my_player);
                 } else {

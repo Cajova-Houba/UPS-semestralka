@@ -62,6 +62,18 @@ int is_alive(Message* message);
 int is_nick(Message* message);
 
 /*
+ * Checks if the message is end turn.
+ * Returns ok if it is or 0 if it isn't.
+ */
+int is_end_turn(Message* message);
+
+/*
+ * Checks if the message is exit message.
+ * Returns ok if it is or 0 if it isn't.
+ */
+int is_exit(Message* message);
+
+/*
  * Receives message from socket.
  *
  * Returns:

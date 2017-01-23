@@ -31,6 +31,19 @@ public class PreStartReceiverTest {
     }
 
     @Test
+    public void testWaitForNickConfirmAlmostFail() throws IOException, MaxAttemptsReached {
+        String serverResponse = "\nasdfghjklinfok";         // MAX_ATTEMPTS-1 of bad characters, then ok message
+        AbstractReceivedMessage receivedMessage = null;
+        DataInputStream inFromServer = new DataInputStream(new ByteArrayInputStream(serverResponse.getBytes()));
+        DataOutputStream outToServer = new DataOutputStream(new ByteArrayOutputStream());
+        PreStartReceiver psr = prepareOkErrReceiver();
+
+        receivedMessage = psr.waitForMessage(inFromServer, outToServer);
+        assertNotNull("Null received!", receivedMessage);
+        assertNotNull("Wrong message received! "+receivedMessage.toString(), ReceivedMessageTypeResolver.isOk(receivedMessage));
+    }
+
+    @Test
     public void testWaitForNickError() throws IOException, MaxAttemptsReached {
         String serverResponse = "\neRr"+ ErrorCode.BAD_NICKNAME.code;
         AbstractReceivedMessage receivedMessage = null;

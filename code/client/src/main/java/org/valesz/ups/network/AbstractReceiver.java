@@ -55,8 +55,8 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
         while (i < msgTypeLen) {
             msgStaus = inFromServer.read(buffer, i, 1);
 
-            if(msgStaus < 0) {
-                logger.error("Error while receiving message type");
+            if(msgStaus != 1) {
+                logger.error("Error while receiving message type. Buffer position: "+i);
                 throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
             }
 
@@ -67,24 +67,22 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
 
             if (mt == null) {
                 // message type not determined yet
-                if(i > 0) {
-                    // message type should be known at this point
-                    throw new ReceivingException(Error.BAD_MSG_TYPE());
-                } else {
-                    switch (buffer[i]) {
-                        case 'C':
-                        case 'c':
-                            mt = MessageType.CMD;
-                            break;
-                        case 'I':
-                        case 'i':
-                            mt = MessageType.INF;
-                            break;
-                        case 'E':
-                        case 'e':
-                            mt = MessageType.ERR;
-                            break;
-                    }
+
+                switch (buffer[i]) {
+                    case 'C':
+                    case 'c':
+                        mt = MessageType.CMD;
+                        break;
+                    case 'I':
+                    case 'i':
+                        mt = MessageType.INF;
+                        break;
+                    case 'E':
+                    case 'e':
+                        mt = MessageType.ERR;
+                        break;
+                    default:
+                        throw new BadMsgTypeReceived();
                 }
             } else {
                 // receive the rest of the message type
@@ -432,7 +430,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
             case CMD:
                 return receiveCmdMsg(inFromServer);
             default:
-                throw new ReceivingException(Error.BAD_MSG_TYPE());
+                throw new BadMsgTypeReceived();
         }
     }
 }

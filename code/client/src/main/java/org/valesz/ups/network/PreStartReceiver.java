@@ -1,6 +1,5 @@
 package org.valesz.ups.network;
 
-import javafx.concurrent.Task;
 import org.valesz.ups.common.error.MaxAttemptsReached;
 import org.valesz.ups.common.error.ReceivingException;
 import org.valesz.ups.common.message.Message;
@@ -87,11 +86,7 @@ public class PreStartReceiver extends AbstractReceiver {
         }
     }
 
-    @Override
-    protected AbstractReceivedMessage call() throws Exception {
-        socket.setSoTimeout(MAX_WAITING_TIMEOUT);
-        DataInputStream inFromServer = new DataInputStream(socket.getInputStream());
-        DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
+    public AbstractReceivedMessage waitForMessage(DataInputStream inFromServer, DataOutputStream outToServer) throws IOException, MaxAttemptsReached {
         AbstractReceivedMessage receivedMessage = null;
         AbstractReceivedMessage okReceived = null;
         int timeoutCntr = 0;
@@ -102,7 +97,7 @@ public class PreStartReceiver extends AbstractReceiver {
             try {
                 receivedMessage = receiveMessage(inFromServer);
 
-            // handle some errors
+                // handle some errors
             } catch (SocketTimeoutException ex) {
                 // socket timed out => increase cntr
                 logger.warn("Socket timed out, increasing the timeout counter.");
@@ -140,13 +135,13 @@ public class PreStartReceiver extends AbstractReceiver {
             if (expectedMessageComparator.isExpected(receivedMessage)) {
                 logger.debug("Expected message received.");
 
-            // handle alive message
+                // handle alive message
             } else if(ReceivedMessageTypeResolver.isOk(receivedMessage) != null) {
                 // send ok
                 logger.debug("Is alive message received, sending ok.");
                 outToServer.write(Message.createOKMessage().toBytes());
 
-            // handle unexpected message
+                // handle unexpected message
             } else {
                 logger.debug("Unexpected message received, incrementing the attempt counter.");
                 attemptCntr++;
@@ -155,5 +150,13 @@ public class PreStartReceiver extends AbstractReceiver {
         }
 
         return receivedMessage;
+    }
+
+    @Override
+    protected AbstractReceivedMessage call() throws Exception {
+        socket.setSoTimeout(MAX_WAITING_TIMEOUT);
+        DataInputStream inFromServer = new DataInputStream(socket.getInputStream());
+        DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
+        return waitForMessage(inFromServer, outToServer);
     }
 }

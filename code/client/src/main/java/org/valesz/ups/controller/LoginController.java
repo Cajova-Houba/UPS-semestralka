@@ -14,6 +14,7 @@ import org.valesz.ups.model.game.Game;
 import org.valesz.ups.network.TcpClient;
 import org.valesz.ups.ui.LoginPane;
 
+import java.io.IOException;
 import java.net.SocketTimeoutException;
 
 /**
@@ -120,50 +121,45 @@ public class LoginController {
             return;
         }
 
-        //send nick
-        tcpClient.sendNick(loginData.getNick(),
-                e -> {
-                    //get response
-                    tcpClient.getResponse(
-                            event -> {
-                                //check received response
-                                AbstractReceivedMessage response = tcpClient.getReceivingService().getValue();
-                                if (ReceivedMessageTypeResolver.isOk(response) == null) {
-                                    // check error
-                                    ErrorReceivedMessage err = ReceivedMessageTypeResolver.isError(response);
-                                    if(err != null) {
-                                        logger.error("Server returned an error: "+err.getContent().toString());
-                                        view.displayMessage(ErrorMessages.getErrorForCode(err.getContent().code));
-                                    } else {
-                                        // wrong response
-                                        logger.error("Wrong response received. "+response);
-                                        view.displayMessage("Chyba při odesílání nicku na server.");
-                                    }
-                                    tcpClient.disconnect();
-                                } else {
-                                    // nick ok
-                                    Game.getInstance().waitingForOpponent(loginData.getNick());
-                                    logger.debug("Login ok.");
-                                    int port = tcpClient.getSocket().getLocalPort();
-                                    viewController.displayMainPane(port, loginData.getNick());
-                                }
-                            },
-                            event -> {
-                                //receiving response failed
-                                String err = tcpClient.getReceivingService().getException().getMessage();
-                                logger.error("Error while receiving response from server: "+err);
-                                view.displayMessage("Chyba při odesílání nicku na server.");
-                                tcpClient.disconnect();
-                            });
+        // send nick
+        logger.debug("Sending nick "+loginData.getNick()+" to server.");
+        try {
+            tcpClient.sendNickMessage(loginData.getNick());
+        } catch (IOException ex) {
+            logger.error("Exception while sending the nick: "+ex.getMessage());
+            tcpClient.disconnect();
+            view.displayMessage("Chyba při odesílání nicku na server.");
+            return;
+        }
 
+        // wait for ok message
+        tcpClient.waitForNickConfirm(
+                event -> {
+                    // ok or error message received
+                    //check received response
+                    AbstractReceivedMessage response = tcpClient.getPreStartReceiverService().getValue();
+                    if (ReceivedMessageTypeResolver.isOk(response) != null) {
+                        // nick ok
+                        Game.getInstance().waitingForOpponent(loginData.getNick());
+                        logger.debug("Login ok.");
+                        int port = tcpClient.getSocket().getLocalPort();
+                        viewController.displayMainPane(port, loginData.getNick());
+                    } else {
+                        // error received
+                        ErrorReceivedMessage err = ReceivedMessageTypeResolver.isError(response);
+                        logger.error("Server returned an error: "+err.getContent().toString());
+                        view.displayMessage(ErrorMessages.getErrorForCode(err.getContent().code));
+                    }
                 },
-                e -> {
-                    //sending nick failed
-                    String err = tcpClient.getNickService().getException().getMessage();
-                    logger.error("Error while sending nick to server: "+err);
+
+                event -> {
+                    //receiving response failed
+                    String err = tcpClient.getPreStartReceiverService().getException().getMessage();
+                    logger.error("Error while receiving response from server: "+err);
                     view.displayMessage("Chyba při odesílání nicku na server.");
                     tcpClient.disconnect();
-                });
+                }
+        );
     }
 
     /**

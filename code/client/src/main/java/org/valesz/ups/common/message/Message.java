@@ -66,8 +66,7 @@ public class Message {
      * @return
      */
     public static Message createNickMessage(String nick) {
-        byte nickLen = (byte)nick.length();
-        nick = ((char)nickLen) + nick;
+        nick = Integer.toString(nick.length()).charAt(0) + nick;
         return new Message(MessageType.CMD, nick);
     }
 

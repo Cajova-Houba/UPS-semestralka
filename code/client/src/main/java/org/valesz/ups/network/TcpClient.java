@@ -8,6 +8,7 @@ import org.valesz.ups.common.error.Error;
 import org.valesz.ups.common.error.ReceivingException;
 import org.valesz.ups.common.message.Message;
 import org.valesz.ups.common.message.received.AbstractReceivedMessage;
+import org.valesz.ups.common.message.received.ReceivedMessageTypeResolver;
 import org.valesz.ups.model.LoginData;
 
 import java.io.DataInputStream;
@@ -29,7 +30,11 @@ public class TcpClient {
     /**
      * Max time to wait for new turn message.
      */
-    public static final int MAX_WAITING_TIMEOUT = 60000;
+    public static final int MAX_WAITING_TIMEOUT = 1000;
+
+    public static final int MAX_ATTEMPTS = 10;
+
+    public static final int MAX_TIMEOUT = 120000;
 
     private LoginData lastSuccessfulConnection;
     private Socket socket;
@@ -39,6 +44,8 @@ public class TcpClient {
     private ConnectionService connectionService;
     private DataOutputStream outToServer;
     private DataInputStream inFromServer;
+
+    private PreStartReceiverService preStartReceiverService;
 
     /**
      * Tries to connect to the server and if the connection is successful,
@@ -69,6 +76,7 @@ public class TcpClient {
                 outToServer = new DataOutputStream(socket.getOutputStream());
                 receivingService = new ReceivingService();
                 turnService = new TurnService();
+                preStartReceiverService = new PreStartReceiverService();
 
                 lastSuccessfulConnection = new LoginData("", address, port);
             } catch (IOException e) {
@@ -234,13 +242,51 @@ public class TcpClient {
         return connectionService;
     }
 
+    public PreStartReceiverService getPreStartReceiverService() {
+        return preStartReceiverService;
+    }
+
     /**
-     * Receives message from current connection. Blocking operation.
-     * @return
+     * Uses PreStartReceiverService to wait for response. Waiting is successful if
+     * ok message or error message is received in time.
+     * @param successCallback
+     * @param failCallback
      */
-    public AbstractReceivedMessage receiveMessageBlocking() throws IOException, ReceivingException {
-        MessageReceiver mr = new MessageReceiver(inFromServer, false);
-        return mr.getResponse();
+    public void waitForNickConfirm(EventHandler<WorkerStateEvent> successCallback,
+                                   EventHandler<WorkerStateEvent> failCallback) {
+        preStartReceiverService.setOnSucceeded(successCallback);
+        preStartReceiverService.setOnFailed(failCallback);
+        preStartReceiverService.setExpectedMessageComparator(message -> {
+            if(message == null) {
+                return false;
+            }
+
+            // accept ok messages and errors
+            if(ReceivedMessageTypeResolver.isOk(message) != null || ReceivedMessageTypeResolver.isError(message) != null) {
+                return true;
+            } else {
+                return false;
+            }
+        });
+        preStartReceiverService.setMaxAttempts(MAX_ATTEMPTS);
+        preStartReceiverService.setMaxTimeoutMs(MAX_TIMEOUT);
+        preStartReceiverService.setSocket(socket);
+        preStartReceiverService.restart();
+    }
+
+
+
+    /**
+     * Sends a nick message to socket.
+     * @param nick
+     */
+    public void sendNickMessage(String nick) throws IOException {
+        if (!socket.isConnected()) {
+            return;
+        }
+
+        DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
+        dos.write(Message.createNickMessage(nick).toBytes());
     }
 
     /**

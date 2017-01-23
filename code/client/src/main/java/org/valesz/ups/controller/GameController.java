@@ -349,6 +349,9 @@ public class GameController {
     }
 
     public void stopTimer() {
+        if(timer == null) {
+            return;
+        }
         timer.cancel();
     }
 

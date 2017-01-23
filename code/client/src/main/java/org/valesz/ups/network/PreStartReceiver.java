@@ -1,5 +1,6 @@
 package org.valesz.ups.network;
 
+import org.valesz.ups.common.error.EndOfStreamReached;
 import org.valesz.ups.common.error.MaxAttemptsReached;
 import org.valesz.ups.common.error.ReceivingException;
 import org.valesz.ups.common.message.Message;
@@ -48,7 +49,9 @@ public class PreStartReceiver extends AbstractReceiver {
      * Exception thrown in call() method.
      * @exception SocketTimeoutException maxTimeoutMs is reached.
      * @exception IOException Exception during reading/writing from/to data stream.
-     * @exception MaxAttemptsReached Max number of attempts reached while receiving the exppected message.
+     * @exception MaxAttemptsReached Max number of attempts reached while receiving the expected message.
+     * @exception EndOfStreamReached Thrown when the unexpected end of stream is reached.
+
      */
     public PreStartReceiver(Socket socket, ExpectedMessageComparator expectedMessageComparator, int maxTimeoutMs, int maxAttempts) {
         this.socket = socket;
@@ -86,7 +89,7 @@ public class PreStartReceiver extends AbstractReceiver {
         }
     }
 
-    public AbstractReceivedMessage waitForMessage(DataInputStream inFromServer, DataOutputStream outToServer) throws IOException, MaxAttemptsReached {
+    public AbstractReceivedMessage waitForMessage(DataInputStream inFromServer, DataOutputStream outToServer) throws IOException, MaxAttemptsReached, EndOfStreamReached {
         AbstractReceivedMessage receivedMessage = null;
         AbstractReceivedMessage okReceived = null;
         int timeoutCntr = 0;
@@ -121,7 +124,8 @@ public class PreStartReceiver extends AbstractReceiver {
                 }
                 continue;
 
-
+            } catch (EndOfStreamReached ex) {
+                throw ex;
             } catch (ReceivingException ex) {
                 // error occured => increase the attemptCntr
                 logger.warn("Error occurred while receiving the message: "+ex.error.code.name()+". Increasing the attempt counter.");
@@ -136,7 +140,7 @@ public class PreStartReceiver extends AbstractReceiver {
                 logger.debug("Expected message received.");
 
                 // handle alive message
-            } else if(ReceivedMessageTypeResolver.isOk(receivedMessage) != null) {
+            } else if(ReceivedMessageTypeResolver.isAliveMessage(receivedMessage) != null) {
                 // send ok
                 logger.debug("Is alive message received, sending ok.");
                 outToServer.write(Message.createOKMessage().toBytes());

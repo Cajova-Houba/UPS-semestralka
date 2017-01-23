@@ -1,5 +1,6 @@
 package org.valesz.ups.common.message;
 
+import org.valesz.ups.common.Constraits;
 import org.valesz.ups.common.error.Error;
 import org.valesz.ups.common.error.ErrorCode;
 
@@ -81,6 +82,17 @@ public class Message {
     }
 
     public static Message createIsAliveMessage() {return new Message(MessageType.INF, "ALIVE");}
+
+    public static Message createEndTurnMessage(int[] p1TurnWord, int[] p2TurnWord) {
+        StringBuilder turnWordBuilder = new StringBuilder();
+        for(int i = 0; i < Constraits.MAX_NUMBER_OF_STONES; i++) {
+            turnWordBuilder.append(String.format("%02d",p1TurnWord[i]));
+        }
+        for(int i = 0; i < Constraits.MAX_NUMBER_OF_STONES; i++) {
+            turnWordBuilder.append(String.format("%02d",p2TurnWord[i]));
+        }
+        return new Message(MessageType.INF,turnWordBuilder.toString());
+    }
 
     public Message(MessageType messageType, String content) {
         this.messageType = messageType;

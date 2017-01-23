@@ -81,7 +81,7 @@ public class LoginController {
             return;
         }
 
-        view.disableLoginButton();
+        view.disableLoginButton("Připojuji");
         view.displayMessage("");
         tcpClient.connect(loginData.getAddress(), loginData.getPort(),
                 event -> {
@@ -122,12 +122,14 @@ public class LoginController {
         }
 
         // send nick
+        view.disableLoginButton("Potvrzuji nick...");
         logger.debug("Sending nick "+loginData.getNick()+" to server.");
         try {
             tcpClient.sendNickMessage(loginData.getNick());
         } catch (IOException ex) {
             logger.error("Exception while sending the nick: "+ex.getMessage());
             tcpClient.disconnect();
+            view.enableLoginButton();
             view.displayMessage("Chyba při odesílání nicku na server.");
             return;
         }
@@ -143,17 +145,21 @@ public class LoginController {
                         Game.getInstance().waitingForOpponent(loginData.getNick());
                         logger.debug("Login ok.");
                         int port = tcpClient.getSocket().getLocalPort();
+                        view.enableLoginButton();
                         viewController.displayMainPane(port, loginData.getNick());
                     } else {
                         // error received
+                        view.enableLoginButton();
                         ErrorReceivedMessage err = ReceivedMessageTypeResolver.isError(response);
                         logger.error("Server returned an error: "+err.getContent().toString());
                         view.displayMessage(ErrorMessages.getErrorForCode(err.getContent().code));
+                        tcpClient.disconnect();
                     }
                 },
 
                 event -> {
                     //receiving response failed
+                    view.enableLoginButton();
                     String err = tcpClient.getPreStartReceiverService().getException().getMessage();
                     logger.error("Error while receiving response from server: "+err);
                     view.displayMessage("Chyba při odesílání nicku na server.");
@@ -167,9 +173,10 @@ public class LoginController {
      */
     public void reconnect() {
         LoginData lastSuc = tcpClient.getLastSuccessfulConnection();
+        MainApp.switchToLogin();
         if(lastSuc == null) {
             logger.warn("No last successful connection!");
-            MainApp.switchToLogin();
+            view.displayMessage("Žádný server k připojení nespecifikován!");
         } else {
             connect(lastSuc);
         }

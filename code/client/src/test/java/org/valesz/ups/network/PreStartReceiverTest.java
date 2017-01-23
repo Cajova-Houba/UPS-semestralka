@@ -1,6 +1,7 @@
 package org.valesz.ups.network;
 
 import org.junit.Test;
+import org.valesz.ups.common.error.EndOfStreamReached;
 import org.valesz.ups.common.error.ErrorCode;
 import org.valesz.ups.common.error.MaxAttemptsReached;
 import org.valesz.ups.common.message.received.AbstractReceivedMessage;
@@ -18,7 +19,7 @@ import static org.junit.Assert.assertNotNull;
 public class PreStartReceiverTest {
 
     @Test
-    public void testWaitForNickConfirm() throws IOException, MaxAttemptsReached {
+    public void testWaitForNickConfirm() throws IOException, MaxAttemptsReached, EndOfStreamReached {
         String serverResponse = "\nInFoK";
         AbstractReceivedMessage receivedMessage = null;
         DataInputStream inFromServer = new DataInputStream(new ByteArrayInputStream(serverResponse.getBytes()));
@@ -31,7 +32,7 @@ public class PreStartReceiverTest {
     }
 
     @Test
-    public void testWaitForNickConfirmAlmostFail() throws IOException, MaxAttemptsReached {
+    public void testWaitForNickConfirmAlmostFail() throws IOException, MaxAttemptsReached, EndOfStreamReached {
         String serverResponse = "\nasdfghjklinfok";         // MAX_ATTEMPTS-1 of bad characters, then ok message
         AbstractReceivedMessage receivedMessage = null;
         DataInputStream inFromServer = new DataInputStream(new ByteArrayInputStream(serverResponse.getBytes()));
@@ -44,7 +45,7 @@ public class PreStartReceiverTest {
     }
 
     @Test
-    public void testWaitForNickError() throws IOException, MaxAttemptsReached {
+    public void testWaitForNickError() throws IOException, MaxAttemptsReached, EndOfStreamReached {
         String serverResponse = "\neRr"+ ErrorCode.BAD_NICKNAME.code;
         AbstractReceivedMessage receivedMessage = null;
         DataInputStream inFromServer = new DataInputStream(new ByteArrayInputStream(serverResponse.getBytes()));
@@ -59,7 +60,7 @@ public class PreStartReceiverTest {
     }
 
     @Test(expected = MaxAttemptsReached.class)
-    public void testWaitForNickResponseFail1() throws IOException, MaxAttemptsReached {
+    public void testWaitForNickResponseFail1() throws IOException, MaxAttemptsReached, EndOfStreamReached {
         String serverResponse = "\nasdfghjklq";     // send gibberish message
         AbstractReceivedMessage receivedMessage = null;
         DataInputStream inFromServer = new DataInputStream(new ByteArrayInputStream(serverResponse.getBytes()));

@@ -1,5 +1,6 @@
 package org.valesz.ups.network;
 
+import org.valesz.ups.common.error.EndOfStreamReached;
 import org.valesz.ups.common.error.MaxAttemptsReached;
 import org.valesz.ups.common.error.ReceivingException;
 import org.valesz.ups.common.message.Message;
@@ -77,13 +78,20 @@ public class PostStartReceiver extends AbstractReceiver {
      * @param attempts
      */
     private void checkAttempts(int attempts) throws MaxAttemptsReached {
-        if(attempts >= maxAttempts) {
+        if(attempts >= maxAttempts && maxAttempts != TcpClient.INF_ATTEMPTS) {
             logger.error("Maximum number of attempts reached.");
             throw new MaxAttemptsReached();
         }
     }
 
-    public AbstractReceivedMessage waitForMessage(DataInputStream inFromServer, DataOutputStream outToServer) throws IOException, MaxAttemptsReached {
+    /**
+     * Exception thrown in call() method.
+     * @exception SocketTimeoutException maxTimeoutMs is reached.
+     * @exception IOException Exception during reading/writing from/to data stream.
+     * @exception MaxAttemptsReached Max number of attempts reached while receiving the expected message.
+     * @exception EndOfStreamReached Thrown when the unexpected end of stream is reached.
+     */
+    public AbstractReceivedMessage waitForMessage(DataInputStream inFromServer, DataOutputStream outToServer) throws IOException, MaxAttemptsReached, EndOfStreamReached {
         AbstractReceivedMessage receivedMessage = null;
         AbstractReceivedMessage okReceived = null;
         int timeoutCntr = 0;
@@ -91,21 +99,25 @@ public class PostStartReceiver extends AbstractReceiver {
 
         while (!expectedMessageComparator.isExpected(receivedMessage)) {
 
+            if(Thread.currentThread().isInterrupted()) {
+                return null;
+            }
+
             try {
                 receivedMessage = receiveMessage(inFromServer);
 
                 // handle some errors
             } catch (SocketTimeoutException ex) {
                 // socket timed out => increase cntr
-                logger.warn("Socket timed out, increasing the timeout counter.");
+//                logger.warn("Socket timed out, increasing the timeout counter.");
                 timeoutCntr += MAX_WAITING_TIMEOUT;
-                if(timeoutCntr >= maxTimeoutMs) {
+                if (timeoutCntr >= maxTimeoutMs && maxTimeoutMs != TcpClient.NO_TIMEOUT) {
                     logger.error("Max timeout reached. Sending is alive message");
                     outToServer.write(Message.createOKMessage().toBytes());
 
                     // receive ok message
                     okReceived = receiveOk(inFromServer);
-                    if(okReceived == null) {
+                    if (okReceived == null) {
                         logger.error("Server not responding.");
                         throw new SocketTimeoutException();
                     } else {
@@ -114,11 +126,13 @@ public class PostStartReceiver extends AbstractReceiver {
                         attemptCntr++;
                         // check attempts
                         checkAttempts(attemptCntr);
-                        continue;
                     }
                 }
+                continue;
 
-
+            } catch (EndOfStreamReached ex) {
+                logger.error("End of stream reached.");
+                throw ex;
             } catch (ReceivingException ex) {
                 // error occured => increase the attemptCntr
                 logger.warn("Error occurred while receiving the message: "+ex.error.code.name()+". Increasing the attempt counter.");
@@ -133,7 +147,7 @@ public class PostStartReceiver extends AbstractReceiver {
                 logger.debug("Expected message received.");
 
                 // handle alive message
-            } else if(ReceivedMessageTypeResolver.isOk(receivedMessage) != null) {
+            } else if(ReceivedMessageTypeResolver.isAliveMessage(receivedMessage) != null) {
                 // send ok
                 logger.debug("Is alive message received, sending ok.");
                 outToServer.write(Message.createOKMessage().toBytes());

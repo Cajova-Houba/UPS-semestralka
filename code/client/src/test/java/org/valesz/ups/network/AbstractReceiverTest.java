@@ -7,10 +7,7 @@ import org.valesz.ups.common.message.received.ErrorReceivedMessage;
 import org.valesz.ups.common.message.received.ReceivedMessageTypeResolver;
 import org.valesz.ups.common.message.received.StartGameReceivedMessage;
 
-import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -143,6 +140,36 @@ public class AbstractReceiverTest {
                 // ok
             } catch (Exception ex) {
                 fail("Unexpected exception: "+ex.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Receive malformed start turn.
+     */
+    @Test
+    public void testReceiveStartTurnFail(){
+        String badMsg1 = "cmdStaRt_URN";                            // bad START_TURN
+        String badMsg2 = "cmdstart_turna10300507090204060810";      // bad first player turn word
+        String badMsg3 = "cmdstart_turn01030050709g204060810";      // bad second player turn word
+        String badMsg4 = "cmdstart_turn010300507090";               // bad turn word length
+        String[] badMsgs = new String[] {
+                badMsg1, badMsg2, badMsg3, badMsg4
+        };
+        AbstractReceiver receiver = new AbstractReceiver() {
+            @Override
+            protected AbstractReceivedMessage call() throws Exception {
+                return null;
+            }
+        };
+        for (int i = 0; i < badMsgs.length; i++) {
+            try {
+                DataInputStream inToServer = new DataInputStream(new ByteArrayInputStream(badMsgs[i].getBytes()));
+                receiver.receiveMessage(inToServer);
+            } catch (BadMsgContentException ex) {
+                // ok
+            } catch (Exception e) {
+                fail("Unexpected exception: "+e.getMessage());
             }
         }
     }

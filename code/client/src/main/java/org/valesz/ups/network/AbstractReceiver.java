@@ -41,6 +41,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
      * @exception ReceivingException Thrown when the message type can't be received.
      * @exception BadMsgTypeReceived Thrown when the message type is received, but can't be recognized.
      * @exception BadNickFormatException Thrown when the message should contain nick, but the nick is malformed.
+     * @exception EndOfStreamReached Thrown when the unexpected end of stream is reached.
      */
     protected MessageType receiveMessageType(DataInputStream inFromServer) throws IOException, ReceivingException {
         final int msgTypeLen = MessageType.getMessageTypeLen();
@@ -57,7 +58,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
 
             if(msgStaus != 1) {
                 logger.error("Error while receiving message type. Buffer position: "+i);
-                throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
+                throw new EndOfStreamReached();
             }
 
             // filter out white space chars at the beginning of the message
@@ -132,6 +133,11 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
                 return null;
             }
 
+            // filter out bad chars
+            if(((char)buffer[0]) == '\n') {
+                return null;
+            }
+
             nickBuilder.append((char)buffer[0]);
 
             received = input.read(buffer, 0, 1);
@@ -168,7 +174,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
         received = inFromServer.read(buffer,0,1);
         if (received != 1) {
             logger.error("Error receiving INF message.");
-            throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
+            throw new EndOfStreamReached();
         }
         char firstChar = (char)buffer[0];
         switch (firstChar) {
@@ -178,7 +184,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
                 received = inFromServer.read(buffer,1,1);
                 if(received != 1) {
                     logger.error("Error while receiving OK message");
-                    throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
+                    throw new EndOfStreamReached();
                 } else if (((char)buffer[1]) != 'K' && ((char)buffer[1]) != 'k') {
                     logger.error(String.format("Wrong message received: %c%c.", (char)buffer[0], (char)buffer[1]));
                     throw new BadMsgContentException();
@@ -198,7 +204,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
                     received = inFromServer.read(buffer,i,1);
                     if(received != 1) {
                         logger.error("Error while receiving START_GAME message.");
-                        throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
+                        throw new EndOfStreamReached();
                     }
 
                     if(((char)buffer[i]) != c && ((char)buffer[i]) != Character.toLowerCase(c)) {
@@ -237,7 +243,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
                     received = inFromServer.read(buffer,i,1);
                     if(received != 1) {
                         logger.error("Error while receiving END_GAME message.");
-                        throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
+                        throw new EndOfStreamReached();
                     }
 
                     if(((char)buffer[i]) != c && ((char)buffer[i]) != Character.toLowerCase(c)) {
@@ -269,7 +275,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
                     received = inFromServer.read(buffer,i,1);
                     if(received != 1) {
                         logger.error("Error while receiving ALIVE message.");
-                        throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
+                        throw new EndOfStreamReached();
                     }
 
                     if(((char)buffer[i]) != c && ((char)buffer[i]) != Character.toLowerCase(c)) {
@@ -320,7 +326,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
 
             if(received != 1) {
                 logger.error("Error while receiving error message.");
-                throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
+                throw new EndOfStreamReached();
             }
 
             if(((char)buffer[i]) < '0' || ((char)buffer[i]) > '9') {
@@ -356,15 +362,15 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
         int stonePos = 0;
         int received = 0;
 
-        while(i < len) {
+        while(i < len*2) {
             received = inFromServer.read(buffer, i, 1);
             if(received != 1) {
-                logger.error("Error while receiving player "+player+" turn word of start turn message.");
-                throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
+                logger.error("Whole turn word of player "+player+" wasn't specified!");
+                throw new BadMsgContentException();
             }
 
             if(((char)buffer[i]) < '0' || ((char)buffer[i]) > '9') {
-                logger.error(String.format("Bad character %c on position %d while receiving start turn message.", ((char)buffer[i]), i));
+                logger.error(String.format("Bad character %c on position %d while receiving turn word of player %d.", ((char)buffer[i]), i, player));
                 throw new BadMsgContentException();
             }
 
@@ -376,6 +382,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
                 stonePos += Character.getNumericValue(((char)buffer[i]));
                 playerStones[cntr] = stonePos;
                 cntr++;
+                stonePos = 0;
             }
 
             i++;

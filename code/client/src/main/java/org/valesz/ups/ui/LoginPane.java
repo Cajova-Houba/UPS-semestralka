@@ -143,9 +143,10 @@ public class LoginPane extends GridPane {
         loginButton.setText("Připojit");
     }
 
-    public void disableLoginButton() {
+    public void disableLoginButton(String text) {
         loginButton.setDisable(true);
-        loginButton.setText("Připojuji...");
+        loginButton.setText(text);
     }
+
 
 }

@@ -3,15 +3,18 @@ package org.valesz.ups.controller;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.valesz.ups.common.error.Error;
+import org.valesz.ups.common.error.ErrorMessages;
 import org.valesz.ups.common.error.MaxAttemptsReached;
 import org.valesz.ups.common.message.received.*;
 import org.valesz.ups.main.MainApp;
 import org.valesz.ups.model.game.Game;
+import org.valesz.ups.network.AbstractReceiver;
 import org.valesz.ups.network.TcpClient;
 import org.valesz.ups.ui.Board;
 import org.valesz.ups.ui.MainPane;
 import org.valesz.ups.ui.Stone;
 
+import java.io.IOException;
 import java.net.SocketTimeoutException;
 import java.util.Arrays;
 import java.util.Timer;
@@ -59,7 +62,6 @@ public class GameController {
     /**
      * Waits for the message from server indicating start of game.
      */
-    //TODO: test sending the ok message / timeout in server
     public void waitForStartGame() {
         view.disableButtons();
         view.addLogMessage("Čekám na dalšího hráče...\n");
@@ -74,7 +76,7 @@ public class GameController {
                         tcpClient.disconnect();
                         MainApp.viewController.displayLoginPane();
                     } else {
-                        // send ok
+                        // ok
                         logger.debug("Start game received.");
                         Game.getInstance().startGame(startGame.getFirstNickname(),startGame.getSecondNickname());
                         logger.info("The game has started");
@@ -82,16 +84,15 @@ public class GameController {
                         // update graphical components
                         view.startGame();
                         displayStartGameInfo();
-                        boardView.placeStones(Game.getInstance().getFirstPlayer().getStones(),
-                                Game.getInstance().getSecondPlayer().getStones());
 
                         // if this is the second player, wait for start turn message
                         if(!Game.getInstance().isMyTurn()) {
                             view.disableButtons();
-//                            waitForNewTurn();
+                            waitForNewTurn();
                         } else {
-//                            view.enableButtons();
-//                            startTimer();
+                            newTurn(true,
+                                    Game.getInstance().getFirstPlayer().getStones(),
+                                    Game.getInstance().getSecondPlayer().getStones());
                         }
                     }
                 },
@@ -99,21 +100,13 @@ public class GameController {
                 // fail
                 event -> {
                     Throwable ex = tcpClient.getPreStartReceiverService().getException();
+                    String msg = ex == null ? "no exception" : ex.getMessage();
                     if(ex instanceof SocketTimeoutException) {
-                        logger.error("Server stopped responding and is probably dead.");
-                        tcpClient.disconnect();
-                        MainApp.viewController.displayLoginPane();
-                        displayErroMessageLoginPane("Server přestal odpovídat.");
+                        handleFailure("Server stopped responding and is probably dead.", "Server přestal odpovídat.");
                     } else if (ex instanceof MaxAttemptsReached){
-                        logger.error("Maximum number of attempts to receive start game message reached.");
-                        tcpClient.disconnect();
-                        MainApp.viewController.displayLoginPane();
-                        displayErroMessageLoginPane("Maximální počet pokusů na start hry dosažen.");
+                        handleFailure("Maximum number of attempts to receive start game message reached.", "Maximální počet pokusů na start hry dosažen.");
                     } else {
-                        logger.error("Error while waiting for start game message: "+ex.getMessage());
-                        tcpClient.disconnect();
-                        MainApp.viewController.displayLoginPane();
-                        displayErroMessageLoginPane("Chyba při komunikaci se serverem.");
+                        handleFailure("Error while waiting for start game message: "+msg, ErrorMessages.COMMUNICATION_BREAKDOWN);
                     }
                 }
         );
@@ -236,18 +229,49 @@ public class GameController {
             return;
         }
         // send end turn message
-        tcpClient.sendEndturn(
-                Game.getInstance().getFirstPlayer().getStones(),
-//                Game.WINNER,
-                Game.getInstance().getSecondPlayer().getStones(),
+        try {
+            tcpClient.sendEndTurnMessage(
+                    Game.getInstance().getFirstPlayer().getStones(),
+                    Game.getInstance().getSecondPlayer().getStones());
+        } catch (IOException e) {
+            logger.error("Exception while sending the end turn: "+e.getMessage());
+            tcpClient.disconnect();
+            MainApp.viewController.displayLoginPane();
+            displayErroMessageLoginPane("Chyba při odesílání tahové zprávy na server.");
+            return;
+        }
+
+        // wait for end turn confirm
+        tcpClient.waitForTurnConfirm(
                 event -> {
-                    logger.trace("End turn message sent.");
-                    waitForNewTurn();
+                    AbstractReceivedMessage message = tcpClient.getPostStartReceiverService().getValue();
+                    OkReceivedMessage ok = ReceivedMessageTypeResolver.isOk(message);
+                    EndGameReceivedMessage endGame = ReceivedMessageTypeResolver.isEndGame(message);
+                    ErrorReceivedMessage err = ReceivedMessageTypeResolver.isError(message);
+
+                    if (err != null) {
+                        logger.debug("Error while validating turn: "+err.getContent().toString());
+                        view.addLogMessage("Server neuznal tvůj tah a považuje ho za propadlý.\n");
+                        waitForNewTurn();
+                    } else if (endGame != null) {
+                        endGame(endGame.getContent());
+                    } else {
+                        logger.trace("Turn validation ok.");
+                        waitForNewTurn();
+                    }
                 },
+
                 event -> {
-                    String error = tcpClient.getReceivingService().getException().getMessage();
-                    logger.debug("Error while sending end turn message, trying again: "+error);
-                    sendEndTurnMessage(noa);
+                    // failure
+                    Throwable ex = tcpClient.getPreStartReceiverService().getException();
+                    String msg = ex == null ? "no exception" : ex.getMessage();
+                    if(ex instanceof SocketTimeoutException) {
+                        handleFailure("Server stopped responding and is probably dead.", "Server přestal odpovídat.");
+                    } else if (ex instanceof MaxAttemptsReached){
+                        handleFailure("Maximum number of attempts to receive end turn confirmation reached.", "Maximální počet pokusů na potvrzení tahu dosažen.");
+                    } else {
+                        handleFailure("Error while waiting for end turn confirm message: "+msg, ErrorMessages.COMMUNICATION_BREAKDOWN);
+                    }
                 }
         );
     }
@@ -262,22 +286,17 @@ public class GameController {
     public void waitForNewTurn() {
         logger.debug("Waiting for my turn.");
         // wait for START_TURN message
-        tcpClient.getResponse(
+        tcpClient.waitForMyTurn(
                 event -> {
                     // response
-                    AbstractReceivedMessage response = tcpClient.getReceivingService().getValue();
+                    AbstractReceivedMessage response = tcpClient.getPostStartReceiverService().getValue();
                     StartTurnReceivedMessage startTurn = ReceivedMessageTypeResolver.isStartTurn(response);
                     EndGameReceivedMessage endGame = ReceivedMessageTypeResolver.isEndGame(response);
-                    WaitingForPlayerReceivedMessage waitingForPlayer = ReceivedMessageTypeResolver.isWaitingForPlayer(response);
 
                     if( endGame != null) {
-                        logger.debug("End of the game, winner is: "+endGame.getContent());
                         endGame(endGame.getContent());
-                    } else if (waitingForPlayer != null) {
-                        logger.debug("The game is waiting for player "+waitingForPlayer.getContent()+" to reconnect.");
-                        waitForNewTurn();
                     } else if (startTurn != null) {
-                        newTurn(startTurn.getFirstPlayerStones(), startTurn.getSecondPlayerStones());
+                        newTurn(false,startTurn.getFirstPlayerStones(), startTurn.getSecondPlayerStones());
                     } else {
                         // wrong response
                         logger.error("Wrong message received. Expected START_TURN, received: "+response);
@@ -285,26 +304,14 @@ public class GameController {
                 },
                 event -> {
                     // failure
-                    Throwable ex = tcpClient.getReceivingService().getException();
+                    Throwable ex = tcpClient.getPreStartReceiverService().getException();
+                    String msg = ex == null ? "no exception" : ex.getMessage();
                     if(ex instanceof SocketTimeoutException) {
-                        logger.debug("Checking if the server is still alive...");
-                        // check if the server is alive
-                        boolean alive = tcpClient.isAlive(TcpClient.MAX_WAITING_TIMEOUT);
-                        if(!alive) {
-                            logger.error("Error: server died.");
-                            tcpClient.disconnect();
-                            MainApp.viewController.displayLoginPane();
-                        } else {
-                            logger.debug("Alive.");
-                            // server is alive, continue waiting for new turn
-                            waitForNewTurn();
-                        }
+                        handleFailure("Server stopped responding and is probably dead.", "Server přestal odpovídat.");
+                    } else if (ex instanceof MaxAttemptsReached){
+                        handleFailure("Maximum number of attempts to receive start turn message reached.", "Maximální počet pokusů na nový tah dosažen.");
                     } else {
-                        String error = ex.getMessage();
-                        logger.debug("Error while receiving response: "+error);
-                        Game.getInstance().resetGame();
-                        tcpClient.disconnect();
-                        MainApp.viewController.displayLoginPane();
+                        handleFailure("Error while waiting for start turn message: "+msg, ErrorMessages.COMMUNICATION_BREAKDOWN);
                     }
                 }
         );
@@ -313,16 +320,34 @@ public class GameController {
     /**
      * Starts the new turn with updated stones.
      * Also starts the turn timer.
+     * Also start the thread for receiving messages from server.
+     * @param firstTurn If true, Game.newTurn() won't be called (and the turn won't be switched).
      * @param firstPlayerStones
      * @param secondPlayerStones
      */
-    public void newTurn(int[] firstPlayerStones, int[] secondPlayerStones) {
+    public void newTurn(boolean firstTurn, int[] firstPlayerStones, int[] secondPlayerStones) {
         logger.debug("Starting new turn.");
-        Game.getInstance().newTurn(firstPlayerStones, secondPlayerStones);
+        if(!firstTurn) {
+            Game.getInstance().newTurn(firstPlayerStones, secondPlayerStones);
+        }
         view.newTurn();
         boardView.updateStones(Game.getInstance().getFirstPlayer().getStones(),
                 Game.getInstance().getSecondPlayer().getStones());
         view.focusOnThrowButton();
+        tcpClient.handleWhileTurn(
+                event -> {
+                    // if the end game is received
+                    AbstractReceivedMessage message = tcpClient.getPostStartReceiverService().getValue();
+                    EndGameReceivedMessage endGame = ReceivedMessageTypeResolver.isEndGame(message);
+                    if(endGame != null) {
+                        endGame(endGame.getContent());
+                    }
+                },
+                event -> {
+                Throwable ex = tcpClient.getPostStartReceiverService().getException();
+                String msg = ex == null ? "no exception" : ex.getMessage();
+                handleFailure("Exception while player making his turn: "+msg, ErrorMessages.COMMUNICATION_BREAKDOWN);
+        });
         startTimer();
     }
 
@@ -393,6 +418,8 @@ public class GameController {
      * Ends the game, disconnects the tcpClient.
      */
     public void endGame(String winner) {
+        logger.debug("End of the game, winner is: "+winner);
+        stopTimer();
         Game.getInstance().resetGame();
         tcpClient.disconnect();
         view.displayEndGameDialog(winner);
@@ -416,5 +443,18 @@ public class GameController {
         if(loginController != null) {
             loginController.displayErrorMessage(message);
         }
+    }
+
+    /**
+     * Immediately stops the game, switches to login pane and show error message.
+     * @param logMessage
+     * @param displayError
+     */
+    private void handleFailure(String logMessage, String displayError) {
+        logger.error(logMessage);
+        stopTimer();
+        tcpClient.disconnect();
+        MainApp.viewController.displayLoginPane();
+        displayErroMessageLoginPane(displayError);
     }
 }

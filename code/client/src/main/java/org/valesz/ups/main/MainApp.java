@@ -54,13 +54,7 @@ public class MainApp extends Application{
 
     @Override
     public void stop() throws Exception {
-        tcpClient.sendExitMessage(
-                event -> {
-                    logger.debug("Exit message sent.");
-                },
-                event -> {
-                    logger.error("Error while sending exit message.");
-                });
+        tcpClient.sendExitMessage();
         gameController.stopTimer();
         super.stop();
     }

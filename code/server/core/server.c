@@ -604,7 +604,7 @@ int wait_for_end_turn(int socket, int timeout, int my_player, int other_player, 
 
         // handle message errors
         if(msg_status != OK) {
-            sprintf(log_msg, "Error while receiving message from socket %d.\n", socket);
+            sprintf(log_msg, "Error (%d) while receiving message from socket %d.\n", msg_status, socket);
             serror(PLAYER_THREAD_NAME, log_msg);
             if (msg_status < GENERAL_ERR || msg_status >= ERR_LAST) {
                 msg_status = GENERAL_ERR;
@@ -911,6 +911,10 @@ int handle_message_waiting(int socket, int timeout, int my_player) {
         case OK:
             if(is_alive(&received_message) == OK) {
                 send_ok_msg(socket);
+            } else if(is_exit(&received_message) == OK) {
+                sprintf(log_msg, "Player %d quit.\n", my_player);
+                sdebug(PLAYER_THREAD_NAME, log_msg);
+                return STOP_GAME_LOOP;
             } else {
                 // send not my turn error
                 send_err_msg(socket, ERR_UNEXPECTED_MSG);
@@ -922,6 +926,7 @@ int handle_message_waiting(int socket, int timeout, int my_player) {
 
         case CLOSED_CONNECTION:
             sprintf(log_msg, "Player %d closed connection.\n", my_player);
+            sdebug(PLAYER_THREAD_NAME, log_msg);
             return STOP_GAME_LOOP;
 
         default:
@@ -1022,10 +1027,12 @@ void game_loop(int socket, int my_player, int other_player) {
                 turn_valid = OK;
                 if (turn_valid != OK) {
                     debug_player_message(log_msg, "Turn of player %d is not valid, skipping it!\n", my_player);
+                    send_err_msg(socket, ERR_TURN);
                 } else {
                     // turn valid -> update the player's stones
                     update_players_stones(&(game.players[0]), tmp_p1_word);
                     update_players_stones(&(game.players[1]), tmp_p2_word);
+                    send_ok_msg(socket);
                 }
                 game_loop_state = CHECK_WINNING_COND;
                 break;

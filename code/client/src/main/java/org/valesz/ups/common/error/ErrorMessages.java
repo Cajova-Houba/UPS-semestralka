@@ -16,6 +16,7 @@ public class ErrorMessages {
     public static final String BAD_NICKNAME = "Nickname má chybný tvar.";
     public static final String SERVER_FULL = "Server je plný.";
     public static final String NICK_ALREADY_EXISTS = "Hráč s tímto nickem již existuje.";
+    public static final String COMMUNICATION_BREAKDOWN = "Chyb při komunikaci se serverem.";
 
     public static String getErrorForCode(ErrorCode errorCode) {
         switch (errorCode) {

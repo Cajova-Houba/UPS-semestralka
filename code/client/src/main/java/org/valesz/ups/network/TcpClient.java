@@ -32,9 +32,13 @@ public class TcpClient {
      */
     public static final int MAX_WAITING_TIMEOUT = 1000;
 
+    public static final int NO_TIMEOUT = -1;
+
     public static final int MAX_ATTEMPTS = 10;
 
     public static final int MAX_TIMEOUT = 120000;
+
+    public static final int INF_ATTEMPTS = -1;
 
     private LoginData lastSuccessfulConnection;
     private Socket socket;
@@ -78,6 +82,7 @@ public class TcpClient {
                 receivingService = new ReceivingService();
                 turnService = new TurnService();
                 preStartReceiverService = new PreStartReceiverService();
+                postStartReceiverService = new PostStartReceiverService();
 
                 lastSuccessfulConnection = new LoginData("", address, port);
             } catch (IOException e) {
@@ -124,7 +129,9 @@ public class TcpClient {
      * @param successCallback Called if the nick is sent. Received: OK
      * @param failCallback Called if the nick sending fails.
      * @return GENERAL_ERROR if there's no connection and NO_ERROR if everything is ok.
+     * @deprecated
      */
+    @Deprecated
     public Error sendNick(String nick,
                           EventHandler<WorkerStateEvent> successCallback,
                           EventHandler<WorkerStateEvent> failCallback) {
@@ -152,7 +159,9 @@ public class TcpClient {
      * @param successCallback Called if the message was sent.
      * @param failCallback Called if there's some error during sending the message.
      * @return GENERAL_ERROR if there's no connection and NO_ERROR if everything is ok.
+     * @deprecated
      */
+    @Deprecated
     public Error sendEndturn(int[] firstPlayerTurnWord,
                              int[] secondPlayerTurnWord,
                              EventHandler<WorkerStateEvent> successCallback,
@@ -171,13 +180,25 @@ public class TcpClient {
         return Error.NO_ERROR();
     }
 
+    public void sendEndTurnMessage(int[] firstPlayerTurnWord,
+                                   int[] secondPlayerTurnWord) throws IOException {
+        if(!isConnected()) {
+            return ;
+        }
+
+        DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
+        dos.write(Message.createEndTurnMessage(firstPlayerTurnWord, secondPlayerTurnWord).toBytes());
+    }
+
     /**
      * Reads 1 response from server.
      *
      * @param successCallback Called if the response is obtained.
      * @param failCallback Called if error occurs. ReceivingException is used.
      * @return GENERAL_ERROR if there's no connection and NO_ERROR if everything is ok.
+     * @deprecated
      */
+    @Deprecated
     public Error getResponse(EventHandler<WorkerStateEvent> successCallback,
                              EventHandler<WorkerStateEvent> failCallback) {
         if(!isConnected()) {
@@ -193,34 +214,22 @@ public class TcpClient {
 
     }
 
-    public Error sendExitMessage(EventHandler<WorkerStateEvent> successCallback,
-                                 EventHandler<WorkerStateEvent> failCallback) {
+    public void sendExitMessage() throws IOException {
         if(!isConnected()) {
-            return Error.GENERAL_ERROR("No active connection.");
+            return ;
         }
 
-        ExitService exitService = new ExitService();
-        exitService.setOutToServer(outToServer);
-        exitService.setOnSucceeded(successCallback);
-        exitService.setOnFailed(failCallback);
-        exitService.restart();
-
-        return Error.NO_ERROR();
+        DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
+        dos.write(Message.createExitMessage().toBytes());
     }
 
-    public Error sendOkMessage(EventHandler<WorkerStateEvent> successCallback,
-                               EventHandler<WorkerStateEvent> failCallback) {
+    public void sendOkMessage() throws IOException {
         if(!isConnected()) {
-            return Error.GENERAL_ERROR("No active connection.");
+            return ;
         }
 
-        OkService okService = new OkService();
-        okService.setOutToServer(outToServer);
-        okService.setOnSucceeded(successCallback);
-        okService.setOnFailed(failCallback);
-        okService.restart();
-
-        return Error.NO_ERROR();
+        DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
+        dos.write(Message.createOKMessage().toBytes());
     }
 
     public NickService getNickService() {
@@ -245,6 +254,10 @@ public class TcpClient {
 
     public PreStartReceiverService getPreStartReceiverService() {
         return preStartReceiverService;
+    }
+
+    public PostStartReceiverService getPostStartReceiverService() {
+        return postStartReceiverService;
     }
 
     /**
@@ -277,7 +290,7 @@ public class TcpClient {
 
     /**
      * Uses PreStartReceiverService to wait for response. Waiting is successful if
-     * start turn message is received.
+     * start game message is received.
      * @param successCallback
      * @param failCallback
      */
@@ -296,6 +309,78 @@ public class TcpClient {
             return ReceivedMessageTypeResolver.isStartGame(message) != null;
         });
         preStartReceiverService.restart();
+    }
+
+    /**
+     * Uses PostStartReceiverService to receive either OK or error message indicating the validation of turn.
+     * @param successCallback
+     * @param failCallback
+     */
+    public void waitForTurnConfirm(EventHandler<WorkerStateEvent> successCallback,
+                                   EventHandler<WorkerStateEvent> failCallback) {
+        postStartReceiverService.cancel();
+        postStartReceiverService.setOnSucceeded(successCallback);
+        postStartReceiverService.setOnFailed(failCallback);
+        postStartReceiverService.setMaxTimeoutMs(MAX_TIMEOUT);
+        postStartReceiverService.setMaxAttempts(MAX_ATTEMPTS);
+        postStartReceiverService.setSocket(socket);
+        postStartReceiverService.setExpectedMessageComparator(message -> {
+            if(message == null) {
+                return false;
+            }
+
+            // accept only start turn messages
+            return ReceivedMessageTypeResolver.isOk(message) != null || ReceivedMessageTypeResolver.isError(message) != null;
+        });
+        postStartReceiverService.restart();
+    }
+
+    /**
+     * Uses post-start game receiver to wait for response. Waiting is successful if start
+     * turn message or end game message is received.
+     * @param successCallback
+     * @param failCallback
+     */
+    public void waitForMyTurn(EventHandler<WorkerStateEvent> successCallback,
+                              EventHandler<WorkerStateEvent> failCallback) {
+        postStartReceiverService.cancel();
+        postStartReceiverService.setOnSucceeded(successCallback);
+        postStartReceiverService.setOnFailed(failCallback);
+        postStartReceiverService.setMaxTimeoutMs(NO_TIMEOUT);
+        postStartReceiverService.setMaxAttempts(MAX_ATTEMPTS);
+        postStartReceiverService.setSocket(socket);
+        postStartReceiverService.setExpectedMessageComparator(message -> {
+            if(message == null) {
+                return false;
+            }
+
+            // accept only start turn messages
+            return ReceivedMessageTypeResolver.isStartTurn(message) != null;
+        });
+        postStartReceiverService.restart();
+    }
+
+    /**
+     * Using the PostStartGameReceiverService runs a task which will be periodically receiving messages,
+     * while the player do his turn.
+     * This task needs to be canceled by a cancel() method.
+     * @param successCallback
+     * @param failCallback
+     */
+    public void handleWhileTurn(EventHandler<WorkerStateEvent> successCallback,
+                                EventHandler<WorkerStateEvent> failCallback) {
+        postStartReceiverService.cancel();
+        postStartReceiverService.setOnSucceeded(successCallback);
+        postStartReceiverService.setOnFailed(failCallback);
+        postStartReceiverService.setMaxTimeoutMs(NO_TIMEOUT);
+        postStartReceiverService.setMaxAttempts(INF_ATTEMPTS);
+        postStartReceiverService.setSocket(socket);
+        postStartReceiverService.setExpectedMessageComparator(message -> {
+
+            // nothing is expected
+            return false;
+        });
+        postStartReceiverService.restart();
     }
 
     /**

@@ -40,6 +40,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
      * @exception IOException Thrown when error during reading form stream occurs.
      * @exception ReceivingException Thrown when the message type can't be received.
      * @exception BadMsgTypeReceived Thrown when the message type is received, but can't be recognized.
+     * @exception BadNickFormatException Thrown when the message should contain nick, but the nick is malformed.
      */
     protected MessageType receiveMessageType(DataInputStream inFromServer) throws IOException, ReceivingException {
         final int msgTypeLen = MessageType.getMessageTypeLen();
@@ -127,7 +128,12 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
             return null;
         }
 
-        while (i < Constraits.MAX_NICK_LENGTH && ((char)buffer[0]) != delimiter) {
+        while (((char)buffer[0]) != delimiter) {
+            // nick is already too long
+            if (i >= Constraits.MAX_NICK_LENGTH) {
+                return null;
+            }
+
             nickBuilder.append((char)buffer[0]);
 
             received = input.read(buffer, 0, 1);
@@ -136,6 +142,11 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
             }
 
             i++;
+        }
+
+        if(i < Constraits.MIN_NICK_LENGTH) {
+            // nick too short
+            return null;
         }
 
         return nickBuilder.toString();
@@ -204,14 +215,14 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
                 String firstNick = receiveNick(inFromServer, ',');
                 if(firstNick == null || !Pattern.matches(Constraits.NICKNAME_REGEXP, firstNick)) {
                     logger.error("Error while receiving the 1st nick from START_GAME message");
-                    throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
+                    throw new BadNickFormatException();
                 }
                 logger.trace("1st nick received: "+firstNick);
 
                 String secondNick = receiveNick(inFromServer, ';');
                 if(secondNick == null || !Pattern.matches(Constraits.NICKNAME_REGEXP, firstNick)) {
-                    logger.error("Error while receiving the 1st nick from START_GAME message");
-                    throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
+                    logger.error("Error while receiving the 2nd nick from START_GAME message");
+                    throw new BadNickFormatException();
                 }
                 logger.trace("2nd nick received: "+secondNick   );
                 logger.trace("Received: START_GAME, p1="+firstNick+", p2="+secondNick);

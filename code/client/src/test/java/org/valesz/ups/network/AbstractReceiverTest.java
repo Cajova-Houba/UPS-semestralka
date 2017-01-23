@@ -1,13 +1,11 @@
 package org.valesz.ups.network;
 
 import org.junit.Test;
-import org.valesz.ups.common.error.BadMsgContentException;
-import org.valesz.ups.common.error.BadMsgTypeReceived;
-import org.valesz.ups.common.error.ErrorCode;
-import org.valesz.ups.common.error.ReceivingException;
+import org.valesz.ups.common.error.*;
 import org.valesz.ups.common.message.received.AbstractReceivedMessage;
 import org.valesz.ups.common.message.received.ErrorReceivedMessage;
 import org.valesz.ups.common.message.received.ReceivedMessageTypeResolver;
+import org.valesz.ups.common.message.received.StartGameReceivedMessage;
 
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -86,6 +84,69 @@ public class AbstractReceiverTest {
         assertNotNull("Wrong message received! "+receivedMessage.toString(), ReceivedMessageTypeResolver.isAliveMessage(receivedMessage));
     }
 
+    @Test
+    public void testReceiveStartGameMessage() throws IOException, ReceivingException {
+        String startGameMsg = "\nInFStaRt_GaMenick1,nick2;";
+        AbstractReceiver receiver = new AbstractReceiver() {
+            @Override
+            protected AbstractReceivedMessage call() throws Exception {
+                return null;
+            }
+        };
+
+        InputStream is = new ByteArrayInputStream(startGameMsg.getBytes());
+        AbstractReceivedMessage receivedMessage = receiver.receiveMessage(new DataInputStream(is));
+        assertNotNull("Null returned!",receivedMessage);
+        StartGameReceivedMessage message = ReceivedMessageTypeResolver.isStartGame(receivedMessage);
+        assertNotNull("Wrong message received! "+receivedMessage.toString(), message);
+        assertEquals("Wrong first nick received!", "nick1", message.getFirstNickname());
+        assertEquals("Wrong second nick received!", "nick2", message.getSecondNickname());
+    }
+
+    @Test
+    public void testReceiveBadStartGameMessage() {
+        String badMsg1 = "InFStart_GAmfnick1,nick2;";       // bad start_game
+        String badMsg2 = "InFStart_GaMEnc,nick2;";          // first nick too short
+        String badMsg3 = "InFStart_Gamenic;nck;";           // bad delimiter
+        String badMsg4 = "infstart_gameasdasdasdasdasda";   // bad nick format
+        String badMsg5 = "infstart_game";                   // no nick
+        String badMsg6 = "infstart_gamenick1,nick2";        // no delimiter for nick 2
+        String badMsg7 = "infstart_gamenick1,ni;";          // nick 2 too short
+        String[] badNickMessages = new String[] {badMsg2, badMsg3, badMsg4, badMsg5, badMsg6, badMsg7};
+        AbstractReceiver receiver = new AbstractReceiver() {
+            @Override
+            protected AbstractReceivedMessage call() throws Exception {
+                return null;
+            }
+        };
+        InputStream is = null;
+
+        // first bad message should throw bad content exception
+        is = new ByteArrayInputStream(badMsg1.getBytes());
+        try {
+            receiver.receiveMessage(new DataInputStream(is));
+            fail("Bad message content exception expected!");
+        } catch (BadMsgContentException ex) {
+            // ok
+        } catch (Exception ex) {
+            fail("Unexpected exception: "+ex.getMessage());
+        }
+
+        // rest of the messages should throw bad nick exceptions
+        for(int i = 0; i < badNickMessages.length; i++) {
+            is = new ByteArrayInputStream(badNickMessages[i].getBytes());
+
+            try {
+                receiver.receiveMessage(new DataInputStream(is));
+                fail("Bad nick format exception expected!");
+            } catch (BadNickFormatException ex) {
+                // ok
+            } catch (Exception ex) {
+                fail("Unexpected exception: "+ex.getMessage());
+            }
+        }
+    }
+
     @Test(expected = BadMsgTypeReceived.class)
     public void testReceiveMessageBadMsgType() throws IOException, ReceivingException {
         String badMsg = "\n \ncMf";
@@ -115,6 +176,4 @@ public class AbstractReceiverTest {
         receiver.receiveMessage(new DataInputStream(is));
         fail("Bad message content not detected!");
     }
-
-
 }

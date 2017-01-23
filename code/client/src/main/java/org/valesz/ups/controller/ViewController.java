@@ -1,6 +1,7 @@
 package org.valesz.ups.controller;
 
 import org.valesz.ups.main.MainApp;
+import org.valesz.ups.ui.LoginPane;
 import org.valesz.ups.ui.MainPane;
 
 /**

@@ -27,7 +27,7 @@ public class MainApp extends Application{
     public static final int DEF_WIDTH = 880;
     public static final int DEF_HEIGHT = 550;
     public static final int DEF_LOGIN_WIDTH = 640;
-    public static final int DEF_LOGIN_HEIGHT = 240;
+    public static final int DEF_LOGIN_HEIGHT = 280;
     public static final String DEF_TITLE = "Senet - klient";
 
 
@@ -71,6 +71,7 @@ public class MainApp extends Application{
         gameController = new GameController(tcpClient);
 
         loginController.setViewController(viewController);
+        gameController.setLoginController(loginController);
     }
 
     @Override

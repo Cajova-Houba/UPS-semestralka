@@ -9,6 +9,7 @@ import org.valesz.ups.common.message.received.ReceivedMessageTypeResolver;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 
@@ -82,11 +83,7 @@ public class PostStartReceiver extends AbstractReceiver {
         }
     }
 
-    @Override
-    protected AbstractReceivedMessage call() throws Exception {
-        socket.setSoTimeout(MAX_WAITING_TIMEOUT);
-        DataInputStream inFromServer = new DataInputStream(socket.getInputStream());
-        DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
+    public AbstractReceivedMessage waitForMessage(DataInputStream inFromServer, DataOutputStream outToServer) throws IOException, MaxAttemptsReached {
         AbstractReceivedMessage receivedMessage = null;
         AbstractReceivedMessage okReceived = null;
         int timeoutCntr = 0;
@@ -135,18 +132,18 @@ public class PostStartReceiver extends AbstractReceiver {
             if (expectedMessageComparator.isExpected(receivedMessage)) {
                 logger.debug("Expected message received.");
 
-            // handle alive message
+                // handle alive message
             } else if(ReceivedMessageTypeResolver.isOk(receivedMessage) != null) {
                 // send ok
                 logger.debug("Is alive message received, sending ok.");
                 outToServer.write(Message.createOKMessage().toBytes());
 
-            // handle end game message
+                // handle end game message
             } else if (ReceivedMessageTypeResolver.isEndGame(receivedMessage) != null) {
                 logger.debug("End game received.");
                 break;
 
-            // handle unexpected message
+                // handle unexpected message
             } else {
                 logger.debug("Unexpected message received, incrementing the attempt counter.");
                 attemptCntr++;
@@ -155,5 +152,14 @@ public class PostStartReceiver extends AbstractReceiver {
         }
 
         return receivedMessage;
+    }
+
+    @Override
+    protected AbstractReceivedMessage call() throws Exception {
+        socket.setSoTimeout(MAX_WAITING_TIMEOUT);
+        DataInputStream inFromServer = new DataInputStream(socket.getInputStream());
+        DataOutputStream outToServer = new DataOutputStream(socket.getOutputStream());
+
+        return waitForMessage(inFromServer, outToServer);
     }
 }

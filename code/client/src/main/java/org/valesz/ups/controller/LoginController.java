@@ -173,6 +173,13 @@ public class LoginController {
         } else {
             connect(lastSuc);
         }
+    }
 
+    /**
+     * Displays error message on login pane.
+     * @param message
+     */
+    public void displayErrorMessage(String message) {
+        view.displayMessage(message);
     }
 }

@@ -3,6 +3,7 @@ package org.valesz.ups.controller;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.valesz.ups.common.error.Error;
+import org.valesz.ups.common.error.MaxAttemptsReached;
 import org.valesz.ups.common.message.received.*;
 import org.valesz.ups.main.MainApp;
 import org.valesz.ups.model.game.Game;
@@ -36,10 +37,15 @@ public class GameController {
     private Timer timer;
     private int timeCntr;
     private boolean timerPassed;
+    private LoginController loginController;
 
     public GameController(TcpClient tcpClient) {
 
         this.tcpClient = tcpClient;
+    }
+
+    public void setLoginController(LoginController loginController) {
+        this.loginController = loginController;
     }
 
     public void setView(MainPane view) {
@@ -57,10 +63,10 @@ public class GameController {
     public void waitForStartGame() {
         view.disableButtons();
         view.addLogMessage("Čekám na dalšího hráče...\n");
-        Error err = tcpClient.getResponse(
+        tcpClient.waitForStartGame(
                 event -> {
                     // response
-                    AbstractReceivedMessage response = tcpClient.getReceivingService().getValue();
+                    AbstractReceivedMessage response = tcpClient.getPreStartReceiverService().getValue();
                     StartGameReceivedMessage startGame = ReceivedMessageTypeResolver.isStartGame(response);
                     if (startGame == null) {
                         // wrong response
@@ -70,62 +76,47 @@ public class GameController {
                     } else {
                         // send ok
                         logger.debug("Start game received.");
-                        tcpClient.sendOkMessage(
-                                event1 -> {
-                                    logger.debug("Ok message sent.");
-                                    Game.getInstance().startGame(startGame.getFirstNickname(),startGame.getSecondNickname());
-                                    logger.info("The game has started");
+                        Game.getInstance().startGame(startGame.getFirstNickname(),startGame.getSecondNickname());
+                        logger.info("The game has started");
 
-                                    // update graphical components
-                                    view.startGame();
-                                    displayStartGameInfo();
-                                    boardView.placeStones(Game.getInstance().getFirstPlayer().getStones(),
-                                            Game.getInstance().getSecondPlayer().getStones());
+                        // update graphical components
+                        view.startGame();
+                        displayStartGameInfo();
+                        boardView.placeStones(Game.getInstance().getFirstPlayer().getStones(),
+                                Game.getInstance().getSecondPlayer().getStones());
 
-                                    // if this is the second player, wait for start turn message
-                                    if(!Game.getInstance().isMyTurn()) {
-                                        view.disableButtons();
-                                        waitForNewTurn();
-                                    } else {
-                                        view.enableButtons();
-                                        startTimer();
-                                    }
-                                },
-                                event1 -> {
-                                    logger.error("Error while sending OK message to server.");
-                                    tcpClient.disconnect();
-                                    MainApp.viewController.displayLoginPane();
-                                });
+                        // if this is the second player, wait for start turn message
+                        if(!Game.getInstance().isMyTurn()) {
+                            view.disableButtons();
+//                            waitForNewTurn();
+                        } else {
+//                            view.enableButtons();
+//                            startTimer();
+                        }
                     }
                 },
+
+                // fail
                 event -> {
-                    // failure
-                    Throwable ex = tcpClient.getReceivingService().getException();
+                    Throwable ex = tcpClient.getPreStartReceiverService().getException();
                     if(ex instanceof SocketTimeoutException) {
-                        // check if the server is alive
-                        logger.debug("Checking if the server is still alive...");
-                        boolean alive = tcpClient.isAlive(TcpClient.MAX_WAITING_TIMEOUT);
-                        if(!alive) {
-                            logger.error("Error: server died.");
-                            tcpClient.disconnect();
-                            MainApp.viewController.displayLoginPane();
-                        } else {
-                            // server is alive, continue waiting for start game
-                            waitForStartGame();
-                        }
-                    } else {
-                        logger.error("Error while waiting for start game message.");
+                        logger.error("Server stopped responding and is probably dead.");
                         tcpClient.disconnect();
                         MainApp.viewController.displayLoginPane();
+                        displayErroMessageLoginPane("Server přestal odpovídat.");
+                    } else if (ex instanceof MaxAttemptsReached){
+                        logger.error("Maximum number of attempts to receive start game message reached.");
+                        tcpClient.disconnect();
+                        MainApp.viewController.displayLoginPane();
+                        displayErroMessageLoginPane("Maximální počet pokusů na start hry dosažen.");
+                    } else {
+                        logger.error("Error while waiting for start game message: "+ex.getMessage());
+                        tcpClient.disconnect();
+                        MainApp.viewController.displayLoginPane();
+                        displayErroMessageLoginPane("Chyba při komunikaci se serverem.");
                     }
                 }
         );
-
-        if(!err.equals(Error.NO_ERROR())) {
-            logger.error("Error while waiting for start game message: "+err);
-            tcpClient.disconnect();
-            MainApp.viewController.displayLoginPane();
-        }
     }
 
     public void displayStartGameInfo() {
@@ -418,6 +409,12 @@ public class GameController {
             timerPassed = true;
             logger.debug("Time for turn expired.");
             this.endTurn();
+        }
+    }
+
+    public void displayErroMessageLoginPane(String message) {
+        if(loginController != null) {
+            loginController.displayErrorMessage(message);
         }
     }
 }

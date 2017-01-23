@@ -100,7 +100,7 @@ public class PreStartReceiver extends AbstractReceiver {
                 // handle some errors
             } catch (SocketTimeoutException ex) {
                 // socket timed out => increase cntr
-                logger.warn("Socket timed out, increasing the timeout counter.");
+//                logger.warn("Socket timed out, increasing the timeout counter.");
                 timeoutCntr += MAX_WAITING_TIMEOUT;
                 if(timeoutCntr >= maxTimeoutMs) {
                     logger.error("Max timeout reached. Sending is alive message");
@@ -117,9 +117,9 @@ public class PreStartReceiver extends AbstractReceiver {
                         attemptCntr++;
                         // check attempts
                         checkAttempts(attemptCntr);
-                        continue;
                     }
                 }
+                continue;
 
 
             } catch (ReceivingException ex) {
@@ -143,7 +143,7 @@ public class PreStartReceiver extends AbstractReceiver {
 
                 // handle unexpected message
             } else {
-                logger.debug("Unexpected message received, incrementing the attempt counter.");
+                logger.debug("Unexpected message received: "+receivedMessage.toString()+". incrementing the attempt counter.");
                 attemptCntr++;
                 checkAttempts(attemptCntr);
             }

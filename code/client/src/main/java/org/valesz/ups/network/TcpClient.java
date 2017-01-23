@@ -46,6 +46,7 @@ public class TcpClient {
     private DataInputStream inFromServer;
 
     private PreStartReceiverService preStartReceiverService;
+    private PostStartReceiverService postStartReceiverService;
 
     /**
      * Tries to connect to the server and if the connection is successful,
@@ -256,6 +257,9 @@ public class TcpClient {
                                    EventHandler<WorkerStateEvent> failCallback) {
         preStartReceiverService.setOnSucceeded(successCallback);
         preStartReceiverService.setOnFailed(failCallback);
+        preStartReceiverService.setMaxAttempts(MAX_ATTEMPTS);
+        preStartReceiverService.setMaxTimeoutMs(MAX_TIMEOUT);
+        preStartReceiverService.setSocket(socket);
         preStartReceiverService.setExpectedMessageComparator(message -> {
             if(message == null) {
                 return false;
@@ -268,13 +272,31 @@ public class TcpClient {
                 return false;
             }
         });
-        preStartReceiverService.setMaxAttempts(MAX_ATTEMPTS);
-        preStartReceiverService.setMaxTimeoutMs(MAX_TIMEOUT);
-        preStartReceiverService.setSocket(socket);
         preStartReceiverService.restart();
     }
 
-
+    /**
+     * Uses PreStartReceiverService to wait for response. Waiting is successful if
+     * start turn message is received.
+     * @param successCallback
+     * @param failCallback
+     */
+    public void waitForStartGame(EventHandler<WorkerStateEvent> successCallback,
+                                 EventHandler<WorkerStateEvent> failCallback) {
+        preStartReceiverService.setOnSucceeded(successCallback);
+        preStartReceiverService.setOnFailed(failCallback);
+        preStartReceiverService.setMaxAttempts(MAX_ATTEMPTS);
+        preStartReceiverService.setMaxTimeoutMs(MAX_TIMEOUT);
+        preStartReceiverService.setSocket(socket);
+        preStartReceiverService.setExpectedMessageComparator(message -> {
+            if(message == null) {
+                return false;
+            }
+            // accept only start_game messages
+            return ReceivedMessageTypeResolver.isStartGame(message) != null;
+        });
+        preStartReceiverService.restart();
+    }
 
     /**
      * Sends a nick message to socket.

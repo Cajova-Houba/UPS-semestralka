@@ -45,6 +45,8 @@ public class Error {
 
     public static Error NO_CONNECTION() { return new Error(ErrorCode.NO_CONNECTION, "");}
 
+    public static Error MAX_ATTEMPTS() {return new Error(ErrorCode.MAX_ATTEMPTS, "");}
+
     /**
      * Returns true if the code is equal to ErrorCode.NO_ERROR.
      * @return

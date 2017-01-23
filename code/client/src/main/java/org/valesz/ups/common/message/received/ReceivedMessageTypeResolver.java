@@ -99,4 +99,18 @@ public class ReceivedMessageTypeResolver {
         return null;
     }
 
+    /**
+     * Checks if the message is AliveReceivedMessage and if the type is same,
+     * returns it. Otherwise null is returned.
+     * @param message
+     * @return
+     */
+    public static AliveReceivedMessage isAliveMessage(AbstractReceivedMessage message) {
+        if(isMessageType(message, AliveReceivedMessage.class)) {
+            return (AliveReceivedMessage)message;
+        }
+
+        return null;
+    }
+
 }

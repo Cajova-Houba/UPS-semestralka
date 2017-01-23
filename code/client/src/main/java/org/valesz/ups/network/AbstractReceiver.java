@@ -5,10 +5,8 @@ import javafx.concurrent.Task;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.valesz.ups.common.Constraits;
+import org.valesz.ups.common.error.*;
 import org.valesz.ups.common.error.Error;
-import org.valesz.ups.common.error.ErrorCode;
-import org.valesz.ups.common.error.ErrorMessages;
-import org.valesz.ups.common.error.ReceivingException;
 import org.valesz.ups.common.message.Message;
 import org.valesz.ups.common.message.MessageType;
 import org.valesz.ups.common.message.received.*;
@@ -38,6 +36,10 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
      * some gibberish text is received, message type cannot be parsed or some other error occurs.
      * @param inFromServer
      * @return
+     *
+     * @exception IOException Thrown when error during reading form stream occurs.
+     * @exception ReceivingException Thrown when the message type can't be received.
+     * @exception BadMsgTypeReceived Thrown when the message type is received, but can't be recognized.
      */
     protected MessageType receiveMessageType(DataInputStream inFromServer) throws IOException, ReceivingException {
         final int msgTypeLen = MessageType.getMessageTypeLen();
@@ -95,7 +97,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
                     }
                 }
                 if(!charOk) {
-                    throw new ReceivingException(Error.BAD_MSG_TYPE());
+                    throw new BadMsgTypeReceived();
                 }
             }
 
@@ -170,7 +172,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
                     throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
                 } else if (((char)buffer[1]) != 'K' && ((char)buffer[1]) != 'k') {
                     logger.error(String.format("Wrong message received: %c%c.", (char)buffer[0], (char)buffer[1]));
-                    throw new ReceivingException(Error.BAD_MSG_CONTENT());
+                    throw new BadMsgContentException();
                 }
 
                 logger.trace("Received: OK");
@@ -192,7 +194,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
 
                     if(((char)buffer[i]) != c && ((char)buffer[i]) != Character.toLowerCase(c)) {
                         logger.error(String.format("Bad character %c on position %d while receiving START_GAME message.", (char)buffer[i], i));
-                        throw new ReceivingException(Error.BAD_MSG_CONTENT());
+                        throw new BadMsgContentException();
                     }
 
                     i++;
@@ -231,7 +233,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
 
                     if(((char)buffer[i]) != c && ((char)buffer[i]) != Character.toLowerCase(c)) {
                         logger.error(String.format("Bad character %c on position %d while receiving END_GAME message.", (char)buffer[i], i));
-                        throw new ReceivingException(Error.BAD_MSG_CONTENT());
+                        throw new BadMsgContentException();
                     }
                     i++;
                 }
@@ -247,6 +249,29 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
                 return new EndGameReceivedMessage(winner);
 
 
+            case 'A':
+            case 'a':
+                // alive message
+                expectedMessage = "ALIVE";
+                i = 1;
+                minLen = expectedMessage.length();
+                while (i < minLen) {
+                    char c = expectedMessage.charAt(i);
+                    received = inFromServer.read(buffer,i,1);
+                    if(received != 1) {
+                        logger.error("Error while receiving ALIVE message.");
+                        throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.RECEIVING_RESPONSE));
+                    }
+
+                    if(((char)buffer[i]) != c && ((char)buffer[i]) != Character.toLowerCase(c)) {
+                        logger.error(String.format("Bad character %c on position %d while receiving ALIVE message.", (char)buffer[i], i));
+                        throw new BadMsgContentException();
+                    }
+                    i++;
+                }
+
+                logger.trace("Received ALIVE");
+                return new AliveReceivedMessage();
 
 //            case 'W':
 //                //receive 'AITING'
@@ -267,7 +292,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
 //                return new WaitingForPlayerReceivedMessage(nick);
 
             default:
-                throw new ReceivingException(Error.BAD_MSG_CONTENT());
+                throw new BadMsgContentException();
         }
     }
 
@@ -291,11 +316,13 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
 
             if(((char)buffer[i]) < '0' || ((char)buffer[i]) > '9') {
                 logger.error(String.format("Bad character %c on position %d while receiving error message.", ((char)buffer[i]), i));
-                throw new ReceivingException(Error.BAD_MSG_CONTENT());
+                throw new BadMsgContentException();
             }
+
+            i++;
         }
 
-        ErrorCode ec = ErrorCode.getCodeByInt(buffer[0]);
+        ErrorCode ec = ErrorCode.getCodeByInt(buffer);
         if (ec == ErrorCode.NO_ERROR) {
             logger.error("Error, wrong error code received.");
             throw new ReceivingException(Error.GENERAL_ERROR(ErrorMessages.UNRECOGNIZED_ERROR));
@@ -329,7 +356,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
 
             if(((char)buffer[i]) < '0' || ((char)buffer[i]) > '9') {
                 logger.error(String.format("Bad character %c on position %d while receiving start turn message.", ((char)buffer[i]), i));
-                throw new ReceivingException(Error.BAD_MSG_CONTENT());
+                throw new BadMsgContentException();
             }
 
             if(i % 2 == 0) {
@@ -370,6 +397,12 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
      * some gibberish text is received or message cannot be parsed.
      * @param inFromServer Input stream.
      * @return
+     *
+     * @exception IOException Thrown when error during reading form stream occurs.
+     * @exception ReceivingException Thrown when the message type can't be received. Or the message can't be received.
+     * @exception BadMsgTypeReceived Thrown when the message type is received, but can't be recognized.
+     * @exception BadMsgContentException Thrown when the message is received, but its content is malformed.
+     * @exception java.net.SocketTimeoutException Thrown when the socket times out.
      */
     protected AbstractReceivedMessage receiveMessage(DataInputStream inFromServer) throws IOException, ReceivingException {
 

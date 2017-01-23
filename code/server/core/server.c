@@ -750,25 +750,25 @@ int wait_for_nick(int socket, char* buffer) {
  * WAITING_P1: Game is waiting for player 1 and addr/port combination matches the one in players[0]
  * WAITING_P2: Game is waiting for player 2 and addr/port combination matches the one in players[1];
  */
-int check_waiting_player(uint32_t addr, int port, int *res) {
-    pthread_mutex_lock(&mutex_players_check);
-
-    int p1w = 0;
-    int p2w = 0;
-
-    // the game is already running and is waiting for the player
-    is_game_waiting_for_player(&p1w, 1);
-    is_game_waiting_for_player(&p2w, 2);
-    if (p1w == 1 && game.players[0].addr == addr && game.players[1].port == port) {
-        *res = WAITING_P1;
-    } else if (p2w == 1 && game.players[0].addr == addr && game.players[1].port == port) {
-        *res = WAITING_P2;
-    } else {
-        *res = GAME_NOT_WAITING;
-    }
-
-    pthread_mutex_unlock(&mutex_players_check);
-}
+//int check_waiting_player(uint32_t addr, int port, int *res) {
+//    pthread_mutex_lock(&mutex_players_check);
+//
+//    int p1w = 0;
+//    int p2w = 0;
+//
+//    // the game is already running and is waiting for the player
+//    is_game_waiting_for_player(&p1w, 1);
+//    is_game_waiting_for_player(&p2w, 2);
+//    if (p1w == 1 && game.players[0].addr == addr && game.players[1].port == port) {
+//        *res = WAITING_P1;
+//    } else if (p2w == 1 && game.players[0].addr == addr && game.players[1].port == port) {
+//        *res = WAITING_P2;
+//    } else {
+//        *res = GAME_NOT_WAITING;
+//    }
+//
+//    pthread_mutex_unlock(&mutex_players_check);
+//}
 
 /*
  * Sends the waiting for my_player message to other player (not to my_player).
@@ -790,16 +790,16 @@ void send_waiting_message(int my_player) {
  * Sets the waiting flang, sends the waiting message
  * to other player and starts the timer thread.
  */
-void handle_disconnect(int disconnected_player) {
-    // set waiting flag
-    set_waiting_for(disconnected_player);
-
-    // send message to other player
-    send_waiting_message(disconnected_player);
-
-    // start timer thread
-    start_waiting_thread(disconnected_player);
-}
+//void handle_disconnect(int disconnected_player) {
+//    // set waiting flag
+//    set_waiting_for(disconnected_player);
+//
+//    // send message to other player
+//    send_waiting_message(disconnected_player);
+//
+//    // start timer thread
+//    start_waiting_thread(disconnected_player);
+//}
 
 /*
  * Handles the status of received end turn message.
@@ -807,38 +807,38 @@ void handle_disconnect(int disconnected_player) {
  *  STOP_GAME_LOOP: game loop should stop.
  *  OK
  */
-int handle_end_turn_message(int msg_status, int my_player, int other_player) {
-    char log_msg[255];
-
-    if (msg_status == MSG_TIMEOUT) {
-        sprintf(log_msg, "Player %d timed out.\n");
-        serror(PLAYER_THREAD_NAME, log_msg);
-        server_set_winner(other_player);
-        return STOP_GAME_LOOP;
-    } else if (msg_status == 0) {
-        debug_player_message(log_msg, "Player %d has disconnected, waiting for him to reconnect.\n",
-                             my_player);
-
-        handle_disconnect(my_player);
-
-        return STOP_GAME_LOOP;
-    } if(msg_status < 0) {
-        sprintf(log_msg, "Error while receiving end turn message: %d\n", msg_status);
-        serror(PLAYER_THREAD_NAME, log_msg);
-        //set the other player as winner
-        server_set_winner(other_player);
-        return STOP_GAME_LOOP;
-    }  else if (msg_status == 2) {
-        debug_player_message(log_msg, "Player %d quit. Other player wins the game.\n", my_player);
-
-        server_set_winner(other_player);
-        return STOP_GAME_LOOP;
-    } else {
-        debug_player_message(log_msg, "Player %d has ended his turn.\n", my_player);
-
-        return OK;
-    }
-}
+//int handle_end_turn_message(int msg_status, int my_player, int other_player) {
+//    char log_msg[255];
+//
+//    if (msg_status == MSG_TIMEOUT) {
+//        sprintf(log_msg, "Player %d timed out.\n");
+//        serror(PLAYER_THREAD_NAME, log_msg);
+//        server_set_winner(other_player);
+//        return STOP_GAME_LOOP;
+//    } else if (msg_status == 0) {
+//        debug_player_message(log_msg, "Player %d has disconnected, waiting for him to reconnect.\n",
+//                             my_player);
+//
+//        handle_disconnect(my_player);
+//
+//        return STOP_GAME_LOOP;
+//    } if(msg_status < 0) {
+//        sprintf(log_msg, "Error while receiving end turn message: %d\n", msg_status);
+//        serror(PLAYER_THREAD_NAME, log_msg);
+//        //set the other player as winner
+//        server_set_winner(other_player);
+//        return STOP_GAME_LOOP;
+//    }  else if (msg_status == 2) {
+//        debug_player_message(log_msg, "Player %d quit. Other player wins the game.\n", my_player);
+//
+//        server_set_winner(other_player);
+//        return STOP_GAME_LOOP;
+//    } else {
+//        debug_player_message(log_msg, "Player %d has ended his turn.\n", my_player);
+//
+//        return OK;
+//    }
+//}
 
 /*
  * Call when the game is to be ended adn the winner is set.
@@ -1008,10 +1008,6 @@ void game_loop(int socket, int my_player, int other_player) {
     while (game_loop_state != BREAK_LOOP) {
         switch (game_loop_state) {
             case WAIT_FOR_END_TURN:
-                //TODO: implement proper method for receiving end turn
-//                msg_status = recv_end_turn(socket, tmp_p1_word, tmp_p2_word);
-//                msg_status = recv_end_turn(socket, tmp_p1_word, tmp_p2_word);
-//                break_game_loop = handle_end_turn_message(msg_status, my_player, other_player);
                 break_game_loop = wait_for_end_turn(socket, WAITING_TIMEOUT, my_player, other_player, tmp_p1_word, tmp_p2_word);
                 if(break_game_loop == STOP_GAME_LOOP) {
                     game_loop_state = BREAK_LOOP;

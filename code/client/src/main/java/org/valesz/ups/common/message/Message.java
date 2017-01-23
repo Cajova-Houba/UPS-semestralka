@@ -81,6 +81,8 @@ public class Message {
         return new Message(MessageType.INF, "EXIT");
     }
 
+    public static Message createIsAliveMessage() {return new Message(MessageType.INF, "ALIVE");}
+
     public Message(MessageType messageType, String content) {
         this.messageType = messageType;
         this.content = content;
@@ -149,11 +151,12 @@ public class Message {
      */
     public byte[] toBytes() {
         String msg = messageType.name() + content;
-        byte[] res = new byte[msg.length()];
+        byte[] res = new byte[msg.length()+1];
 
         for (int i = 0; i < msg.length(); i++) {
             res[i] = (byte)msg.charAt(i);
         }
+        res[msg.length()] = '\n';
 
         return res;
     }

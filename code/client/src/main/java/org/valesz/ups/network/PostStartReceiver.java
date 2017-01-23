@@ -1,6 +1,5 @@
 package org.valesz.ups.network;
 
-import javafx.concurrent.Task;
 import org.valesz.ups.common.error.MaxAttemptsReached;
 import org.valesz.ups.common.error.ReceivingException;
 import org.valesz.ups.common.message.Message;
@@ -10,21 +9,28 @@ import org.valesz.ups.common.message.received.ReceivedMessageTypeResolver;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 
 /**
- * This task will handle all incoming messages in the pre-start game state.
- * It will be receiving message until the expected one arrives.
+ * This task will handle all incoming messages in the post-start game state.
+ * It will be receiving message until the expected one arrives or end game is received.
  *
- * Used while waiting for nick confirm and new game start.
+ * If the end game is received, no exception is thrown, instead the end game message is returned.
+ *
+ * Used while waiting for my turn or while receiving messages during my turn.
  *
  * @author Zdenek Vales
  */
-public class PreStartReceiver extends AbstractReceiver {
+public class PostStartReceiver extends AbstractReceiver {
+
 
     private final Socket socket;
+
+    /**
+     * Comparator which will return true if the received AbstractReceivedMessage is the expected one.
+     */
+    private final ExpectedMessageComparator expectedMessageComparator;
 
     /**
      * For every attempt to receive the expected message which times out, a counter will be increased by MAX_WAITING_TIMEOUT.
@@ -40,18 +46,7 @@ public class PreStartReceiver extends AbstractReceiver {
      */
     private final int maxAttempts;
 
-    /**
-     * Comparator which will return true if the received AbstractReceivedMessage is the expected one.
-     */
-    private final ExpectedMessageComparator expectedMessageComparator;
-
-    /**
-     * Exception thrown in call() method.
-     * @exception SocketTimeoutException maxTimeoutMs is reached.
-     * @exception IOException Exception during reading/writing from/to data stream.
-     * @exception MaxAttemptsReached Max number of attempts reached while receiving the exppected message.
-     */
-    public PreStartReceiver(Socket socket, ExpectedMessageComparator expectedMessageComparator, int maxTimeoutMs, int maxAttempts) {
+    public PostStartReceiver(Socket socket, ExpectedMessageComparator expectedMessageComparator, int maxTimeoutMs, int maxAttempts) {
         this.socket = socket;
         this.expectedMessageComparator = expectedMessageComparator;
         this.maxTimeoutMs = maxTimeoutMs;
@@ -102,7 +97,7 @@ public class PreStartReceiver extends AbstractReceiver {
             try {
                 receivedMessage = receiveMessage(inFromServer);
 
-            // handle some errors
+                // handle some errors
             } catch (SocketTimeoutException ex) {
                 // socket timed out => increase cntr
                 logger.warn("Socket timed out, increasing the timeout counter.");
@@ -145,6 +140,11 @@ public class PreStartReceiver extends AbstractReceiver {
                 // send ok
                 logger.debug("Is alive message received, sending ok.");
                 outToServer.write(Message.createOKMessage().toBytes());
+
+            // handle end game message
+            } else if (ReceivedMessageTypeResolver.isEndGame(receivedMessage) != null) {
+                logger.debug("End game received.");
+                break;
 
             // handle unexpected message
             } else {

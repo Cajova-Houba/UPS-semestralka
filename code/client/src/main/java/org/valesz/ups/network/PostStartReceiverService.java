@@ -1,6 +1,5 @@
 package org.valesz.ups.network;
 
-
 import javafx.concurrent.Service;
 import javafx.concurrent.Task;
 import org.valesz.ups.common.message.received.AbstractReceivedMessage;
@@ -9,13 +8,13 @@ import org.valesz.ups.common.message.received.ExpectedMessageComparator;
 import java.net.Socket;
 
 /**
- * A service which will create a new PreStartReceiver.
+ * A service which will create a new PostStartReceiver.
  *
- * Use this to receive messages before the game has started.
+ * Use this to receive messages after the game has started.
  *
  * @author Zdenek Vales
  */
-public class PreStartReceiverService extends Service<AbstractReceivedMessage> {
+public class PostStartReceiverService extends Service<AbstractReceivedMessage> {
 
     private Socket socket;
 
@@ -43,6 +42,6 @@ public class PreStartReceiverService extends Service<AbstractReceivedMessage> {
 
     @Override
     protected Task<AbstractReceivedMessage> createTask() {
-        return new PreStartReceiver(socket, expectedMessageComparator, maxTimeoutMs, maxAttempts);
+        return new PostStartReceiver(socket, expectedMessageComparator, maxTimeoutMs, maxAttempts);
     }
 }

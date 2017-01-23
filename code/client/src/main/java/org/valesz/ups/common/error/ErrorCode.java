@@ -8,6 +8,8 @@ package org.valesz.ups.common.error;
  */
 public enum ErrorCode {
 
+    // TODO: update code numbers
+
     NO_ERROR(-1),
     GENERAL_ERROR(0),
     BAD_OPERATION(1),

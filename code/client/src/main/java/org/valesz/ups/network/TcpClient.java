@@ -352,7 +352,7 @@ public class TcpClient {
 //        postStartReceiverService.cancel();
         postStartReceiverService.setOnSucceeded(successCallback);
         postStartReceiverService.setOnFailed(failCallback);
-        postStartReceiverService.setMaxTimeoutMs(NO_TIMEOUT);
+        postStartReceiverService.setMaxTimeoutMs(MAX_TIMEOUT);
         postStartReceiverService.setMaxAttempts(MAX_ATTEMPTS);
         postStartReceiverService.setSocket(socket);
         postStartReceiverService.setExpectedMessageComparator(message -> {

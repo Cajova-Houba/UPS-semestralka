@@ -585,6 +585,7 @@ int wait_for_end_turn(int socket, int timeout, int my_player, int other_player, 
     int end_turn_recv = 0;
     int i = 0;
     int cntr = 0;
+    int send_msg = 0;
 
     while (end_turn_recv != OK && cntr < MAX_TURN_WAITING_TIMEOUT) {
 
@@ -609,14 +610,24 @@ int wait_for_end_turn(int socket, int timeout, int my_player, int other_player, 
             if (msg_status < GENERAL_ERR || msg_status >= ERR_LAST) {
                 msg_status = GENERAL_ERR;
             }
-            send_err_msg(socket, msg_status);
+            send_msg = send_err_msg(socket, msg_status);
+            if(send_msg == CLOSED_CONNECTION) {
+                sprintf(log_msg, "Socket %d closed the connection while waiting for the end turn message.\n", socket);
+                server_set_winner(other_player);
+                return STOP_GAME_LOOP;
+            }
             cntr += timeout;
 
         } else {
             // handle possible messages
             if (is_alive(&message) == OK) {
                 // response to is alive message
-                send_ok_msg(socket);
+                send_msg = send_ok_msg(socket);
+                if(send_msg == CLOSED_CONNECTION) {
+                    sprintf(log_msg, "Socket %d closed the connection while waiting for the end turn message.\n", socket);
+                    server_set_winner(other_player);
+                    return STOP_GAME_LOOP;
+                }
                 cntr += timeout;
 
             } else if (is_exit(&message) == OK) {
@@ -637,7 +648,12 @@ int wait_for_end_turn(int socket, int timeout, int my_player, int other_player, 
 
             } else {
                 // something else
-                send_err_msg(socket, ERR_UNEXPECTED_MSG);
+                send_msg = send_err_msg(socket, ERR_UNEXPECTED_MSG);
+                if(send_msg == CLOSED_CONNECTION) {
+                    sprintf(log_msg, "Socket %d closed the connection while waiting for the end turn message.\n", socket);
+                    server_set_winner(other_player);
+                    return STOP_GAME_LOOP;
+                }
                 cntr += timeout;
             }
         }
@@ -666,6 +682,7 @@ int wait_for_nick(int socket, char* buffer) {
     int msg_status = 0;
     int attempt = 0;
     int nick_ok = 0;
+    int send_msg = 0;
     while (nick_ok != OK && attempt < MAX_NICK_ATTEMPTS) {
         msg_status = recv_message(socket, &message, MAX_NICK_TIMEOUT);
 
@@ -688,7 +705,11 @@ int wait_for_nick(int socket, char* buffer) {
             if(msg_status < GENERAL_ERR || msg_status >= ERR_LAST) {
                 msg_status = GENERAL_ERR;
             }
-            send_err_msg(socket, msg_status);
+            send_msg = send_err_msg(socket, msg_status);
+            if(send_msg == CLOSED_CONNECTION) {
+                sprintf(log_msg, "Socket %d closed connection.\n", socket);
+                return 0;
+            }
             attempt++;
 
         // handle messages
@@ -705,7 +726,12 @@ int wait_for_nick(int socket, char* buffer) {
 
             } else if (is_nick(&message) != OK) {
                 // something other than nick
-                send_err_msg(socket, ERR_UNEXPECTED_MSG);
+                send_msg = send_err_msg(socket, ERR_UNEXPECTED_MSG);
+                if(send_msg == CLOSED_CONNECTION) {
+                    sprintf(log_msg, "Socket %d closed connection.\n", socket);
+                    return 0;
+                }
+
                 attempt++;
 
             } else {
@@ -719,7 +745,11 @@ int wait_for_nick(int socket, char* buffer) {
                     serror(PLAYER_THREAD_NAME, log_msg);
 
                     /* send error */
-                    send_err_msg(socket, nick_ok);
+                    send_msg = send_err_msg(socket, nick_ok);
+                    if(send_msg == CLOSED_CONNECTION) {
+                        sprintf(log_msg, "Socket %d closed connection.\n", socket);
+                        return 0;
+                    }
 
                     attempt++;
                 } else {
@@ -903,6 +933,7 @@ void set_cleanme_close_sock(int threadnum, int sock) {
  */
 int handle_message_waiting(int socket, int timeout, int my_player) {
     int recv_status = 0;
+    int msg_status = 0;
     Message received_message;
     char log_msg[255];
 
@@ -910,14 +941,24 @@ int handle_message_waiting(int socket, int timeout, int my_player) {
     switch (recv_status) {
         case OK:
             if(is_alive(&received_message) == OK) {
-                send_ok_msg(socket);
+                msg_status = send_ok_msg(socket);
+                if(msg_status == CLOSED_CONNECTION) {
+                    sprintf(log_msg, "Player %d closed connection.\n", my_player);
+                    sdebug(PLAYER_THREAD_NAME, log_msg);
+                    return STOP_GAME_LOOP;
+                }
             } else if(is_exit(&received_message) == OK) {
                 sprintf(log_msg, "Player %d quit.\n", my_player);
                 sdebug(PLAYER_THREAD_NAME, log_msg);
                 return STOP_GAME_LOOP;
             } else {
                 // send not my turn error
-                send_err_msg(socket, ERR_UNEXPECTED_MSG);
+                msg_status = send_err_msg(socket, ERR_UNEXPECTED_MSG);
+                if(msg_status == CLOSED_CONNECTION) {
+                    sprintf(log_msg, "Player %d closed connection.\n", my_player);
+                    sdebug(PLAYER_THREAD_NAME, log_msg);
+                    return STOP_GAME_LOOP;
+                }
             }
             break;
 
@@ -933,10 +974,20 @@ int handle_message_waiting(int socket, int timeout, int my_player) {
             // send error back to client
             if(recv_status < 0) {
                 if (recv_status >= GENERAL_ERR && recv_status <= ERR_LAST - 1) {
-                    send_err_msg(socket, recv_status);
+                    msg_status = send_err_msg(socket, recv_status);
+                    if(msg_status == CLOSED_CONNECTION) {
+                        sprintf(log_msg, "Player %d closed connection.\n", my_player);
+                        sdebug(PLAYER_THREAD_NAME, log_msg);
+                        return STOP_GAME_LOOP;
+                    }
                     return OK;
                 } else {
-                    send_err_msg(socket, GENERAL_ERR);
+                    msg_status = send_err_msg(socket, GENERAL_ERR);
+                    if(msg_status == CLOSED_CONNECTION) {
+                        sprintf(log_msg, "Player %d closed connection.\n", my_player);
+                        sdebug(PLAYER_THREAD_NAME, log_msg);
+                        return STOP_GAME_LOOP;
+                    }
                     return OK;
                 }
             }
@@ -957,20 +1008,32 @@ int handle_message_waiting(int socket, int timeout, int my_player) {
  */
 int handle_message_waiting_turn(int socket, int timeout, int my_player, int other_player) {
     int recv_status = 0;
+    int msg_status = 0;
+    char log_msg[255];
     Message received_message;
 
     recv_status = recv_message(socket, &received_message, timeout);
     switch (recv_status) {
         case OK:
             if(is_alive(&received_message) == OK) {
-                send_ok_msg(socket);
+                msg_status = send_ok_msg(socket);
+                if(msg_status == CLOSED_CONNECTION) {
+                    sprintf(log_msg, "Player %d closed connection.\n", my_player);
+                    sdebug(PLAYER_THREAD_NAME, log_msg);
+                    return STOP_GAME_LOOP;
+                }
             } else if (is_exit(&received_message) == OK) {
                 // exit, other player wins
                 server_set_winner(other_player);
                 return STOP_GAME_LOOP;
             } else {
                 // send not my turn error
-                send_err_msg(socket, ERR_NOT_MY_TURN);
+                msg_status = send_err_msg(socket, ERR_NOT_MY_TURN);
+                if(msg_status == CLOSED_CONNECTION) {
+                    sprintf(log_msg, "Player %d closed connection.\n", my_player);
+                    sdebug(PLAYER_THREAD_NAME, log_msg);
+                    return STOP_GAME_LOOP;
+                }
             }
             break;
 
@@ -985,10 +1048,20 @@ int handle_message_waiting_turn(int socket, int timeout, int my_player, int othe
             // send error back to client
             if(recv_status < 0) {
                 if (recv_status >= GENERAL_ERR && recv_status <= ERR_LAST - 1) {
-                    send_err_msg(socket, recv_status);
+                    msg_status = send_err_msg(socket, recv_status);
+                    if(msg_status == CLOSED_CONNECTION) {
+                        sprintf(log_msg, "Player %d closed connection.\n", my_player);
+                        sdebug(PLAYER_THREAD_NAME, log_msg);
+                        return STOP_GAME_LOOP;
+                    }
                     return OK;
                 } else {
-                    send_err_msg(socket, GENERAL_ERR);
+                    msg_status = send_err_msg(socket, GENERAL_ERR);
+                    if(msg_status == CLOSED_CONNECTION) {
+                        sprintf(log_msg, "Player %d closed connection.\n", my_player);
+                        sdebug(PLAYER_THREAD_NAME, log_msg);
+                        return STOP_GAME_LOOP;
+                    }
                     return OK;
                 }
             }
@@ -1027,12 +1100,24 @@ void game_loop(int socket, int my_player, int other_player) {
 //                turn_valid = OK;
                 if (turn_valid != OK) {
                     debug_player_message(log_msg, "Turn of player %d is not valid, skipping it!\n", my_player);
-                    send_err_msg(socket, ERR_TURN);
+                    msg_status = send_err_msg(socket, ERR_TURN);
+                    if(msg_status == CLOSED_CONNECTION) {
+                        debug_player_message(log_msg, "Player %d closed the connection.\n", my_player);
+                        server_set_winner(other_player);
+                        game_loop_state = STOP_GAME_LOOP;
+                        continue;
+                    }
                 } else {
                     // turn valid -> update the player's stones
                     update_players_stones(&(game.players[0]), tmp_p1_word);
                     update_players_stones(&(game.players[1]), tmp_p2_word);
-                    send_ok_msg(socket);
+                    msg_status = send_ok_msg(socket);
+                    if(msg_status == CLOSED_CONNECTION) {
+                        debug_player_message(log_msg, "Player %d closed the connection.\n", my_player);
+                        server_set_winner(other_player);
+                        game_loop_state = STOP_GAME_LOOP;
+                        continue;
+                    }
                 }
                 game_loop_state = CHECK_WINNING_COND;
                 break;

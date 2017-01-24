@@ -33,13 +33,35 @@
 	
 	Jednotlivé zprávy jsou uvedeny v následující tabulce:
 	
-	\begin{tabular} {c | c}
+	\begin{tabular} {|c | p{5cm} | c | p{5cm} |}
+		\hline
+		Název & Popis & Typ & Obsah \\
+		\hline
+		\hline
+		Error & Chybová zpráva. Používá klient i server. & ERR & Dva znaky s kódem chyby.\\
+		\hline
+		Start game & Zpráva oznamující klientovi začátek hry. Posílá pouze server.& INF & Řetězec 'START\_GAME\verb|nick1|,\verb|nick2|;'.\\
+		\hline
+		End game & & INF & Řetězec 'END\_GAME\verb|nick|;'. Kde \verb|nick| je nick vítěze. \\
+		\hline
+		Is alive & & INF &  Řetězec 'ALIVE'.\\
+		\hline
+		Start turn & & CMD &  Tahová slova obou hráčů. 1. je tahové slovo 1. hráče.\\
+		\hline
+		OK info & & INF &  Řetězec 'OK'.\\
+		\hline
+		New player & & CMD  & Řetězec ve tvaru '\verb|délka|\verb|nick|. Kde \verb|délka| je jeden znak (cifra), který určuje délku nicku.\\	
+		\hline
+		Exit & & INF &  Řetězec 'EXIT'.\\
+		\hline
+		End turn & & INF  & Tahová slova obou hráčů. 1. je tahové slovo 1. hráče.\\
+		\hline
+		
+		\hline
 	\end{tabular}
 
 	\subsection{Tahové slovo}
-	Tahové slovo uchovává informaci o tahu. Jedná se o pole 5 bytů, na každém indexu je uložena pozice kamene hráče. Každý hráč má zřejmě své tahové slovo.
-	
-	\subsection{Herní smyčka}
+	Tahové slovo uchovává informaci o tahu. Jedná se o pole 5 čísel, kde každé představuje současnou pozici hráčova kamene. V protokolu je tahové slovo implementováno polem 10 znaků, kde každé dva znaky představují číslo v dvojciferné podobně (1 je tedy '0','1').
 		
 	\subsection{Server}
 	

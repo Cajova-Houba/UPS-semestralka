@@ -113,10 +113,9 @@ int is_game_free(Game_struct* game);
 void reset_game(Game_struct* game);
 
 /*
- * Resets all flags.
- * And sets turn flag accordingly to first_player.
+ * Set flags to start game.
  */
-void init_new_game(Game_struct* game, int first_player);
+void init_new_game(Game_struct* game);
 
 /*
  * Sets a flag to 1.

@@ -53,7 +53,7 @@ void reset_game(Game_struct* game) {
 /*
  * Resets all flags. FREE flag is set to 0.
  */
-void init_new_game(Game_struct* game, int first_player) {
+void init_new_game(Game_struct* game) {
     game->winner = -1;
     unset_game_flag(&(game->flags), GAME_STARTED_FLAG);
     unset_game_flag(&(game->flags), GAME_ENDED_FLAG);
@@ -61,11 +61,6 @@ void init_new_game(Game_struct* game, int first_player) {
     unset_game_flag(&(game->flags), WAITING_P2_FLAG);
     unset_game_flag(&(game->flags), WINNER_FLAG);
     unset_game_flag(&(game->flags), GAME_FREE_FLAG);
-    if(first_player == PLAYER_1) {
-        unset_game_flag(&(game->flags), TURN_FLAG);
-    } else {
-        set_game_flag(&(game->flags), TURN_FLAG);
-    }
 }
 
 /*

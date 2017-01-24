@@ -34,6 +34,7 @@ int recv_bytes(int sock, char* buffer, int byte_count) {
 int recv_bytes_timeout(int sock, char* buffer, int byte_count, int ms_timeout) {
     struct pollfd fd;
     int ret_stat = 0;
+    int recv_stat = 0;
     char log_msg[255];
 
     fd.fd = sock;
@@ -48,7 +49,11 @@ int recv_bytes_timeout(int sock, char* buffer, int byte_count, int ms_timeout) {
 //            serror(COMMON_NAME, "Timed out while receiving message.\n");
             return MSG_TIMEOUT;
         default:
-            return recv(sock, (void *)buffer, byte_count, 0);
+            recv_stat = (int)recv(sock, (void *)buffer, byte_count, 0);
+            if(recv_stat == -1) {
+                return CLOSED_CONNECTION;
+            }
+            return recv_stat;
     }
 }
 
@@ -75,7 +80,7 @@ int send_txt(int sock, char *txt)
     if (send_status < 0) {
       sprintf(log_buffer, "Error while sending message: %s.\n", strerror(errno));
       serror(COMMON_NAME,log_buffer);
-      if(errno == ENOTCONN) {
+      if(errno == ENOTCONN || errno == EPIPE) {
           return CLOSED_CONNECTION;
       }
       return ERR_MSG;

@@ -1,6 +1,7 @@
 
 
 #include "game.h"
+#include "../common/slog.h"
 
 /*
  * Resets all flags.
@@ -135,18 +136,58 @@ int get_winner(Game_struct* game) {
  * turn indicates which player has moved his pawns. 0 = 1st player, 1 = 2nd player.
  */
 int validate_turn(char* p1_old_tw, char* p2_old_tw, char* p1_new_tw, char* p2_new_tw, int turn) {
-    int i;
+    int i = 0;
+    int j = 0;
+    int p1_new[TURN_WORD_LENGTH / 2];
+    int p2_new[TURN_WORD_LENGTH / 2];
+    int tmp = 0;
+    int tmp2 = 0;
+
+    // convert to int
+    while(i < TURN_WORD_LENGTH) {
+        tmp = 0;
+        tmp2 = 0;
+        tmp = 10*(p1_new_tw[i] - '0');
+        tmp2 = 10*(p2_new_tw[i] - '0');
+        i++;
+
+        tmp += p1_new_tw[i] - '0';
+        tmp2 += p2_new_tw[i] - '0';
+        i++;
+        p1_new[j] = tmp;
+        p2_new[j] = tmp2;
+
+        j++;
+    }
+
+    sinfo(COMMON_NAME, "Conversion ok.\n");
 
     // check the field numbers
-    for (i = 0; i < TURN_WORD_LENGTH; i++) {
-        if(!(p1_new_tw[i] >=1 && p1_new_tw[i] <= 31) ) {
+
+    for (i = 0; i < TURN_WORD_LENGTH/2; i++) {
+        if(!(p1_new[i] >=1 && p1_new[i] <= 31) ) {
             return ERR_TURN;
         }
 
-        if(!(p2_new_tw[i] >=1 && p2_new_tw[i] <= 31) ) {
+        if(!(p2_new[i] >=1 && p2_new[i] <= 31) ) {
             return ERR_TURN;
         }
     }
+    sinfo(COMMON_NAME, "Field numbers ok.\n");
+
+    for(i = 0; i < TURN_WORD_LENGTH/2; i++)  {
+        for(j = 0; j < TURN_WORD_LENGTH/2; j++) {
+            if(p1_new[i] == p2_new[j]) {
+                return ERR_TURN;
+            }
+
+            if(i != j && (p1_new[i] == p1_new[j] || p2_new[i] == p2_new[j])) {
+                return ERR_TURN;
+            }
+        }
+    }
+    sinfo(COMMON_NAME, "Same numbers ok.\n");
+
     return OK;
 }
 

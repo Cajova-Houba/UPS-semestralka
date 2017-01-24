@@ -143,6 +143,7 @@ public class LoginController {
                     if (ReceivedMessageTypeResolver.isOk(response) != null) {
                         // nick ok
                         Game.getInstance().waitingForOpponent(loginData.getNick());
+                        tcpClient.addLastSuccessfulNick(loginData.getNick());
                         logger.debug("Login ok.");
                         int port = tcpClient.getSocket().getLocalPort();
                         view.enableLoginButton();

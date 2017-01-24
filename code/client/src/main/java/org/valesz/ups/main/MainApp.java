@@ -55,6 +55,7 @@ public class MainApp extends Application{
     @Override
     public void stop() throws Exception {
         tcpClient.sendExitMessage();
+        tcpClient.disconnect();
         gameController.stopTimer();
         super.stop();
     }

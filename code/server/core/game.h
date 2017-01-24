@@ -1,5 +1,6 @@
 #ifndef SERVER_GAME_H
 #define SERVER_GAME_H
+#include <errno.h>
 
 #include "player.h"
 #include "../common/seneterror.h"

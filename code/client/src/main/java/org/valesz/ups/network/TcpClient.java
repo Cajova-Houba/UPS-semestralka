@@ -106,6 +106,12 @@ public class TcpClient {
     public void disconnect() {
         if(isConnected()) {
             try {
+                if(preStartReceiverService != null) {
+                    preStartReceiverService.cancel();
+                }
+                if(postStartReceiverService != null) {
+                    postStartReceiverService.cancel();
+                }
                 socket.close();
             } catch (IOException e) {
                 logger.error("Error while closing the socket: "+e.getMessage());
@@ -318,7 +324,7 @@ public class TcpClient {
      */
     public void waitForTurnConfirm(EventHandler<WorkerStateEvent> successCallback,
                                    EventHandler<WorkerStateEvent> failCallback) {
-        postStartReceiverService.cancel();
+//        postStartReceiverService.cancel();
         postStartReceiverService.setOnSucceeded(successCallback);
         postStartReceiverService.setOnFailed(failCallback);
         postStartReceiverService.setMaxTimeoutMs(MAX_TIMEOUT);
@@ -343,7 +349,7 @@ public class TcpClient {
      */
     public void waitForMyTurn(EventHandler<WorkerStateEvent> successCallback,
                               EventHandler<WorkerStateEvent> failCallback) {
-        postStartReceiverService.cancel();
+//        postStartReceiverService.cancel();
         postStartReceiverService.setOnSucceeded(successCallback);
         postStartReceiverService.setOnFailed(failCallback);
         postStartReceiverService.setMaxTimeoutMs(NO_TIMEOUT);
@@ -362,14 +368,15 @@ public class TcpClient {
 
     /**
      * Using the PostStartGameReceiverService runs a task which will be periodically receiving messages,
-     * while the player do his turn.
-     * This task needs to be canceled by a cancel() method.
+     * while the player does his turn. This task is ended when either ok, err or end game message is received.
+     * Ok or err is response to the sent end turn message.
+     *
      * @param successCallback
      * @param failCallback
      */
     public void handleWhileTurn(EventHandler<WorkerStateEvent> successCallback,
                                 EventHandler<WorkerStateEvent> failCallback) {
-        postStartReceiverService.cancel();
+//        postStartReceiverService.cancel();
         postStartReceiverService.setOnSucceeded(successCallback);
         postStartReceiverService.setOnFailed(failCallback);
         postStartReceiverService.setMaxTimeoutMs(NO_TIMEOUT);
@@ -377,8 +384,12 @@ public class TcpClient {
         postStartReceiverService.setSocket(socket);
         postStartReceiverService.setExpectedMessageComparator(message -> {
 
+            if(message == null) {
+                return false;
+            }
+
             // nothing is expected
-            return false;
+            return ReceivedMessageTypeResolver.isOk(message) != null || ReceivedMessageTypeResolver.isError(message) != null;
         });
         postStartReceiverService.restart();
     }
@@ -416,5 +427,9 @@ public class TcpClient {
             return  false;
         }
 
+    }
+
+    public void addLastSuccessfulNick(String nick) {
+        lastSuccessfulConnection = new LoginData(nick, lastSuccessfulConnection.getAddress(), lastSuccessfulConnection.getPort());
     }
 }

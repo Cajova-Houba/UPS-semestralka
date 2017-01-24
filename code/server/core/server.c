@@ -1006,7 +1006,7 @@ void game_loop(int socket, int my_player, int other_player) {
     int msg_status = 0;
     int winner = 0;
     int turn_valid = 0;
-    int game_loop_state = WAIT_FOR_MY_TURN;
+    int game_loop_state = my_player == 0 ? WAIT_FOR_END_TURN : WAIT_FOR_MY_TURN;
     int tmp = 0;
     int end_game = 0;
 
@@ -1023,8 +1023,8 @@ void game_loop(int socket, int my_player, int other_player) {
 
             case VALIDATE_TURN:
                 debug_player_message(log_msg, "Validating player %d turn.\n", my_player);
-//                turn_valid = validate_turn(game.players[0].turn_word, game.players[1].turn_word, tmp_p1_word, tmp_p2_word, my_player);
-                turn_valid = OK;
+                turn_valid = validate_turn(game.players[0].turn_word, game.players[1].turn_word, tmp_p1_word, tmp_p2_word, my_player);
+//                turn_valid = OK;
                 if (turn_valid != OK) {
                     debug_player_message(log_msg, "Turn of player %d is not valid, skipping it!\n", my_player);
                     send_err_msg(socket, ERR_TURN);

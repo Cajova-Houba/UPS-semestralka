@@ -29,7 +29,7 @@ public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
      * Max timeout for message to be received in waiting mode.
      * In milliseconds.
      */
-    public static final int MAX_WAITING_TIMEOUT = 1000;
+    public static final int MAX_WAITING_TIMEOUT = 500;
 
     /**
      * Tries to receive and parse a message type from the tcp stack. Throws exception if

@@ -29,7 +29,7 @@ void generate_new_stones(Player* player, int second_player) {
     }
 
     while(i < TURN_WORD_LENGTH) {
-        sprintf(buffer,"%2d",pos);
+        sprintf(buffer,"%02d",pos);
         player->turn_word[i++] = buffer[0];
         player->turn_word[i++] = buffer[1];
 

@@ -97,8 +97,16 @@ public class PreStartReceiver extends AbstractReceiver {
 
         while (!expectedMessageComparator.isExpected(receivedMessage)) {
 
+            // check before and after waiting for message
+            if(Thread.currentThread().isInterrupted()) {
+                return null;
+            }
+
             try {
                 receivedMessage = receiveMessage(inFromServer);
+                if(Thread.currentThread().isInterrupted()) {
+                    return null;
+                }
 
                 // handle some errors
             } catch (SocketTimeoutException ex) {

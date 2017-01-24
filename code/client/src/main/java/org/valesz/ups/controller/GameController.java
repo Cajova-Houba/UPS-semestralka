@@ -84,6 +84,9 @@ public class GameController {
                         // update graphical components
                         view.startGame();
                         displayStartGameInfo();
+                        boardView.updateStones(
+                                Game.getInstance().getFirstPlayer().getStones(),
+                                Game.getInstance().getSecondPlayer().getStones());
 
                         // if this is the second player, wait for start turn message
                         if(!Game.getInstance().isMyTurn()) {
@@ -334,20 +337,45 @@ public class GameController {
         boardView.updateStones(Game.getInstance().getFirstPlayer().getStones(),
                 Game.getInstance().getSecondPlayer().getStones());
         view.focusOnThrowButton();
-        tcpClient.handleWhileTurn(
-                event -> {
-                    // if the end game is received
-                    AbstractReceivedMessage message = tcpClient.getPostStartReceiverService().getValue();
-                    EndGameReceivedMessage endGame = ReceivedMessageTypeResolver.isEndGame(message);
-                    if(endGame != null) {
-                        endGame(endGame.getContent());
-                    }
-                },
-                event -> {
-                Throwable ex = tcpClient.getPostStartReceiverService().getException();
-                String msg = ex == null ? "no exception" : ex.getMessage();
-                handleFailure("Exception while player making his turn: "+msg, ErrorMessages.COMMUNICATION_BREAKDOWN);
-        });
+
+        // this also handles the reaction to end turn message
+//        tcpClient.handleWhileTurn(
+//                event -> {
+//                    if(Thread.currentThread().isInterrupted()) {
+//                        return;
+//                    }
+//                    AbstractReceivedMessage message = tcpClient.getPostStartReceiverService().getValue();
+//                    EndGameReceivedMessage endGame = ReceivedMessageTypeResolver.isEndGame(message);
+//                    ErrorReceivedMessage err = ReceivedMessageTypeResolver.isError(message);
+//
+//                    if (err != null) {
+//                        logger.debug("Error while validating turn: "+err.getContent().toString());
+//                        view.addLogMessage("Server neuznal tvůj tah a považuje ho za propadlý.\n");
+//                        waitForNewTurn();
+//                    } else if (endGame != null) {
+//                        endGame(endGame.getContent());
+//                    } else {
+//                        logger.trace("Turn validation ok.");
+//                        waitForNewTurn();
+//                    }
+//                },
+//
+//                event -> {
+//                    // failure
+//                    if(Thread.currentThread().isInterrupted()) {
+//                        return;
+//                    }
+//                    Throwable ex = tcpClient.getPreStartReceiverService().getException();
+//                    String msg = ex == null ? "no exception" : ex.getMessage();
+//                    if(ex instanceof SocketTimeoutException) {
+//                        handleFailure("Server stopped responding and is probably dead.", "Server přestal odpovídat.");
+//                    } else if (ex instanceof MaxAttemptsReached){
+//                        handleFailure("Maximum number of attempts to receive end turn confirmation reached.", "Maximální počet pokusů na potvrzení tahu dosažen.");
+//                    } else {
+//                        handleFailure("Error while waiting for end turn confirm message: "+msg, ErrorMessages.COMMUNICATION_BREAKDOWN);
+//                    }
+//                }
+//        );
         startTimer();
     }
 

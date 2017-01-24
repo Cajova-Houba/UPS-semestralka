@@ -97,7 +97,7 @@ public class PostStartReceiver extends AbstractReceiver {
         int timeoutCntr = 0;
         int attemptCntr = 0;
 
-        while (!expectedMessageComparator.isExpected(receivedMessage) || !getShutdown()) {
+        while (!expectedMessageComparator.isExpected(receivedMessage) && !getShutdown()) {
 
             // check before and after waiting for message
             if(Thread.currentThread().isInterrupted()) {

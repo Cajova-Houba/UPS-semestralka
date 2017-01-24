@@ -152,18 +152,21 @@ public class GameController {
         // check if the sticks were already thrown
         if(!Game.getInstance().alreadyThrown()) {
             logger.warn("Sticks not thrown yet!");
+            view.addLogMessage("Nejdříve hoď dřívky!\n");
             return false;
         }
 
         // check that the player hasn't moved in this turn yet
         if(Game.getInstance().isAlreadyMoved()) {
            logger.warn("Player already moved his stone!");
+            view.addLogMessage("V tomto kole už jsi hrál!\n");
            return false;
         }
 
         // check that the move will be equal to the thrown value
         if(!Game.getInstance().isMoveLengthOk(fromField, toField)) {
             logger.warn("Wrong move!");
+            view.addLogMessage("Můžeš táhnout jen o délku hodu!\n");
             return false;
         }
 
@@ -231,7 +234,7 @@ public class GameController {
         view.resetTimerText();
         Game.getInstance().endTurn();
         view.disableButtons();
-        sendEndTurnMessage(1);
+        sendEndTurnMessage();
         logger.debug("Ending turn with player 1 stones: "+ Arrays.toString(Game.getInstance().getFirstPlayer().getStones())+
                         ", player 2 stones: "+Arrays.toString(Game.getInstance().getSecondPlayer().getStones())+".");
     }
@@ -239,12 +242,7 @@ public class GameController {
     /**
      * Separation of sending a message from the main endTurn() method
      */
-    private void sendEndTurnMessage(int numOfAttempts) {
-        final int noa = numOfAttempts+1;
-        if(noa > 5) {
-            logger.error("Maximum number of attempts reached.");
-            return;
-        }
+    private void sendEndTurnMessage() {
         // send end turn message
         try {
             tcpClient.sendEndTurnMessage(
@@ -278,6 +276,7 @@ public class GameController {
                         endGame(endGame.getContent());
                     } else {
                         logger.trace("Turn validation ok.");
+                        view.addLogMessage("Tah ukončen.\n");
                         waitForNewTurn();
                     }
                 },
@@ -316,6 +315,7 @@ public class GameController {
 
                     // check shutdown
                     if(getShutdown()) {
+                        logger.debug("Shut down set.");
                         return;
                     }
 

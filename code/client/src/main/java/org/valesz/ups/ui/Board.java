@@ -257,6 +257,7 @@ public class Board extends Canvas {
 
         if(!Game.getInstance().isMyTurn()) {
             logger.warn("Not my turn("+Game.getInstance().getMyPlayer()+". Current turn: "+Game.getInstance().getCurrentPlayerNum());
+            parent.addLogMessage("Teď nejsi na řadě!\n");
             return;
         }
 

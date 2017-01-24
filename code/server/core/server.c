@@ -18,6 +18,7 @@
 #include "../common/message.h"
 #include "parallel.h"
 #include "game.h"
+#include "player.h"
 
 
 /* 
@@ -34,6 +35,11 @@
  * Max time for a player to reconnect. In seconds.
  */
 #define DEF_TIMEOUT             10
+
+/*
+ * Max time to receive response to alive message.
+ */
+#define ALIVE_TIMEOUT           10000
 
 /*
  * Timeout for messages while the thread is waiting
@@ -963,6 +969,22 @@ int handle_message_waiting(int socket, int timeout, int my_player) {
             break;
 
         case MSG_TIMEOUT:
+            // send alive
+            msg_status = send_alive_msg(socket);
+            if(msg_status == CLOSED_CONNECTION) {
+                sprintf(log_msg, "Player %d closed connection.\n", my_player);
+                sdebug(PLAYER_THREAD_NAME, log_msg);
+                return STOP_GAME_LOOP;
+            }
+
+            // receive ok
+            recv_status = recv_message(socket, &received_message, ALIVE_TIMEOUT);
+            if(recv_status != OK || !is_ok(&received_message)) {
+                sprintf(log_msg, "Player %d isn't responding.\n", my_player);
+                sdebug(PLAYER_THREAD_NAME, log_msg);
+                return STOP_GAME_LOOP;
+            }
+
             return OK;
 
         case CLOSED_CONNECTION:
@@ -1280,6 +1302,7 @@ void *player_thread(void *arg) {
             // handle incoming messages
             msg_status = handle_message_waiting(socket, WAITING_TIMEOUT, my_player);
             if(msg_status == STOP_GAME_LOOP) {
+                clean_player(&game.players[my_player]);
                 decrement_players();
                 set_cleanme_close_sock(thread_num, socket);
                 return NULL;

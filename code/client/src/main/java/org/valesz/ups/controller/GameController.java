@@ -1,5 +1,7 @@
 package org.valesz.ups.controller;
 
+import javafx.application.Platform;
+import javafx.concurrent.Task;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.valesz.ups.common.error.Error;
@@ -32,7 +34,7 @@ public class GameController {
     /**
      * Max time for turn = 2 minutes.
      */
-    public static final int MAX_TURN_TIME = 2*60;
+    public static final int MAX_TURN_TIME = 10;
 
     private MainPane view;
     private Board boardView;
@@ -463,7 +465,13 @@ public class GameController {
         if(timeCntr == MAX_TURN_TIME) {
             timerPassed = true;
             logger.debug("Time for turn expired.");
-            this.endTurn();
+            Platform.runLater(new Task<Void>() {
+                @Override
+                protected Void call() throws Exception {
+                    GameController.this.endTurn();
+                    return null;
+                }
+            });
         }
     }
 

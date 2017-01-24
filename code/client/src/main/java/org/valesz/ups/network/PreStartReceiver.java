@@ -115,7 +115,7 @@ public class PreStartReceiver extends AbstractReceiver {
                 timeoutCntr += MAX_WAITING_TIMEOUT;
                 if(timeoutCntr >= maxTimeoutMs) {
                     logger.error("Max timeout reached. Sending is alive message");
-                    outToServer.write(Message.createOKMessage().toBytes());
+                    outToServer.write(Message.createIsAliveMessage().toBytes());
 
                     // receive ok message
                     okReceived = receiveOk(inFromServer);

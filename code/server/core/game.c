@@ -181,9 +181,11 @@ int validate_turn(char* p1_old_tw, char* p2_old_tw, char* p1_new_tw, char* p2_ne
                 return ERR_TURN;
             }
 
-            if(i != j &&
-                (p1_new[i] == p1_new[j] && p1_new[i] != 31) ||
-                (p2_new[i] == p2_new[j] && p2_new[i] != 31)) {
+            if(i != j && (
+                    (p1_new[i] == p1_new[j] && p1_new[i] != 31) ||
+                    (p2_new[i] == p2_new[j] && p2_new[i] != 31)
+                 )
+              ) {
                 return ERR_TURN;
             }
         }

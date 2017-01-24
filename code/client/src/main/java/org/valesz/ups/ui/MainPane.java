@@ -353,6 +353,8 @@ public class MainPane extends BorderPane {
         timerText.setText(String.format("%d:%d", minutes, time));
     }
 
+
+
     public void resetTimerText() {
         timerText.setText("-:-");
     }

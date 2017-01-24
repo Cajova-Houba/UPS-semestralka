@@ -13,6 +13,10 @@ void initialize_player(Player* player, int id, char* nick, int socket, int secon
     generate_new_stones(player, second_player);
 }
 
+void clean_player(Player* player) {
+    player->nick[0] = '\0';
+}
+
 /*
  * Generates a set of stones for new player.
  *

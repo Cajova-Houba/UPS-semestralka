@@ -74,6 +74,11 @@ int is_end_turn(Message* message);
 int is_exit(Message* message);
 
 /*
+ * Return OK if the message is ok message.
+ */
+int is_ok(Message* message);
+
+/*
  * Receives message from socket.
  *
  * Returns:
@@ -216,6 +221,8 @@ int send_start_turn_msg(int sock, char* player1_turn_word, char* player2_turn_wo
  * <0: Error occurred.
  */
 int send_waiting_for_player_msg(int sock, char* nick);
+
+int send_alive_msg(int sock);
 #endif
 
 

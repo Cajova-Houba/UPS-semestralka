@@ -36,7 +36,7 @@ public class TcpClient {
 
     public static final int MAX_ATTEMPTS = 10;
 
-    public static final int MAX_TIMEOUT = 120000;
+    public static final int MAX_TIMEOUT = 9000;
 
     public static final int INF_ATTEMPTS = -1;
 
@@ -128,64 +128,6 @@ public class TcpClient {
         return socket != null && socket.isConnected();
     }
 
-    /**
-     * Sends a new nick to the server.
-     *
-     * @param nick nickname.
-     * @param successCallback Called if the nick is sent. Received: OK
-     * @param failCallback Called if the nick sending fails.
-     * @return GENERAL_ERROR if there's no connection and NO_ERROR if everything is ok.
-     * @deprecated
-     */
-    @Deprecated
-    public Error sendNick(String nick,
-                          EventHandler<WorkerStateEvent> successCallback,
-                          EventHandler<WorkerStateEvent> failCallback) {
-        if(!isConnected()) {
-            return Error.GENERAL_ERROR("No active connection.");
-        }
-
-        nickService.setNick(nick);
-        nickService.setOutToServer(outToServer);
-        nickService.setOnSucceeded(event -> {
-            lastSuccessfulConnection = new LoginData(nick, lastSuccessfulConnection.getAddress(), lastSuccessfulConnection.getPort());
-            successCallback.handle(event);
-        });
-        nickService.setOnFailed(failCallback);
-        nickService.restart();
-
-        return Error.NO_ERROR();
-    }
-
-    /**
-     * Sends an end turn message to the server.
-     *
-     * @param firstPlayerTurnWord Turn word of the first player.
-     * @param secondPlayerTurnWord Turn word of the second player.
-     * @param successCallback Called if the message was sent.
-     * @param failCallback Called if there's some error during sending the message.
-     * @return GENERAL_ERROR if there's no connection and NO_ERROR if everything is ok.
-     * @deprecated
-     */
-    @Deprecated
-    public Error sendEndturn(int[] firstPlayerTurnWord,
-                             int[] secondPlayerTurnWord,
-                             EventHandler<WorkerStateEvent> successCallback,
-                             EventHandler<WorkerStateEvent> failCallback) {
-        if(!isConnected()) {
-            return Error.GENERAL_ERROR("No active connection.");
-        }
-
-        turnService.setOutToServer(outToServer);
-        turnService.setFirstTurnWord(firstPlayerTurnWord);
-        turnService.setSecondTurnWord(secondPlayerTurnWord);
-        turnService.setOnSucceeded(successCallback);
-        turnService.setOnFailed(failCallback);
-        turnService.restart();
-
-        return Error.NO_ERROR();
-    }
-
     public void sendEndTurnMessage(int[] firstPlayerTurnWord,
                                    int[] secondPlayerTurnWord) throws IOException {
         if(!isConnected()) {
@@ -194,30 +136,6 @@ public class TcpClient {
 
         DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
         dos.write(Message.createEndTurnMessage(firstPlayerTurnWord, secondPlayerTurnWord).toBytes());
-    }
-
-    /**
-     * Reads 1 response from server.
-     *
-     * @param successCallback Called if the response is obtained.
-     * @param failCallback Called if error occurs. ReceivingException is used.
-     * @return GENERAL_ERROR if there's no connection and NO_ERROR if everything is ok.
-     * @deprecated
-     */
-    @Deprecated
-    public Error getResponse(EventHandler<WorkerStateEvent> successCallback,
-                             EventHandler<WorkerStateEvent> failCallback) {
-        if(!isConnected()) {
-            return Error.GENERAL_ERROR("No active connection.");
-        }
-
-        receivingService.setInFromServer(inFromServer);
-        receivingService.setOnSucceeded(successCallback);
-        receivingService.setOnFailed(failCallback);
-        receivingService.restart();
-
-        return Error.NO_ERROR();
-
     }
 
     public void sendExitMessage() throws IOException {

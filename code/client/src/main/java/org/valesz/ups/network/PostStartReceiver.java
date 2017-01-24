@@ -56,7 +56,7 @@ public class PostStartReceiver extends AbstractReceiver {
     }
 
     /**
-     * Tries tto receive the OK message. If exception raises or anything else is received,
+     * Tries to receive the OK message. If exception raises or anything else is received,
      * null is returned.
      * @param inFromServer
      * @return
@@ -117,7 +117,7 @@ public class PostStartReceiver extends AbstractReceiver {
                 timeoutCntr += MAX_WAITING_TIMEOUT;
                 if (timeoutCntr >= maxTimeoutMs && maxTimeoutMs != TcpClient.NO_TIMEOUT) {
                     logger.error("Max timeout reached. Sending is alive message");
-                    outToServer.write(Message.createOKMessage().toBytes());
+                    outToServer.write(Message.createIsAliveMessage().toBytes());
 
                     // receive ok message
                     okReceived = receiveOk(inFromServer);

@@ -28,6 +28,8 @@ typedef struct{
  */
 void initialize_player(Player* player, int id, char* nick, int socket, int second_player, uint32_t addr, int port);
 
+void clean_player(Player* player);
+
 /*
  * Generates a set of stones for new player.
  *

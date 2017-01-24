@@ -317,6 +317,22 @@ int recv_inf_message(int socket, Message* message, int timeout) {
     }
 
     switch (buffer[0]) {
+        case 'O':
+        case 'o':
+            // ok message
+            // receive next char
+            recv_status = recv_bytes_timeout(socket, &buffer[1], 1, timeout);
+            if(recv_status != 1) {
+                return recv_status;
+            }
+            if(buffer[1] != 'k' && buffer[1] != 'K') {
+                return ERR_MSG_CONTENT;
+            } else {
+                buffer[2] = '\0';
+                strcpy(message->content, OK_MESSAGE);
+                return OK;
+            }
+
         case 'E':
         case 'e':
             // exit message
@@ -788,4 +804,25 @@ int send_waiting_for_player_msg(int sock, char* nick) {
     sprintf(&buff[WAIT_FOR_PLAYER_MESSAGE_LEN], "%s;", nick);
 
     return send_txt(sock, buff);
+}
+
+/*
+ * Sends alive message.
+ */
+int send_alive_msg(int sock) {
+    char buff[30];
+    sprintf(buff, "%s%s\n\0", MSG_TYPE_INF, ALIVE_MSG);
+
+    return send_txt(sock, buff);
+}
+
+/*
+ * Return OK if the message is ok message.
+ */
+int is_ok(Message* message) {
+    if(message->message_type_int == INF_TYPE && strcmp(message->content, OK_MESSAGE) == 0) {
+        return OK;
+    } else {
+        return 0;
+    }
 }

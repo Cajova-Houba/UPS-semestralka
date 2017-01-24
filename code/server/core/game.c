@@ -177,11 +177,13 @@ int validate_turn(char* p1_old_tw, char* p2_old_tw, char* p1_new_tw, char* p2_ne
 
     for(i = 0; i < TURN_WORD_LENGTH/2; i++)  {
         for(j = 0; j < TURN_WORD_LENGTH/2; j++) {
-            if(p1_new[i] == p2_new[j]) {
+            if(p1_new[i] == p2_new[j] && p1_new[i] != 31) {
                 return ERR_TURN;
             }
 
-            if(i != j && (p1_new[i] == p1_new[j] || p2_new[i] == p2_new[j])) {
+            if(i != j &&
+                (p1_new[i] == p1_new[j] && p1_new[i] != 31) ||
+                (p2_new[i] == p2_new[j] && p2_new[i] != 31)) {
                 return ERR_TURN;
             }
         }
@@ -201,10 +203,31 @@ int check_winning_conditions(char* p1_turn_word, char* p2_turn_word) {
     int win = P1_WINS;
     int i = 0;
     int j = 0;
+    int p1_new[TURN_WORD_LENGTH / 2];
+    int p2_new[TURN_WORD_LENGTH / 2];
+    int tmp = 0;
+    int tmp2 = 0;
+
+    // convert to int
+    while(i < TURN_WORD_LENGTH) {
+        tmp = 0;
+        tmp2 = 0;
+        tmp = 10*(p1_turn_word[i] - '0');
+        tmp2 = 10*(p2_turn_word[i] - '0');
+        i++;
+
+        tmp += p1_turn_word[i] - '0';
+        tmp2 += p2_turn_word[i] - '0';
+        i++;
+        p1_new[j] = tmp;
+        p2_new[j] = tmp2;
+
+        j++;
+    }
 
     // check the first player
-    for (i = 0; i < TURN_WORD_LENGTH; ++i) {
-        if(p1_turn_word[i] != 31) {
+    for (i = 0; i < TURN_WORD_LENGTH/2; ++i) {
+        if(p1_new[i] != 31) {
             win = P2_WINS;
             break;
         }
@@ -212,8 +235,8 @@ int check_winning_conditions(char* p1_turn_word, char* p2_turn_word) {
 
     // check the second player
     if (win == P2_WINS) {
-        for (j = 0; j < TURN_WORD_LENGTH; ++j) {
-            if(p2_turn_word[j] != 31) {
+        for (j = 0; j < TURN_WORD_LENGTH/2; ++j) {
+            if(p2_new[j] != 31) {
                 win = OK;
                 break;
             }

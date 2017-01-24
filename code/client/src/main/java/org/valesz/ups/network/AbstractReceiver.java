@@ -1,6 +1,8 @@
 package org.valesz.ups.network;
 
 
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.concurrent.Task;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -24,6 +26,16 @@ import java.util.regex.Pattern;
 public abstract class AbstractReceiver extends Task<AbstractReceivedMessage>{
 
     protected static final Logger logger = LogManager.getLogger(AbstractReceiver.class);
+
+    private final BooleanProperty shutdown = new SimpleBooleanProperty(Boolean.FALSE);
+
+    public final void setShutdown() {
+      shutdown.setValue(Boolean.TRUE);
+    }
+
+    public final boolean getShutdown() {
+        return shutdown.getValue();
+    }
 
     /**
      * Max timeout for message to be received in waiting mode.

@@ -24,6 +24,8 @@ public class PostStartReceiverService extends Service<AbstractReceivedMessage> {
 
     private int maxAttempts;
 
+    private PostStartReceiver task;
+
     public void setSocket(Socket socket) {
         this.socket = socket;
     }
@@ -41,7 +43,16 @@ public class PostStartReceiverService extends Service<AbstractReceivedMessage> {
     }
 
     @Override
+    public boolean cancel() {
+        if(task != null) {
+            task.setShutdown();
+        }
+        return super.cancel();
+    }
+
+    @Override
     protected Task<AbstractReceivedMessage> createTask() {
-        return new PostStartReceiver(socket, expectedMessageComparator, maxTimeoutMs, maxAttempts);
+        task = new PostStartReceiver(socket, expectedMessageComparator, maxTimeoutMs, maxAttempts);
+        return task;
     }
 }

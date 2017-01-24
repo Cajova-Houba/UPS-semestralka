@@ -1,6 +1,8 @@
 package org.valesz.ups.controller;
 
 import javafx.application.Platform;
+import javafx.beans.property.BooleanProperty;
+import javafx.beans.property.SimpleBooleanProperty;
 import javafx.concurrent.Task;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -31,10 +33,20 @@ public class GameController {
 
     private static final Logger logger = LogManager.getLogger(GameController.class);
 
+    private final BooleanProperty shutdown = new SimpleBooleanProperty(Boolean.FALSE);
+
+    public final void setShutdown() {
+        shutdown.setValue(Boolean.TRUE);
+    }
+
+    public final boolean getShutdown() {
+        return shutdown.getValue();
+    }
+
     /**
      * Max time for turn = 2 minutes.
      */
-    public static final int MAX_TURN_TIME = 10;
+    public static final int MAX_TURN_TIME = 2*60;
 
     private MainPane view;
     private Board boardView;
@@ -254,6 +266,10 @@ public class GameController {
                     EndGameReceivedMessage endGame = ReceivedMessageTypeResolver.isEndGame(message);
                     ErrorReceivedMessage err = ReceivedMessageTypeResolver.isError(message);
 
+                    if(getShutdown()) {
+                        return;
+                    }
+
                     if (err != null) {
                         logger.debug("Error while validating turn: "+err.getContent().toString());
                         view.addLogMessage("Server neuznal tvůj tah a považuje ho za propadlý.\n");
@@ -298,6 +314,11 @@ public class GameController {
                     StartTurnReceivedMessage startTurn = ReceivedMessageTypeResolver.isStartTurn(response);
                     EndGameReceivedMessage endGame = ReceivedMessageTypeResolver.isEndGame(response);
 
+                    // check shutdown
+                    if(getShutdown()) {
+                        return;
+                    }
+
                     if( endGame != null) {
                         endGame(endGame.getContent());
                     } else if (startTurn != null) {
@@ -309,7 +330,7 @@ public class GameController {
                 },
                 event -> {
                     // failure
-                    Throwable ex = tcpClient.getPreStartReceiverService().getException();
+                    Throwable ex = tcpClient.getPostStartReceiverService().getException();
                     String msg = ex == null ? "no exception" : ex.getMessage();
                     if(ex instanceof SocketTimeoutException) {
                         handleFailure("Server stopped responding and is probably dead.", "Server přestal odpovídat.");

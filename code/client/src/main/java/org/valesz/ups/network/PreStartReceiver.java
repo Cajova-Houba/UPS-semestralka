@@ -118,11 +118,13 @@ public class PreStartReceiver extends AbstractReceiver {
                     outToServer.write(Message.createIsAliveMessage().toBytes());
 
                     // receive ok message
+                    socket.setSoTimeout(TcpClient.MAX_ALIVE_TIMEOUT);
                     okReceived = receiveOk(inFromServer);
                     if(okReceived == null) {
                         logger.error("Server not responding.");
                         throw new SocketTimeoutException();
                     } else {
+                        socket.setSoTimeout(TcpClient.MAX_WAITING_TIMEOUT);
                         logger.debug("Server lives, incrementing attempt counter.");
                         timeoutCntr = 0;
                         attemptCntr++;

@@ -57,6 +57,7 @@ public class MainApp extends Application{
         tcpClient.sendExitMessage();
         tcpClient.disconnect();
         gameController.stopTimer();
+        gameController.setShutdown();
         super.stop();
     }
 

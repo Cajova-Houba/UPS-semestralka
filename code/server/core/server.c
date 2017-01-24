@@ -605,6 +605,7 @@ int wait_for_end_turn(int socket, int timeout, int my_player, int other_player, 
                 continue;
             case CLOSED_CONNECTION:
                 sprintf(log_msg, "Socket %d closed the connection while waiting for the end turn message.\n", socket);
+                sdebug(PLAYER_THREAD_NAME,log_msg);
                 server_set_winner(other_player);
                 return STOP_GAME_LOOP;
         }
@@ -619,6 +620,7 @@ int wait_for_end_turn(int socket, int timeout, int my_player, int other_player, 
             send_msg = send_err_msg(socket, msg_status);
             if(send_msg == CLOSED_CONNECTION) {
                 sprintf(log_msg, "Socket %d closed the connection while waiting for the end turn message.\n", socket);
+                sdebug(PLAYER_THREAD_NAME,log_msg);
                 server_set_winner(other_player);
                 return STOP_GAME_LOOP;
             }
@@ -631,6 +633,7 @@ int wait_for_end_turn(int socket, int timeout, int my_player, int other_player, 
                 send_msg = send_ok_msg(socket);
                 if(send_msg == CLOSED_CONNECTION) {
                     sprintf(log_msg, "Socket %d closed the connection while waiting for the end turn message.\n", socket);
+                    sdebug(PLAYER_THREAD_NAME,log_msg);
                     server_set_winner(other_player);
                     return STOP_GAME_LOOP;
                 }
@@ -638,6 +641,8 @@ int wait_for_end_turn(int socket, int timeout, int my_player, int other_player, 
 
             } else if (is_exit(&message) == OK) {
                 // handle exit => other player wins
+                sprintf(log_msg, "Player %d quit.\n", my_player);
+                sdebug(PLAYER_THREAD_NAME,log_msg);
                 server_set_winner(other_player);
                 return STOP_GAME_LOOP;
 
@@ -657,6 +662,7 @@ int wait_for_end_turn(int socket, int timeout, int my_player, int other_player, 
                 send_msg = send_err_msg(socket, ERR_UNEXPECTED_MSG);
                 if(send_msg == CLOSED_CONNECTION) {
                     sprintf(log_msg, "Socket %d closed the connection while waiting for the end turn message.\n", socket);
+                    sdebug(PLAYER_THREAD_NAME,log_msg);
                     server_set_winner(other_player);
                     return STOP_GAME_LOOP;
                 }
@@ -667,6 +673,7 @@ int wait_for_end_turn(int socket, int timeout, int my_player, int other_player, 
 
     if (cntr >= MAX_TURN_WAITING_TIMEOUT) {
         sprintf(log_msg, "Max time for player's %d end turn message reached.\n", my_player);
+        sdebug(PLAYER_THREAD_NAME,log_msg);
         server_set_winner(other_player);
         return STOP_GAME_LOOP;
     }

@@ -32,11 +32,16 @@ public class TcpClient {
      */
     public static final int MAX_WAITING_TIMEOUT = 1000;
 
+    public static final int MAX_ALIVE_TIMEOUT = 10000;
+
     public static final int NO_TIMEOUT = -1;
 
     public static final int MAX_ATTEMPTS = 10;
 
-    public static final int MAX_TIMEOUT = 9000;
+    /**
+     * Max timeout, after this is_alive will be sent
+     */
+    public static final int MAX_TIMEOUT = 120000;
 
     public static final int INF_ATTEMPTS = -1;
 
@@ -44,10 +49,7 @@ public class TcpClient {
     private Socket socket;
     private NickService nickService;
     private ReceivingService receivingService;
-    private TurnService turnService;
     private ConnectionService connectionService;
-    private DataOutputStream outToServer;
-    private DataInputStream inFromServer;
 
     private PreStartReceiverService preStartReceiverService;
     private PostStartReceiverService postStartReceiverService;
@@ -77,10 +79,7 @@ public class TcpClient {
 //                socket.getKeepAlive();
                 socket.setSoTimeout(MAX_WAITING_TIMEOUT);
                 nickService = new NickService();
-                inFromServer = new DataInputStream(socket.getInputStream());
-                outToServer = new DataOutputStream(socket.getOutputStream());
                 receivingService = new ReceivingService();
-                turnService = new TurnService();
                 preStartReceiverService = new PreStartReceiverService();
                 postStartReceiverService = new PostStartReceiverService();
 

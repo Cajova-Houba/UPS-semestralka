@@ -97,7 +97,7 @@ public class PostStartReceiver extends AbstractReceiver {
         int timeoutCntr = 0;
         int attemptCntr = 0;
 
-        while (!expectedMessageComparator.isExpected(receivedMessage)) {
+        while (!expectedMessageComparator.isExpected(receivedMessage) || !getShutdown()) {
 
             // check before and after waiting for message
             if(Thread.currentThread().isInterrupted()) {
@@ -120,11 +120,13 @@ public class PostStartReceiver extends AbstractReceiver {
                     outToServer.write(Message.createIsAliveMessage().toBytes());
 
                     // receive ok message
+                    socket.setSoTimeout(TcpClient.MAX_ALIVE_TIMEOUT);
                     okReceived = receiveOk(inFromServer);
                     if (okReceived == null) {
                         logger.error("Server not responding.");
                         throw new SocketTimeoutException();
                     } else {
+                        socket.setSoTimeout(TcpClient.MAX_WAITING_TIMEOUT);
                         logger.debug("Server lives, incrementing attempt counter.");
                         timeoutCntr = 0;
                         attemptCntr++;

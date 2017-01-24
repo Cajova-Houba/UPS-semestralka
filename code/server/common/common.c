@@ -50,7 +50,7 @@ int recv_bytes_timeout(int sock, char* buffer, int byte_count, int ms_timeout) {
             return MSG_TIMEOUT;
         default:
             recv_stat = (int)recv(sock, (void *)buffer, byte_count, 0);
-            if(recv_stat == -1) {
+            if(recv_stat <= 0) {
                 return CLOSED_CONNECTION;
             }
             return recv_stat;

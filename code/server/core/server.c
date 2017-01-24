@@ -989,6 +989,7 @@ int handle_message_waiting(int socket, int timeout, int my_player) {
             if(recv_status != OK || !is_ok(&received_message)) {
                 sprintf(log_msg, "Player %d isn't responding.\n", my_player);
                 sdebug(PLAYER_THREAD_NAME, log_msg);
+                send_err_msg(socket, ERR_MSG);
                 return STOP_GAME_LOOP;
             }
 
@@ -1067,6 +1068,23 @@ int handle_message_waiting_turn(int socket, int timeout, int my_player, int othe
             break;
 
         case MSG_TIMEOUT:
+            // send alive
+            msg_status = send_alive_msg(socket);
+            if(msg_status == CLOSED_CONNECTION) {
+                sprintf(log_msg, "Player %d closed connection.\n", my_player);
+                sdebug(PLAYER_THREAD_NAME, log_msg);
+                return STOP_GAME_LOOP;
+            }
+
+            // receive ok
+            recv_status = recv_message(socket, &received_message, ALIVE_TIMEOUT);
+            if(recv_status != OK || !is_ok(&received_message)) {
+                sprintf(log_msg, "Player %d isn't responding.\n", my_player);
+                sdebug(PLAYER_THREAD_NAME, log_msg);
+                send_err_msg(socket, ERR_MSG);
+                return STOP_GAME_LOOP;
+            }
+
             return OK;
 
         case CLOSED_CONNECTION:

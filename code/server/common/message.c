@@ -429,7 +429,7 @@ int recv_inf_message(int socket, Message* message, int timeout) {
  */
 int recv_message(int socket, Message* message, int timeout) {
     int msg_status = 0;
-    char buffer[MAX_CONTENT_SIZE];
+//    char buffer[MAX_CONTENT_SIZE];
 
     // get message type
     message->message_type_int = NO_TYPE;
@@ -701,7 +701,7 @@ int recv_ok_msg(int socket) {
 int send_ok_msg(int socket) {
     int send_status = 0;
     char buffer[50];
-    sprintf(buffer,"%s%s\n\0", MSG_TYPE_INF, OK_MESSAGE);
+    sprintf(buffer,"%s%s\n", MSG_TYPE_INF, OK_MESSAGE);
     send_status = send_txt(socket, buffer);
     if(send_status != MSG_TYPE_LEN+OK_MESSAGE_LEN+1) {
         return send_status;
@@ -724,7 +724,7 @@ int send_err_msg(int socket, int err_code) {
     if(err_code < 0) {
         err_code = -err_code;
     }
-    sprintf(buff, "%s%02d\n\0",MSG_TYPE_ERR, err_code);
+    sprintf(buff, "%s%02d\n",MSG_TYPE_ERR, err_code);
 
     state = send_txt(socket, buff);
 	if(state > 0) {
@@ -783,7 +783,7 @@ int send_end_game_msg(int sock, char* winner) {
  */
 int send_start_turn_msg(int sock, char* player1_turn_word, char* player2_turn_word) {
     char buff[50];
-    sprintf(buff, "CMD%s%s\n\0", player1_turn_word, player2_turn_word);
+    sprintf(buff, "CMD%s%s\n", player1_turn_word, player2_turn_word);
 
     return send_txt(sock, buff);
 }
@@ -811,7 +811,7 @@ int send_waiting_for_player_msg(int sock, char* nick) {
  */
 int send_alive_msg(int sock) {
     char buff[30];
-    sprintf(buff, "%s%s\n\0", MSG_TYPE_INF, ALIVE_MSG);
+    sprintf(buff, "%s%s\n", MSG_TYPE_INF, ALIVE_MSG);
 
     return send_txt(sock, buff);
 }

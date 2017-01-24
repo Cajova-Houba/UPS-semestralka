@@ -1244,10 +1244,10 @@ void *player_thread(void *arg) {
 	int thread_num = args->thread_number;
     uint32_t addr = args->addr;
     int port = args->port;
-	int nick_valid = 0;
+//	int nick_valid = 0;
 	int tmp = 0;
 
-    Message message;
+//    Message message;
 
     /*
 	 * Index in the array of players.

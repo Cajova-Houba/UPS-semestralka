@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include <pthread.h>
-#include <semaphore.h>
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -12,45 +11,12 @@
 #include <errno.h>
 
 #include "../common/common.h"
-#include "../common/seneterror.h"
 #include "../common/nick_val.h"
 
 #include "../common/message.h"
 #include "parallel.h"
 #include "game.h"
-#include "player.h"
 #include "limits.h"
-
-
-/* 
- * Max number of connections sending their nicknames.
- */
-#define MAX_CONNECTIONS			10
-
-/*
- * Max number of timer threads.
- */
-#define MAX_TIMER_THREADS       2
-
-/*
- * Max time for a player to reconnect. In seconds.
- */
-#define DEF_TIMEOUT             10
-
-/*
- * Max time to receive response to alive message.
- */
-#define ALIVE_TIMEOUT           10000
-
-/*
- * Timeout for messages while the thread is waiting
- */
-#define WAITING_TIMEOUT         1000
-
-/*
- * Max number of attempts for player to send a correct nick.
- */
-#define MAX_NICK_ATTEMPTS       3
 
 
 /*
@@ -110,7 +76,85 @@ Game_struct games[MAX_GAMES];
  * FUNCTIONS FOR CRITICAL SECTION
  * =====================================================================
  */ 
- 
+
+/*
+ * Handles the critical section and calls leave_game().
+ */
+void server_leave_from_game(Game_struct* my_game, int my_player) {
+    pthread_mutex_lock(&mutex_game);
+
+    leave_from_game(my_game, my_player);
+
+    pthread_mutex_unlock(&mutex_game);
+}
+
+/*
+ * Stores the first free game found to the game variable.
+ * If no ree game is found, NO_GAME_SLOT_FREE is stored to my_player.
+ *
+ * If the free game is found, the player is also initialized.
+ * If both players are initialized on returned game, it is assumed that the
+ * player thread which called this function is player 2.
+ *
+ * my_player is initialized to either 0 or 1 if the free game is found.
+ *
+ * Game is free if it has FREE flag set to 1 and has 1 player at max.
+ */
+void get_free_game_bind_player(Game_struct* free_game, int* my_player, char* nick, uint32_t addr, int port, int socket) {
+    int i = 0;
+    int game_found = -1;
+    pthread_mutex_lock(&mutex_game);
+
+    for(i = 0; i < MAX_GAMES; i++) {
+        if(is_game_free(&games[i]) == OK) {
+            game_found = i;
+            break;
+        }
+    }
+
+    if(game_found == -1) {
+        *my_player = NO_GAME_SLOT_FREE;
+    } else {
+        if(is_player_free(&(games[game_found].players[PLAYER_1])) == OK) {
+            // initialize as the first player
+            initialize_player(&(games[game_found].players[PLAYER_1]), 0, nick, socket, 1, addr, port);
+            *my_player = PLAYER_1;
+        } else {
+            // initialize as the second player
+            initialize_player(&(games[game_found].players[PLAYER_2]), 1, nick, socket, 0, addr, port);
+            *my_player = PLAYER_2;
+        }
+
+        *free_game = games[game_found];
+    }
+
+    pthread_mutex_unlock(&mutex_game);
+}
+
+/*
+ * Resets the game so that it can be reused.
+ */
+void server_reset_game(Game_struct* game) {
+    pthread_mutex_lock(&mutex_game);
+
+    if(is_game_free(game) != OK) {
+        reset_game(game);
+    }
+
+    pthread_mutex_unlock(&mutex_game);
+}
+
+/*
+ * Handles the critical section and calls init_new_game.
+ */
+void server_init_new_game(Game_struct* my_game, int first_player) {
+    pthread_mutex_lock(&mutex_game);
+
+    init_new_game(my_game, first_player);
+
+    pthread_mutex_unlock(&mutex_game);
+}
+
 /*
  * Stores the current value of game_started flag in variable.
  * Critical section handled.
@@ -206,6 +250,18 @@ void server_switch_turn() {
 }
 
 /*
+ * Handles the critical section and stores the actual number
+ * of initialized players in game to variable.
+ */
+void server_get_players_count(Game_struct* my_game, int* variable) {
+    pthread_mutex_lock(&mutex_game);
+
+    *variable = get_players_count(my_game);
+
+    pthread_mutex_unlock(&mutex_game);
+}
+
+/*
  * Stores the actual value of players_count in variable.
  * Critical section handled.
  */ 
@@ -266,7 +322,7 @@ void get_curr_conn(int *variable) {
         *variable = MAX_CONNECTIONS;
     }
 
-	 
+
 	pthread_mutex_unlock(&mutex_curr_conn);
 }
 
@@ -310,27 +366,15 @@ void shutdown_cleaner() {
 /*
  * Stores nick of the player to buffer.
  */
-void get_player_nick(int p, char* buffer) {
-    if (p < 0 || p > 1) {
+void get_player_nick(Game_struct* my_game, int player, char* buffer) {
+    if (player < 0 || player > 1) {
         return;
     }
-    pthread_mutex_lock(&mutex_get_player);
+    pthread_mutex_lock(&mutex_game);
 
-    strcpy(buffer, game.players[p].nick);
+    strcpy(buffer, my_game->players[player].nick);
 
-    pthread_mutex_unlock(&mutex_get_player);
-}
-
-/*
- * If at least one of the waiting flags is set to 1,
- * sets the res to 1. Otherwise sets res to 0.
- */
-void server_is_game_waiting(int *res) {
-    pthread_mutex_lock(&mutex_is_waiting);
-
-    *res = is_game_waiting(&game);
-
-    pthread_mutex_unlock(&mutex_is_waiting);
+    pthread_mutex_unlock(&mutex_game);
 }
 
 /*
@@ -338,20 +382,13 @@ void server_is_game_waiting(int *res) {
  * function from the game.h.
  * Also clears the nicks in game struct.
  */
-void server_end_game() {
-    int i;
-    pthread_mutex_lock(&mutex_game_started);
+void server_end_game(Game_struct* my_game, int my_player) {
+    pthread_mutex_lock(&mutex_game);
 
-    end_game(&game);
-    get_players(&i);
-    if(i <= 1) {
-        for (i = 0; i < MAX_NICK_LENGTH; i++) {
-            game.players[0].nick[i] = '\0';
-            game.players[1].nick[i] = '\0';
-        }
-    }
+    end_game(my_game);
+    leave_from_game(my_game, my_player);
 
-    pthread_mutex_unlock(&mutex_game_started);
+    pthread_mutex_unlock(&mutex_game);
 }
 
 
@@ -660,19 +697,16 @@ int wait_for_nick(int socket, char* buffer) {
 /*
  * Call when the game is to be ended adn the winner is set.
  */
-void player_thread_end_game(int socket, int my_player) {
+void player_thread_end_game(Game_struct* my_game, int socket, int my_player) {
     /* end game */
     char buffer[255];
     int winner;
     strcpy(buffer, "\0");
     server_get_winner(&winner);
-    get_player_nick(winner, buffer);
+    get_player_nick(my_game, winner, buffer);
     send_end_game_msg(socket, buffer);
-    server_end_game();
-    decrement_players();
+    server_end_game(my_game, my_player);
 
-    /* wake the other thread */
-//    switch_turn(&game, my_player);
 }
 
 /*
@@ -682,20 +716,20 @@ void player_thread_end_game(int socket, int my_player) {
  *  OK: start turn message sent
  *  STOP_GAME_LOOP: error, game loop should be broken.
  */
-int send_start_turn_to_player(int socket, int my_player, int other_player) {
+int send_start_turn_to_player(Game_struct* my_game, int socket, int my_player, int other_player) {
     int msg_status;
     char log_msg[255];
     if(is_end_of_game(&game) == 1) {
         return STOP_GAME_LOOP;
     } else {
         debug_player_message(log_msg, "Sending start turn message to player %d.\n", my_player);
-        msg_status = send_start_turn_msg(socket, game.players[0].turn_word, game.players[1].turn_word);
+        msg_status = send_start_turn_msg(socket, my_game->players[PLAYER_1].turn_word, my_game->players[PLAYER_2].turn_word);
 //        debug_player_message(log_msg, "Start turn status: %d\n", msg_status);
         if(msg_status < 2) {
             serror(PLAYER_THREAD_NAME, "Error while sending start turn message.\n");
             //set the other player as winner
             server_set_winner(other_player);
-            server_end_game();
+            server_end_game(my_game, my_player);
             return  STOP_GAME_LOOP;
         }
     }
@@ -895,7 +929,7 @@ int handle_message_waiting_turn(int socket, int timeout, int my_player, int othe
     return OK;
 }
 
-void game_loop(int socket, int my_player, int other_player) {
+void game_loop(Game_struct* my_game, int socket, int my_player, int other_player) {
     char log_msg[255];
     int break_game_loop = 0;
     char tmp_p1_word[TURN_WORD_LENGTH];
@@ -986,7 +1020,7 @@ void game_loop(int socket, int my_player, int other_player) {
 
             case START_TURN:
                 debug_player_message(log_msg, "Player %d starts his turn.\n", my_player);
-                break_game_loop = send_start_turn_to_player(socket, my_player, other_player);
+                break_game_loop = send_start_turn_to_player(my_game, socket, my_player, other_player);
                 if(break_game_loop == STOP_GAME_LOOP) {
                     game_loop_state = BREAK_LOOP;
                 } else {
@@ -1021,6 +1055,7 @@ void *player_thread(void *arg) {
     uint32_t addr = args->addr;
     int port = args->port;
 	int tmp = 0;
+    Game_struct my_game;
 
     /*
 	 * Index in the array of players.
@@ -1030,22 +1065,6 @@ void *player_thread(void *arg) {
 
 	sprintf(log_msg, "Starting new thread with id=%d.\n",thread_num);
 	sinfo(PLAYER_THREAD_NAME, log_msg);
-
-    // check if the server isn't already full
-    get_players(&my_player);
-    get_game_started(&tmp);
-    if(my_player == 2) {
-        serror(PLAYER_THREAD_NAME,"Server full, sorry.\n");
-        send_err_msg(socket, ERR_SERVER_FULL);
-        clean_up(args);
-        free(args);
-        return NULL;
-    } else if (tmp) {
-        serror(PLAYER_THREAD_NAME, "Game is already running, sorry.\n");
-        send_err_msg(socket, ERR_GAME_ALREADY_RUNNING);
-        clean_up(args);
-        return NULL;
-    }
 
     // wait for nick
     tmp = wait_for_nick(socket, buffer);
@@ -1072,65 +1091,54 @@ void *player_thread(void *arg) {
         return NULL;
     }
 
-    // check again if the server isn't full and initialize new player
-    get_players(&my_player);
-    if(my_player >= 2) {
+    // get game, also initializes my_player
+    get_free_game_bind_player(&my_game, &my_player, buffer, addr, port, socket);
+    if(my_player == NO_GAME_SLOT_FREE) {
         serror(PLAYER_THREAD_NAME,"Server full, sorry.\n");
         send_err_msg(socket, ERR_SERVER_FULL);
         clean_up(args);
         return NULL;
     }
-
-    // initialize player
-    initialize_player(&(game.players[my_player]), my_player, buffer, socket, my_player, addr, port);
-    print_player(&(game.players[my_player]), log_msg, 1);
+    sprintf(log_msg, "Game %d selected for player %s. Player position: %d.\n", my_game.id, buffer, my_player);
     sinfo(PLAYER_THREAD_NAME, log_msg);
-    increment_players();
-    if(my_player == 1) {
+    other_player = my_player == PLAYER_1 ? PLAYER_2 : PLAYER_1;
+    print_player(&(my_game.players[my_player]), log_msg, 1);
+    sinfo(PLAYER_THREAD_NAME, log_msg);
+
+
+    if(my_player == PLAYER_2) {
         /* one thread is already in queue - wake it up and lets play */
-        other_player = 0;
         sinfo(PLAYER_THREAD_NAME, "THE GAME HAS STARTED!\n");
         server_start_game();
     } else {
         // no thread has finished validation yet, wait for another thread
         sinfo(PLAYER_THREAD_NAME, "Waiting for other player.\n");
-        other_player = 1;
-        init_new_game(&game, my_player);
+        server_init_new_game(&my_game, my_player);
 
+        // while there are not two players in the game, wait and keep receiving messages.
         while (tmp < 2) {
             // handle incoming messages
             msg_status = handle_message_waiting(socket, WAITING_TIMEOUT, my_player);
             if(msg_status == STOP_GAME_LOOP) {
-                clean_player(&game.players[my_player]);
-                decrement_players();
+                server_leave_from_game(&my_game, my_player);
                 clean_up(args);
                 return NULL;
             }
 
-            get_players(&tmp);
+            // update the count of players in current game
+            server_get_players_count(&my_game, &tmp);
         }
     }
 
     // send start game message
-    get_player_nick(0, p1name);
-    get_player_nick(1, p2name);
+    get_player_nick(&my_game, PLAYER_1, p1name);
+    get_player_nick(&my_game, PLAYER_2, p2name);
     send_start_game_msg(socket, p1name, p2name);
 
     // whole game loop handled inside this function
-    game_loop(socket, my_player, other_player);
+    game_loop(&my_game, socket, my_player, other_player);
 
-    server_is_game_waiting(&tmp);
-    if(tmp == 1) {
-        // game loop has exited, because the game is waiting for someone
-        // don't switch the turn, don't end the game
-
-        sprintf((char*)&log_msg, "Player %d disconnected. Ending his thread.\n", my_player);
-        sinfo(PLAYER_THREAD_NAME, log_msg);
-        clean_up(args);
-        return NULL;
-    }
-
-    player_thread_end_game(socket, my_player);
+    player_thread_end_game(&my_game, socket, my_player);
 
 	sinfo(PLAYER_THREAD_NAME,"End of thread.\n");
 
@@ -1224,6 +1232,35 @@ int load_arguments(int argc, char* argv[], int* port, struct in_addr* addr) {
 }
 
 /*
+ * Initializes:
+ * connections array,
+ * timer threads array,
+ * games array
+ */
+void initialize() {
+    int tmp = 0;
+
+    /* init game */
+    server_reset_game(&game);
+
+    /* init timer threads */
+    for (tmp = 0; tmp < MAX_TIMER_THREADS; tmp++) {
+        timer_threads[tmp] = NO_THREAD;
+    }
+
+    /* init connections */
+    for (tmp = 0; tmp < MAX_CONNECTIONS; tmp++) {
+        connections[tmp] = NO_THREAD;
+    }
+
+    /* init games */
+    for (tmp = 0; tmp < MAX_GAMES; tmp++) {
+        server_reset_game(&games[tmp]);
+        games[tmp].id = tmp;
+    }
+}
+
+/*
  * Main function.
  */ 
 int main(int argc, char *argv[])
@@ -1235,7 +1272,6 @@ int main(int argc, char *argv[])
     struct in_addr ip_addr;
     unsigned int incoming_addr_len = 0;
     pthread_t cleaner_thread = NO_THREAD;
-//    thread_arg thread_args[MAX_GAMES*2];
     int thread_err = 0;
     char log_msg[255];
     int tmp_curr_conn = 0;
@@ -1243,15 +1279,8 @@ int main(int argc, char *argv[])
     int port = SRV_PORT;
     thread_arg* player_thread_arg;
 
-    /* init timer threads */
-    for (tmp = 0; tmp < MAX_TIMER_THREADS; tmp++) {
-        timer_threads[tmp] = NO_THREAD;
-    }
-
-    /* init connections */
-    for (tmp = 0; tmp < MAX_CONNECTIONS; tmp++) {
-        connections[tmp] = NO_THREAD;
-    }
+    // initialize arrays
+    initialize();
 
     /* load arguments */
     ip_addr.s_addr = htonl(INADDR_ANY);

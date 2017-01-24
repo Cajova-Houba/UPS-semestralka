@@ -12,6 +12,8 @@
  * Structure representing a player.
  */
 typedef struct{
+    /*OK if the player is free to use*/
+    int free;
     int id;
     char nick[10];
     int socket;
@@ -19,6 +21,12 @@ typedef struct{
     int port;
     char turn_word[TURN_WORD_LENGTH+1];
 } Player;
+
+
+/*
+ * Returns ok if the player slot is free to use.
+ */
+int is_player_free(Player* player);
 
 /*
  * Initializes a new player and stores it in the player variable.

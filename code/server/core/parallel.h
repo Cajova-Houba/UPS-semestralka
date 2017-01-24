@@ -59,6 +59,12 @@ pthread_mutex_t mutex_timer_threads;
 pthread_mutex_t mutex_winner;
 
 /*
+ * Mutex for operations over game structure.
+ * Will be used for all instances.
+ */
+pthread_mutex_t mutex_game;
+
+/*
  * Semaphores for switching turns.
  */
 sem_t p1_sem;

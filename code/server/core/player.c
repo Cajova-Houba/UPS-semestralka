@@ -1,10 +1,23 @@
 #include "player.h"
+#include "../common/seneterror.h"
+
+/*
+ * Returns ok if the player slot is free to use.
+ */
+int is_player_free(Player* player) {
+    if(player->free == OK) {
+        return OK;
+    } else {
+        return 0;
+    }
+}
 
 /*
  * Initializes a new player and stores it in the player variable.
  * Generates a new set of stones for player.
  */
 void initialize_player(Player* player, int id, char* nick, int socket, int second_player, __uint32_t addr, int port) {
+    player->free = 0;
     player->id = id;
     strcpy(player->nick, nick);
     player->socket = socket;
@@ -15,6 +28,7 @@ void initialize_player(Player* player, int id, char* nick, int socket, int secon
 
 void clean_player(Player* player) {
     player->nick[0] = '\0';
+    player->free = OK;
 }
 
 /*

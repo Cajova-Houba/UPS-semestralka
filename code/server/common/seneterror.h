@@ -34,7 +34,8 @@ typedef enum {
 	TOO_MAY_ATTEMPTS,
 	MSG_TIMEOUT,
 	CLOSED_CONNECTION,
-	OK
+	OK,
+	NO_GAME_SLOT_FREE
 } state;
 
 #endif

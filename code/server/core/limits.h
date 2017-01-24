@@ -23,14 +23,16 @@
 #define DEF_TIMEOUT             10
 
 /*
- * Max time to receive response to alive message.
+ * Max time[ms] to receive response to alive message.
  */
-#define ALIVE_TIMEOUT           10000
+#define ALIVE_TIMEOUT           100000
 
 /*
- * Timeout for messages while the thread is waiting
+ * Timeout[ms] for messages while the thread is waiting.
+ * This have to be small, because it's also used as a
+ * 'thread.sleep' in active waiting.
  */
-#define WAITING_TIMEOUT         1000
+#define WAITING_TIMEOUT         500
 
 /*
  * Max number of attempts for player to send a correct nick.

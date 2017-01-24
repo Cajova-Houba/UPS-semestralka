@@ -4,6 +4,8 @@
 
 #include "player.h"
 #include "../common/seneterror.h"
+#include "../common/slog.h"
+#include "player.h"
 
 #define MAX_PLAYERS				2
 
@@ -47,6 +49,13 @@
 #define GAME_FREE_FLAG          6
 
 /*
+ * Pointers to the players array of Game_struct.
+ */
+#define PLAYER_1                0
+#define PLAYER_2                1
+
+
+/*
  * ======================
  * CONTROL VARIABLES
  * ======================
@@ -66,6 +75,9 @@ typedef enum {
  * Game structure. Contains both players and game flags.
  */
 typedef struct {
+    /*set in initialization process and shouldn't change*/
+    int id;
+
     Player players[MAX_PLAYERS];
     int flags;
     int winner;
@@ -79,7 +91,24 @@ typedef struct {
  */
 
 /*
- * Sets the FREE flag to 1.
+ * Returns the number of initialized players in the game.
+ */
+int get_players_count(Game_struct* game);
+
+/*
+ * Resets either first or second player (depends on my_player)
+ * and if both players are reset, resets the game.
+ */
+void leave_from_game(Game_struct* game, int my_player);
+
+/*
+ * Returns OK if the game is free. That means the FREE flag is set
+ * and game has 1 player at max.
+ */
+int is_game_free(Game_struct* game);
+
+/*
+ * Sets the FREE flag to 1. And resets the players.
  */
 void reset_game(Game_struct* game);
 

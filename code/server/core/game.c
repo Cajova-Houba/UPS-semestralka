@@ -1,17 +1,57 @@
 
 
 #include "game.h"
-#include "../common/slog.h"
 
 /*
- * Sets the FREE flag to 1.
+ * Resets either first or second player (depends on my_player)
+ * and if both players are reset, resets the game.
  */
-void reset_game(Game_struct* game) {
-    set_game_flag(&(game->flags), GAME_FREE_FLAG);
+void leave_from_game(Game_struct* game, int my_player) {
+    if(game == NULL) {
+        return;;
+    }
+
+    if(my_player == 0) {
+        // reset the first player
+        clean_player(&(game->players[PLAYER_1]));
+    } else if(my_player == 1) {
+        clean_player(&(game->players[PLAYER_2]));
+    }
+
+    // both players are free => reset the game
+    if(is_player_free(&game->players[PLAYER_1]) && is_player_free(&game->players[PLAYER_2])) {
+        reset_game(game);
+    }
 }
 
 /*
- * Resets all flags.
+ * Returns OK if the game is free. That means the FREE flag is set
+ * and game has 1 player at max.
+ */
+int is_game_free(Game_struct* game) {
+    if(get_game_flag(&(game->flags), GAME_FREE_FLAG) != 1) {
+        return 0;
+    }
+
+    // at least one player is uninitialized
+    if(is_player_free(&(game->players[PLAYER_1])) == OK || is_player_free(&(game->players[PLAYER_2])) == OK) {
+        return OK;
+    } else {
+        return 0;
+    }
+}
+
+/*
+ * Sets the FREE flag to 1. And resets the players.
+ */
+void reset_game(Game_struct* game) {
+    set_game_flag(&(game->flags), GAME_FREE_FLAG);
+    clean_player(&game->players[PLAYER_1]);
+    clean_player(&game->players[PLAYER_2]);
+}
+
+/*
+ * Resets all flags. FREE flag is set to 0.
  */
 void init_new_game(Game_struct* game, int first_player) {
     game->winner = -1;
@@ -20,7 +60,8 @@ void init_new_game(Game_struct* game, int first_player) {
     unset_game_flag(&(game->flags), WAITING_P1_FLAG);
     unset_game_flag(&(game->flags), WAITING_P2_FLAG);
     unset_game_flag(&(game->flags), WINNER_FLAG);
-    if(first_player == 0) {
+    unset_game_flag(&(game->flags), GAME_FREE_FLAG);
+    if(first_player == PLAYER_1) {
         unset_game_flag(&(game->flags), TURN_FLAG);
     } else {
         set_game_flag(&(game->flags), TURN_FLAG);
@@ -267,5 +308,22 @@ void print_flags(char *buffer, Game_struct *game) {
 
     sprintf(buffer, "Flags: game_ended: %d, game_started: %d, waiting_for_p1: %d, waiting_for_p2: %d, turn: %d\n",
                     gef,gsf,w1f,w2f,tf);
+}
+
+/*
+ * Returns the number of initialized players in the game.
+ */
+int get_players_count(Game_struct* game) {
+    int cntr = 0;
+
+    if(is_player_free(&(game->players[PLAYER_1])) != OK) {
+        cntr++;
+    }
+
+    if(is_player_free(&(game->players[PLAYER_2])) != OK) {
+        cntr++;
+    }
+
+    return cntr;
 }
 

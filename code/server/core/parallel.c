@@ -50,10 +50,15 @@ int init_ms() {
         return 0;
     }
 
-    if (sem_init(&player_sem, 0, 0) < 0) {
-        serror("server","Players semaphore initialization failed.\n");
+    if (pthread_mutex_init(&mutex_game, NULL) != 0) {
+        serror(SERVER_NAME, "Game mutex initialization failed.\n");
         return 0;
     }
+
+//    if (sem_init(&player_sem, 0, 0) < 0) {
+//        serror("server","Players semaphore initialization failed.\n");
+//        return 0;
+//    }
 
     if (sem_init(&cleaner_sem, 0, 0) < 0) {
         serror(SERVER_NAME, "Cleaner semaphore initialization failed.\n");
@@ -65,10 +70,10 @@ int init_ms() {
         return 0;
     }
 
-    if(sem_init(&turn_sem, 0, 0) < 0) {
-        serror(SERVER_NAME, "Turn semaphore initialization failed.\n");
-        return 0;
-    }
+//    if(sem_init(&turn_sem, 0, 0) < 0) {
+//        serror(SERVER_NAME, "Turn semaphore initialization failed.\n");
+//        return 0;
+//    }
 
     if(sem_init(&p1_sem, 0, 0) < 0) {
         serror(SERVER_NAME, "Player 1 turn semaphore initialization failed.\n");

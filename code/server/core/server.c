@@ -19,6 +19,7 @@
 #include "parallel.h"
 #include "game.h"
 #include "player.h"
+#include "limits.h"
 
 
 /* 
@@ -58,10 +59,6 @@
 #define HELP_PARAM_NAME         "help"
 #define PORT_PARM_NAME          "port"
 #define IP_PARAM_NAME           "ip"
-#define TIMEOUT_PARAM_NAME      "timeout"
-
-#define MIN_TIMEOUT             1
-#define MAX_TIMEOUT             60
 
 
 /*
@@ -106,10 +103,7 @@ int cleaner_index;
  */
 Game_struct game;
 
-/*
- * Initialized on the start of server.
- */
-int timeout;
+Game_struct games[MAX_GAMES];
 
 /*
  * =====================================================================
@@ -260,13 +254,18 @@ void decrement_players() {
 void get_curr_conn(int *variable) {
 	int i;
 	pthread_mutex_lock(&mutex_curr_conn);
-	
+
 	for(i = 0; i < MAX_CONNECTIONS; i++) {
 		if(connections[i] == NO_THREAD) {
 			*variable = i;
 			break;
 		}
 	}
+
+    if(i == MAX_CONNECTIONS) {
+        *variable = MAX_CONNECTIONS;
+    }
+
 	 
 	pthread_mutex_unlock(&mutex_curr_conn);
 }
@@ -335,64 +334,6 @@ void server_is_game_waiting(int *res) {
 }
 
 /*
- * If the waiting_for_p<player> is 1, stores 1 into the res.
- */
-void is_game_waiting_for_player(int *res, int player) {
-    pthread_mutex_lock(&mutex_is_waiting);
-
-    if(player == 0) {
-        *res = get_game_flag(&(game.flags), WAITING_P1_FLAG);
-    } else if (player == 1) {
-        *res = get_game_flag(&(game.flags), WAITING_P2_FLAG);
-    } else {
-        *res = 0;
-    }
-
-    pthread_mutex_unlock(&mutex_is_waiting);
-}
-
-/*
- * Sets the waiting_for_p<player+1> flag to 1.
- */
-void set_waiting_for(int player) {
-    pthread_mutex_lock(&mutex_is_waiting);
-
-    if(player == 0) {
-        set_game_flag(&(game.flags), WAITING_P1_FLAG);
-    } else if (player == 1) {
-        set_game_flag(&(game.flags), WAITING_P2_FLAG);
-    }
-
-    pthread_mutex_unlock(&mutex_is_waiting);
-}
-
-void unset_waiting_for(int player) {
-    pthread_mutex_lock(&mutex_is_waiting);
-
-    if(player == 0) {
-        unset_game_flag(&(game.flags), WAITING_P1_FLAG);
-    } else if (player == 1) {
-        unset_game_flag(&(game.flags), WAITING_P2_FLAG);
-    }
-
-    pthread_mutex_unlock(&mutex_is_waiting);
-}
-
-/*
- * Stores the index to timer_threads array for new thread
- * to variable.
- */
-void get_timer_thread_num(int *variable) {
-    int cnt = 0;
-
-    while(cnt < MAX_TIMER_THREADS && timer_threads[cnt] != NO_THREAD) {
-        cnt ++;
-    }
-
-    *variable = cnt;
-}
-
-/*
  * Handles the critical section and calls an end_game()
  * function from the game.h.
  * Also clears the nicks in game struct.
@@ -424,79 +365,6 @@ void server_end_game() {
  */
 
 /*
- * The action to be performed after thread finishes the waiting.
- * It will check if the game is still waiting for a player and if it is, it will
- * mark the other player as the winner and ends the game.
- * If it isn't waiting anymore, this function won't do anything.
- */
-void waiting_thread_after(int waiting_for) {
-    int tmp;
-    char log_msg[100];
-    is_game_waiting_for_player(&tmp, waiting_for);
-    if(tmp == 1) {
-        // the game is still waiting for a player
-        sprintf(log_msg, "The player %d still isn't connected. Other player wins the game.\n", waiting_for);
-        sdebug(TIMER_THREAD_NAME, log_msg);
-
-
-        // check the end of the game
-        if (is_end_of_game(&game) == 1) {
-            sdebug(TIMER_THREAD_NAME, "The game has already ended.\n");
-            return;
-        }
-
-        // set the winner and end game
-        if(waiting_for == 0) {
-            server_set_winner(1);
-        } else {
-            server_set_winner(0);
-        }
-        decrement_players();
-        server_end_game();
-
-        // wake waiting player threads
-//        switch_turn(&game, waiting_for);
-        if(waiting_for == 0) {
-            sem_post(&p2_sem);
-        } else {
-            sem_post(&p1_sem);
-        }
-    } else {
-        sprintf(log_msg, "The game is not waiting for player %d anymore.\n", waiting_for);
-        sdebug(TIMER_THREAD_NAME, log_msg);
-    }
-}
-
-/*
- * Starts a waiting thread.
- * Returns -1 if an error occurs.
- */
-int start_waiting_thread(int waiting_for) {
-    int tmp, thread_err;
-    char err[250];
-    Timer_thread_struct* tt_args = malloc(sizeof(Timer_thread_struct));
-
-    get_timer_thread_num(&tmp);
-
-    // create the argument structure - the timer thread will free it
-    tt_args->waiting_for = waiting_for;
-    tt_args->timeout = (unsigned )timeout;
-    tt_args->cleaning_function = &clean_me;
-    tt_args->perform_after = &waiting_thread_after;
-    tt_args->thread_number = -tmp - 1;
-
-    // start the timer thread
-    thread_err = pthread_create(&timer_threads[tmp], NULL, timer_thread, (void*)tt_args);
-    if(thread_err) {
-        sprintf(err, "Error while creating a timer thread %d: %s\n",tmp, strerror(thread_err));
-        serror(SERVER_NAME,err);
-        return -1;
-    }
-
-    return 0;
-}
-
-/*
  * Thread function which will wait for signal to clean thread slots.
  */
 void *cleaner(void *arg) {
@@ -514,8 +382,13 @@ void *cleaner(void *arg) {
         if(thread_index >= 0 && thread_index <= MAX_CONNECTIONS) {
             sprintf(log_msg, "Cleaning player thread on index: %d.\n", thread_index);
             sdebug(SERVER_NAME, log_msg);
-            pthread_join(connections[thread_index], NULL);
-            connections[thread_index] = NO_THREAD;
+            if(connections[thread_index] == NO_THREAD) {
+                sprintf(log_msg, "Player thread on index %d is already cleaned.\n",thread_index);
+                sdebug(SERVER_NAME, log_msg);
+            } else {
+                pthread_join(connections[thread_index], NULL);
+                connections[thread_index] = NO_THREAD;
+            }
         } else if( thread_index >= -MAX_TIMER_THREADS && thread_index <= -1) {
             sprintf(log_msg, "Cleaning timer thread on index: %d.\n", -thread_index -1);
             sdebug(SERVER_NAME, log_msg);
@@ -785,105 +658,6 @@ int wait_for_nick(int socket, char* buffer) {
 }
 
 /*
- * Checks, if the game is waiting for a player. If it's waiting, it will
- * compare the port and addr with the data stored in 'players' variable and
- * returns:
- *
- * GAME_NOT_WAITING: Game isn't waiting for anybody or addr/port combination doesn't match stored data.
- * WAITING_P1: Game is waiting for player 1 and addr/port combination matches the one in players[0]
- * WAITING_P2: Game is waiting for player 2 and addr/port combination matches the one in players[1];
- */
-//int check_waiting_player(uint32_t addr, int port, int *res) {
-//    pthread_mutex_lock(&mutex_players_check);
-//
-//    int p1w = 0;
-//    int p2w = 0;
-//
-//    // the game is already running and is waiting for the player
-//    is_game_waiting_for_player(&p1w, 1);
-//    is_game_waiting_for_player(&p2w, 2);
-//    if (p1w == 1 && game.players[0].addr == addr && game.players[1].port == port) {
-//        *res = WAITING_P1;
-//    } else if (p2w == 1 && game.players[0].addr == addr && game.players[1].port == port) {
-//        *res = WAITING_P2;
-//    } else {
-//        *res = GAME_NOT_WAITING;
-//    }
-//
-//    pthread_mutex_unlock(&mutex_players_check);
-//}
-
-/*
- * Sends the waiting for my_player message to other player (not to my_player).
- */
-void send_waiting_message(int my_player) {
-    int other_player;
-    if(my_player == 0) {
-        other_player = 1;
-    } else if (my_player == 1) {
-        other_player = 0;
-    } else {
-        return;
-    }
-
-    send_waiting_for_player_msg(game.players[other_player].socket, game.players[my_player].nick);
-}
-
-/*
- * Sets the waiting flang, sends the waiting message
- * to other player and starts the timer thread.
- */
-//void handle_disconnect(int disconnected_player) {
-//    // set waiting flag
-//    set_waiting_for(disconnected_player);
-//
-//    // send message to other player
-//    send_waiting_message(disconnected_player);
-//
-//    // start timer thread
-//    start_waiting_thread(disconnected_player);
-//}
-
-/*
- * Handles the status of received end turn message.
- * Returns:
- *  STOP_GAME_LOOP: game loop should stop.
- *  OK
- */
-//int handle_end_turn_message(int msg_status, int my_player, int other_player) {
-//    char log_msg[255];
-//
-//    if (msg_status == MSG_TIMEOUT) {
-//        sprintf(log_msg, "Player %d timed out.\n");
-//        serror(PLAYER_THREAD_NAME, log_msg);
-//        server_set_winner(other_player);
-//        return STOP_GAME_LOOP;
-//    } else if (msg_status == 0) {
-//        debug_player_message(log_msg, "Player %d has disconnected, waiting for him to reconnect.\n",
-//                             my_player);
-//
-//        handle_disconnect(my_player);
-//
-//        return STOP_GAME_LOOP;
-//    } if(msg_status < 0) {
-//        sprintf(log_msg, "Error while receiving end turn message: %d\n", msg_status);
-//        serror(PLAYER_THREAD_NAME, log_msg);
-//        //set the other player as winner
-//        server_set_winner(other_player);
-//        return STOP_GAME_LOOP;
-//    }  else if (msg_status == 2) {
-//        debug_player_message(log_msg, "Player %d quit. Other player wins the game.\n", my_player);
-//
-//        server_set_winner(other_player);
-//        return STOP_GAME_LOOP;
-//    } else {
-//        debug_player_message(log_msg, "Player %d has ended his turn.\n", my_player);
-//
-//        return OK;
-//    }
-//}
-
-/*
  * Call when the game is to be ended adn the winner is set.
  */
 void player_thread_end_game(int socket, int my_player) {
@@ -931,10 +705,13 @@ int send_start_turn_to_player(int socket, int my_player, int other_player) {
 
 /*
  * Sets clean me and closes the socket.
+ * Also frees the argument structure.
  */
-void set_cleanme_close_sock(int threadnum, int sock) {
-    close(sock);
-    clean_me(threadnum);
+void clean_up(thread_arg *arg) {
+    int tn = arg->thread_number;
+    close(arg->socket);
+    free(arg);
+    clean_me(tn);
 }
 
 /*
@@ -1144,7 +921,6 @@ void game_loop(int socket, int my_player, int other_player) {
             case VALIDATE_TURN:
                 debug_player_message(log_msg, "Validating player %d turn.\n", my_player);
                 turn_valid = validate_turn(game.players[0].turn_word, game.players[1].turn_word, tmp_p1_word, tmp_p2_word, my_player);
-//                turn_valid = OK;
                 if (turn_valid != OK) {
                     debug_player_message(log_msg, "Turn of player %d is not valid, skipping it!\n", my_player);
                     msg_status = send_err_msg(socket, ERR_TURN);
@@ -1244,10 +1020,7 @@ void *player_thread(void *arg) {
 	int thread_num = args->thread_number;
     uint32_t addr = args->addr;
     int port = args->port;
-//	int nick_valid = 0;
 	int tmp = 0;
-
-//    Message message;
 
     /*
 	 * Index in the array of players.
@@ -1264,19 +1037,20 @@ void *player_thread(void *arg) {
     if(my_player == 2) {
         serror(PLAYER_THREAD_NAME,"Server full, sorry.\n");
         send_err_msg(socket, ERR_SERVER_FULL);
-        set_cleanme_close_sock(thread_num, socket);
+        clean_up(args);
+        free(args);
         return NULL;
     } else if (tmp) {
         serror(PLAYER_THREAD_NAME, "Game is already running, sorry.\n");
         send_err_msg(socket, ERR_GAME_ALREADY_RUNNING);
-        set_cleanme_close_sock(thread_num, socket);
+        clean_up(args);
         return NULL;
     }
 
     // wait for nick
     tmp = wait_for_nick(socket, buffer);
     if(tmp != OK) {
-        set_cleanme_close_sock(thread_num, socket);
+        clean_up(args);
         return NULL;
     }
 
@@ -1294,7 +1068,7 @@ void *player_thread(void *arg) {
         sprintf(log_msg, "Error occurred while sending OK message to socket %d.\n", socket);
         serror(PLAYER_THREAD_NAME, log_msg);
         send_err_msg(socket, msg_status);
-        set_cleanme_close_sock(thread_num, socket);
+        clean_up(args);
         return NULL;
     }
 
@@ -1303,7 +1077,7 @@ void *player_thread(void *arg) {
     if(my_player >= 2) {
         serror(PLAYER_THREAD_NAME,"Server full, sorry.\n");
         send_err_msg(socket, ERR_SERVER_FULL);
-        set_cleanme_close_sock(thread_num, socket);
+        clean_up(args);
         return NULL;
     }
 
@@ -1329,7 +1103,7 @@ void *player_thread(void *arg) {
             if(msg_status == STOP_GAME_LOOP) {
                 clean_player(&game.players[my_player]);
                 decrement_players();
-                set_cleanme_close_sock(thread_num, socket);
+                clean_up(args);
                 return NULL;
             }
 
@@ -1342,29 +1116,6 @@ void *player_thread(void *arg) {
     get_player_nick(1, p2name);
     send_start_game_msg(socket, p1name, p2name);
 
-    /*
-     * Check if any player has disconnected and the game is waiting for him
-     * to reconnect.
-     */
-//    check_waiting_player(addr, port, &my_player);
-//    if(my_player != GAME_NOT_WAITING) {
-//        // player has returned
-//        debug_player_message(log_msg, "Player %d has returned to the game!\n", my_player);
-//
-//        // set other_player
-//        other_player = (my_player == 0 ? 1 : 0 );
-//
-//        // unset the waiting flag
-//        unset_waiting_for(my_player);
-//
-//        // send the message to other client, the the player has returned - is this even necessary?
-//        //TODO: implement this
-//
-//    } else {
-
-
-//    }
-
     // whole game loop handled inside this function
     game_loop(socket, my_player, other_player);
 
@@ -1375,7 +1126,7 @@ void *player_thread(void *arg) {
 
         sprintf((char*)&log_msg, "Player %d disconnected. Ending his thread.\n", my_player);
         sinfo(PLAYER_THREAD_NAME, log_msg);
-        set_cleanme_close_sock(thread_num, socket);
+        clean_up(args);
         return NULL;
     }
 
@@ -1383,7 +1134,7 @@ void *player_thread(void *arg) {
 
 	sinfo(PLAYER_THREAD_NAME,"End of thread.\n");
 
-	set_cleanme_close_sock(thread_num, socket);
+    clean_up(args);
 	return NULL;
 } 
 
@@ -1438,20 +1189,10 @@ void load_ip(char* argv, struct in_addr* addr) {
     }
 }
 
-void load_timeout(char* argv, int* timeout) {
-    char log_msg[100];
-    *timeout = (int)strtol(argv, NULL , 10);
-    if (*timeout < MIN_TIMEOUT || *timeout > MAX_TIMEOUT) {
-        sprintf(log_msg, "Provided timeout value %s is out of possible range, using default %d.\n", argv, DEF_TIMEOUT);
-        sdebug(SERVER_NAME, log_msg);
-        *timeout = DEF_TIMEOUT;
-    }
-}
-
 /*
  * Loads data from arguments and return 1 if the program should exist afterwards.
  */
-int load_arguments(int argc, char* argv[], int* port, struct in_addr* addr, int* timeout) {
+int load_arguments(int argc, char* argv[], int* port, struct in_addr* addr) {
     int cntr = 1;
     char log_msg[100];
 
@@ -1469,11 +1210,6 @@ int load_arguments(int argc, char* argv[], int* port, struct in_addr* addr, int*
             // load ip
             cntr++;
             load_ip(argv[cntr], addr);
-            cntr++;
-        } else if (strcmp(argv[cntr], TIMEOUT_PARAM_NAME) == 0){
-            //load timeout
-            cntr++;
-            load_timeout(argv[cntr], timeout);
             cntr++;
         } else {
             // unknown parameter
@@ -1499,22 +1235,27 @@ int main(int argc, char *argv[])
     struct in_addr ip_addr;
     unsigned int incoming_addr_len = 0;
     pthread_t cleaner_thread = NO_THREAD;
-    thread_arg thread_args[MAX_CONNECTIONS];
+//    thread_arg thread_args[MAX_GAMES*2];
     int thread_err = 0;
     char log_msg[255];
     int tmp_curr_conn = 0;
     int tmp = 0;
     int port = SRV_PORT;
-    timeout = DEF_TIMEOUT;
+    thread_arg* player_thread_arg;
 
     /* init timer threads */
     for (tmp = 0; tmp < MAX_TIMER_THREADS; tmp++) {
         timer_threads[tmp] = NO_THREAD;
     }
 
+    /* init connections */
+    for (tmp = 0; tmp < MAX_CONNECTIONS; tmp++) {
+        connections[tmp] = NO_THREAD;
+    }
+
     /* load arguments */
     ip_addr.s_addr = htonl(INADDR_ANY);
-    if(load_arguments(argc, argv, &port, &ip_addr, &timeout) == 1) {
+    if(load_arguments(argc, argv, &port, &ip_addr) == 1) {
         return 0;
     }
 
@@ -1575,7 +1316,7 @@ int main(int argc, char *argv[])
 		if (incoming_sock < 0)
 		{
 			close(sock);
-			serror("server","Error while accepting a new connection.");
+			serror("server","Error while accepting a new connection.\n");
 		}
 		sprintf(log_msg, "Connection from %s:%i\n",
 	        	inet_ntoa(incoming_addr.sin_addr),
@@ -1583,19 +1324,25 @@ int main(int argc, char *argv[])
 		);
 		sinfo("server",log_msg);
 		get_curr_conn(&tmp_curr_conn);
-		if(tmp_curr_conn == MAX_CONNECTIONS - 1) {
-			sinfo(SERVER_NAME,"Server can't accept any new connections.");
+		if(tmp_curr_conn >= MAX_CONNECTIONS) {
+			sinfo(SERVER_NAME,"Server can't accept any new connections.\n");
+            send_err_msg(incoming_sock, ERR_SERVER_FULL);
 			continue;
 		}
 
-		thread_args[tmp_curr_conn].thread_number = tmp_curr_conn;
-		thread_args[tmp_curr_conn].socket = incoming_sock;
-        thread_args[tmp_curr_conn].addr = incoming_addr.sin_addr.s_addr;
-        thread_args[tmp_curr_conn].port = incoming_addr.sin_port;
-		thread_err = pthread_create(&connections[tmp_curr_conn], NULL, player_thread,(void *)&thread_args[tmp_curr_conn]);
+        sprintf(log_msg, "Creating a new player thread on index %d.\n", tmp_curr_conn);
+        sinfo(SERVER_NAME, log_msg);
+        player_thread_arg = malloc(sizeof(thread_arg));
+        player_thread_arg->thread_number = tmp_curr_conn;
+        player_thread_arg->socket = incoming_sock;
+        player_thread_arg->addr = incoming_addr.sin_addr.s_addr;
+        player_thread_arg->port = incoming_addr.sin_port;
+		thread_err = pthread_create(&connections[tmp_curr_conn], NULL, player_thread,(void *)player_thread_arg);
 		if(thread_err) {
+            free(player_thread_arg);
 			sprintf(log_msg, "Error: %s\n",strerror(thread_err));
 			serror(SERVER_NAME,log_msg);
+            connections[tmp_curr_conn] = NO_THREAD;
             break;
 		}
 	}

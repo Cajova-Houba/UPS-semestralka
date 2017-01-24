@@ -4,6 +4,13 @@
 #include "../common/slog.h"
 
 /*
+ * Sets the FREE flag to 1.
+ */
+void reset_game(Game_struct* game) {
+    set_game_flag(&(game->flags), GAME_FREE_FLAG);
+}
+
+/*
  * Resets all flags.
  */
 void init_new_game(Game_struct* game, int first_player) {

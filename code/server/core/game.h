@@ -42,6 +42,11 @@
 #define WINNER_FLAG             5
 
 /*
+ * If set to 0, game is not free, otherwise game is free to use.
+ */
+#define GAME_FREE_FLAG          6
+
+/*
  * ======================
  * CONTROL VARIABLES
  * ======================
@@ -73,6 +78,10 @@ typedef struct {
  * ========================
  */
 
+/*
+ * Sets the FREE flag to 1.
+ */
+void reset_game(Game_struct* game);
 
 /*
  * Resets all flags.

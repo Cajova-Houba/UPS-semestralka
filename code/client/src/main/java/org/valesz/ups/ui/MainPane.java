@@ -32,9 +32,6 @@ public class MainPane extends BorderPane {
     public static final Font DEF_FONT = Font.font("Tahoma", FontWeight.NORMAL, 20);
     public static final Font DEF_SMALL_FONT = Font.font("Tahoma", FontWeight.NORMAL, 12);
     public static final String GAME_TITLE = "Senet";
-    public static final String CLIENT_TITLE = "Klient";
-    public static final int CANVAS_WIDTH = 650;
-    public static final int CANVAS_HEIGHT = 210;
 
     private TcpClient tcpClient;
 
@@ -126,7 +123,7 @@ public class MainPane extends BorderPane {
 
         HBox buttons = new HBox();
         buttons.setSpacing(5);
-        exitButton = new Button("Oejít");
+        exitButton = new Button("Odejít");
         exitButton.setOnAction(event -> {onExitClick();});
         buttons.getChildren().add(exitButton);
         endTurnButton = new Button("Ukončit tah");

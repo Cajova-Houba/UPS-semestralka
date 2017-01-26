@@ -6,6 +6,7 @@
 \usepackage{float}
 \usepackage{amsmath}
 \usepackage{listings}
+\usepackage{longtable}
 \graphicspath{{.}}
 
 \begin{document}
@@ -24,6 +25,8 @@
 	\section{Popis hry Senet}
 	Senet je staroegyptská desková hra pro dva hráče. Každý hráč má 5 kamenů, které jsou na přeskáčku rozestavěny na hrací desce (1. hráč má kámen na poli 1). Hází se dřívky, možné hodnoty jsou 1 - 5 (na rozdíl od kostky mají různou pravděpodobnost). 
 	
+	Hrací deska je rozdělena do třech řad po deseti sloupcích, dohromady tedy třicet polí. Pokud kámen dosáhne na 30. pole, může v dalším tahu opustit hrací plochu.
+	
 	Hráč si během tahu vybere jeden kámen, kterým se posune o hozenou hodnotu. Může se pohnout dopředu i do zadu, případně může tah přeskočit. Pokud je na poli, kam se chce hráč pohnout kámen druhého hráče kameny se vymění. Pokud má druhý hráč za sebou dva a více kamenů, výměna není možná. Cílem hry je dostat všechny kameny z hrací desky.
 	
 	\section{Popis řešení}
@@ -33,40 +36,150 @@
 	
 	Jednotlivé zprávy jsou uvedeny v následující tabulce:
 	
-	\begin{tabular} {|c | p{5cm} | c | p{5cm} |}
-		\hline
-		Název & Popis & Typ & Obsah \\
-		\hline
-		\hline
-		Error & Chybová zpráva. Používá klient i server. & ERR & Dva znaky s kódem chyby.\\
-		\hline
-		Start game & Zpráva oznamující klientovi začátek hry. Posílá pouze server.& INF & Řetězec 'START\_GAME\verb|nick1|,\verb|nick2|;'.\\
-		\hline
-		End game & & INF & Řetězec 'END\_GAME\verb|nick|;'. Kde \verb|nick| je nick vítěze. \\
-		\hline
-		Is alive & & INF &  Řetězec 'ALIVE'.\\
-		\hline
-		Start turn & & CMD &  Tahová slova obou hráčů. 1. je tahové slovo 1. hráče.\\
-		\hline
-		OK info & & INF &  Řetězec 'OK'.\\
-		\hline
-		New player & & CMD  & Řetězec ve tvaru '\verb|délka|\verb|nick|. Kde \verb|délka| je jeden znak (cifra), který určuje délku nicku.\\	
-		\hline
-		Exit & & INF &  Řetězec 'EXIT'.\\
-		\hline
-		End turn & & INF  & Tahová slova obou hráčů. 1. je tahové slovo 1. hráče.\\
-		\hline
-		
-		\hline
-	\end{tabular}
+	\begin{center}
+		\begin{longtable} {|c | p{5cm} | c | p{5cm} |}
+			\caption{Zprávy posílané serverm klientovi} \\
+			\hline
+			Název & Popis & Typ & Obsah \\
+			\hline
+			\hline
+			Error & Chybová zpráva. Používá klient i server. & ERR & Dva znaky s kódem chyby.\\
+			\hline
+			Start game & Zpráva oznamující klientovi začátek hry. Posílá pouze server.& INF & Řetězec 'START\_GAME\verb|nick1|,\verb|nick2|;'.\\
+			\hline
+			End game & Zpráva oznamující klientovi konec hry a vítěze. Posílá pouze server& INF & Řetězec 'END\_GAME\verb|nick|;'. Kde \verb|nick| je nick vítěze. \\
+			\hline
+			Start turn & Zpráva oznamující klientovi začátek nového tahu. Klient si updatuje tahová slova uložená u sebe podle tahových slov z této zprávy.& CMD &  Tahová slova obou hráčů. 1. je tahové slovo 1. hráče.\\
+			\hline
+		\end{longtable}
+	
+		\begin{longtable} {|c | p{5cm} | c | p{5cm} |}
+			\caption{Zprávy posílané klientem na server} \\
+			\hline
+			Název & Popis & Typ & Obsah \\
+			\hline
+			\hline
+			New player & Zpráva, kterou se klient přihlašuje na server. Server by měl v určitém časovém limitu odpovědět buď OK, nebo ERR. & CMD  & Řetězec ve tvaru '\verb|délka|\verb|nick|. Kde \verb|délka| je jeden znak (cifra), který určuje délku nicku.\\	
+			\hline
+			Exit & Klient oznamuje serveru, že odchází. Server by měl reagovat vítězstvím druhého hráče. & INF &  Řetězec 'EXIT'.\\
+			\hline
+			End turn & Zpráva oznamující server, že klient ukončil tah. Server by na ni měl v určitém časovém limitu odpovědět OK (pokud je tah validní), nebo ERR (pokud je tah nevalidní).& INF  & Tahová slova obou hráčů. 1. je tahové slovo 1. hráče.\\
+			\hline
+		\end{longtable}
+	
+		\begin{longtable} {|c | p{5cm} | c | p{5cm} |}
+			\caption{Zprávy posílané klientem i server} \\
+			\hline
+			Název & Popis & Typ & Obsah \\
+			\hline
+			\hline
+			Is alive & Obecný dotaz na život protějšku. Protějšek by měl do určitého časového limitu (může být jiný u klienta i serveru) odpovědět OK zprávou.& INF &  Řetězec 'ALIVE'.\\			
+			\hline
+			OK info & Ok zpráva. Použitá k potvrzování.& INF &  Řetězec 'OK'.\\			
+			\hline
+		\end{longtable}
+	
+		\begin{longtable} {| c | p{12cm} | }
+			\caption{Tabulka obsahující chybové kódy} \\
+			
+			\hline
+			Kód chyby & Význam \\
+			\hline
+			\hline
+			50 & Obecná chyba. Pokud je přijatý jakýkoliv jiný chybový kód, měl by být interpretován takto.\\
+			\hline
+			49 & Chyba při přijetí, nebo zpracování zprávy.\\
+			\hline
+			48 & Zpráva má chybný typ.\\
+			\hline
+			47 & Zpráva má chybný obsah. \\
+			\hline
+			46 & Chybný nick (obecná chyba).\\
+			\hline
+			45 & Nick už je na ve hře zaregistrovaný.\\
+			\hline
+			44 & Nick nesplňuje požadavek na délku.\\
+			\hline
+			43 & Server je plný a nemůže přijmout dalšího hráče.\\
+			\hline
+			42 & Teď není můj tah. Server touto chybou odpovídá na téměř všechny zprávy odeslané klientem, který není na tahu.\\
+			\hline
+			41 & Hra už je spuštěná. Tato chyba byla použita ve staré verzi.\\
+			\hline
+			40 & Tah odeslaný klientem byl vyhodnocen jako neplatný.\\
+			\hline
+			39 & Maximální doma pro přijetí zprávy uplynula (timeout). Například pokud se klient přihlásí na server a nepošle nick v daném časovém limitu.\\
+			\hline
+			38 & Maximální počet pokusů pro přijetí zprávy dosažen. Například pokud je maximální počet pokusů na zaslání nicku zastaven na tři, bude tato chyba vrácena po přijetí 3. chybné zprávy.\\
+			\hline
+			37 & Nečekaná zpráva. Například pokud server očekává nick a klient pošle zprávu o konci tahu (nebo jinou validní zprávu).\\
+			\hline
+		\end{longtable}
+	\end{center}
+
 
 	\subsection{Tahové slovo}
 	Tahové slovo uchovává informaci o tahu. Jedná se o pole 5 čísel, kde každé představuje současnou pozici hráčova kamene. V protokolu je tahové slovo implementováno polem 10 znaků, kde každé dva znaky představují číslo v dvojciferné podobně (1 je tedy '0','1').
+	
+	Příklad tahového slova:
+	
+	\begin{center}
+		\begin{tabular} {| c || c | c | c | c | c | c | c}
+			\hline
+			Kámen & 1 & 2 & 3 & 4 & 5 & Tahové slovo\\
+			\hline
+			\hline
+			Pozice hráče 1 & 1& 3& 5& 7& 9 & \verb|0103050709|\\
+			\hline
+			\hline
+			Pozice hráče 2 & 2& 4& 6& 8& 10& \verb|0204060810|\\
+						
+			\hline
+		\end{tabular}
+	
+	\end{center}
+	
+	Hodnoty na jednotlivých pozicích musí být v rozsahu 1 až 31, kde 31 značí, že kámen již opustil hrací desku. Tahová slova hráčů se zároveň nesmí překrývat - na jednom poli může být maximálně 1 kámen. Výjimku tvoří pole 31, které na hrací desce reálně neexistuje a v programu značí pouze opuštění hrací plochy.
+	
 		
 	\subsection{Server}
 	
-	\subsection{Klient}
 	
+	\subsubsection{Hra}
+	
+	Hra je na serveru naimplementována strukturou \verb|Game_struct| a příslušnými funkcemi v souboru \verb|game.h| (\verb|game.c|). Tento soubor neobsahuje žádný výkonný kód, pouze herní data a funkce, která tyto herní data podle pravidel mění. Obslužné vlánko hráče pak tyto funkce volá.
+	
+	Na serveru je pět herních slotů, každý po dvou hráčích. Pokud je všech 5 slotů plně obsazených, server po validaci nicku odešle chybovou zprávu(\verb|ERR43|).
+	
+	Systém přidělování volných herních slotů funguje na jednoduchém principu - herní slot je volný, pokud má hra nastaven příznak \verb|FREE| a alespoň jeden hráč ještě není inicializován. Po přihlášení druhého hráče je přínak \verb|FREE| vynulován. Pokud hra skončí a opouštějící hráč je poslední, hra si opět nastaví příznak \verb|FREE| a je možné ji znovu přidělit.
+	
+	\subsubsection{Obslužné vlákno a herní smyčka}
+	Obslužné vlákno a herní smyčka z pohledu server jsou popsány následujícícm diagramem:
+	
+	\paragraph{Popis stavů}
+	
+	\subsection{Klient}
+	\subsubsection{Architektura}
+	Klient je řešen architekturou MVC. Kontrolery se nachází v balíku \verb|org.valesz.ups.controller|, UI v balíku \verb|org.valesz.ups.ui|. Zbytek aplikace je tvořen modelovými třídami a pomocnými třídami (pro komunikaci přes tcp, konstanty...).
+	
+	\subsubsection{Zprávy}
+	Zprávy jsou implementovány třídami v balíku \verb|org.valesz.ups.common.message|. Implementace je rozdělena mezi příchozí a odchozí zprávy. Různé příchozí zprávy jsou odděděny od třídy \verb|AbstractReceivedMessage|, odchozí zprávy jsou tvořeny pouze třídou \verb|Message|. Obě mají podobnou strukturu (typ + obsah). \verb|AbstractReceivedMessage| má ale obsah genericky typovaný - kvůli lepšímu pozdějšímu zpracování v programu. \verb|Message| má obsah pevně typovaný na string.
+	
+	Možné typy zpráv jsou v enumu \verb|MessageType|. Tento enum je používán oběma typy zpráv.
+	
+	\subsubsection{Hra}
+	Hra je naimplementována v balíku \verb|org.valesz.ups.model.game|. Třída \verb|Game| obsahuje herní principy (posun kamene, hod dřívky...), které jsou volané herním kontrolerem (třída \verb|GameController|). Herní kontroler také odpovídá za update pozic kamenů hráčů (vždy po obdržení zprávy o nvém tahu) a přepínání tahů.
+	
+	Třída sama o sobě tedy pouze obsahuje herní data a metody, které je mohou měnit, ale sama nic nevykonává.
+	
+		
+	\subsubsection{Herní smyčka}
+	Herní smyčka z pohledu klienta je zobrazena na následujícím diagramu:
+	
+	\paragraph{Popis stavů}
+	
+
+		
 	\section{Postup na sestavení a spuštění}
 	\subsection{Server}
 	Pro úspěšný překlad serveru je nutná knihovna \verb|pthread.h|. Překlad a sestavení lze provést pomocí příkazů \verb|scons|, nebo \verb|cmake| v adresáři \verb|code/server|. Spustitelný soubor \verb|server| je v adresáři \verb|code/server/build|.

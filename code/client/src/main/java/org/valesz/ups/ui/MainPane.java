@@ -288,6 +288,14 @@ public class MainPane extends BorderPane {
         throwButton.setDisable(false);
     }
 
+    public void enableThrowButton() {
+        throwButton.setDisable(false);
+    }
+
+    public void disableThrowButton() {
+        throwButton.setDisable(true);
+    }
+
     public void showLeaveButton() {
         leaveButton.setVisible(true);
     }

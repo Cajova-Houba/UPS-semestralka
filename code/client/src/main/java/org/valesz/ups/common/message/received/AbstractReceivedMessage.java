@@ -10,7 +10,7 @@ import org.valesz.ups.common.message.MessageType;
  *
  * @author Zdenek Vales
  */
-public abstract class AbstractReceivedMessage<T> {
+public abstract class   AbstractReceivedMessage<T> {
 
     /**
      * Returns a message content.

@@ -119,9 +119,9 @@ public class GameController {
                     Throwable ex = tcpClient.getPreStartReceiverService().getException();
                     String msg = ex == null ? "no exception" : ex.getMessage();
                     if(ex instanceof SocketTimeoutException) {
-                        handleFailure("Server stopped responding and is probably dead.", "Server přestal odpovídat.");
+                        handleFailure("Server stopped responding and is probably dead.", ErrorMessages.SERVER_STOPPED_RESPONDING);
                     } else if (ex instanceof MaxAttemptsReached){
-                        handleFailure("Maximum number of attempts to receive start game message reached.", "Maximální počet pokusů na start hry dosažen.");
+                        handleFailure("Maximum number of attempts to receive start game message reached.", String.format(ErrorMessages.MAX_ATTEMPTS_REACHED_PATTERN, "začátek hry"));
                     } else {
                         handleFailure("Error while waiting for start game message: "+msg, ErrorMessages.COMMUNICATION_BREAKDOWN);
                     }
@@ -212,9 +212,11 @@ public class GameController {
         if(Game.getInstance().canThrowAgain()) {
             view.disableEndTurnButton();
             view.focusOnThrowButton();
+            view.enableThrowButton();
         } else {
             view.enableEndTurnButton();
             view.focusOnEndTurnButton();
+            view.disableThrowButton();
         }
 
         return thrown;
@@ -286,9 +288,9 @@ public class GameController {
                     Throwable ex = tcpClient.getPreStartReceiverService().getException();
                     String msg = ex == null ? "no exception" : ex.getMessage();
                     if(ex instanceof SocketTimeoutException) {
-                        handleFailure("Server stopped responding and is probably dead.", "Server přestal odpovídat.");
+                        handleFailure("Server stopped responding and is probably dead.", ErrorMessages.SERVER_STOPPED_RESPONDING);
                     } else if (ex instanceof MaxAttemptsReached){
-                        handleFailure("Maximum number of attempts to receive end turn confirmation reached.", "Maximální počet pokusů na potvrzení tahu dosažen.");
+                        handleFailure("Maximum number of attempts to receive end turn confirmation reached.", String.format(ErrorMessages.MAX_ATTEMPTS_REACHED_PATTERN, "potvrzení tahu"));
                     } else {
                         handleFailure("Error while waiting for end turn confirm message: "+msg, ErrorMessages.COMMUNICATION_BREAKDOWN);
                     }
@@ -333,9 +335,9 @@ public class GameController {
                     Throwable ex = tcpClient.getPostStartReceiverService().getException();
                     String msg = ex == null ? "no exception" : ex.getMessage();
                     if(ex instanceof SocketTimeoutException) {
-                        handleFailure("Server stopped responding and is probably dead.", "Server přestal odpovídat.");
+                        handleFailure("Server stopped responding and is probably dead.", ErrorMessages.SERVER_STOPPED_RESPONDING);
                     } else if (ex instanceof MaxAttemptsReached){
-                        handleFailure("Maximum number of attempts to receive start turn message reached.", "Maximální počet pokusů na nový tah dosažen.");
+                        handleFailure("Maximum number of attempts to receive start turn message reached.", String.format(ErrorMessages.MAX_ATTEMPTS_REACHED_PATTERN,"nový tah"));
                     } else {
                         handleFailure("Error while waiting for start turn message: "+msg, ErrorMessages.COMMUNICATION_BREAKDOWN);
                     }
@@ -391,7 +393,7 @@ public class GameController {
 //                    Throwable ex = tcpClient.getPreStartReceiverService().getException();
 //                    String msg = ex == null ? "no exception" : ex.getMessage();
 //                    if(ex instanceof SocketTimeoutException) {
-//                        handleFailure("Server stopped responding and is probably dead.", "Server přestal odpovídat.");
+//                        handleFailure("Server stopped responding and is probably dead.", ErrorMessages.SERVER_STOPPED_RESPONDING);
 //                    } else if (ex instanceof MaxAttemptsReached){
 //                        handleFailure("Maximum number of attempts to receive end turn confirmation reached.", "Maximální počet pokusů na potvrzení tahu dosažen.");
 //                    } else {

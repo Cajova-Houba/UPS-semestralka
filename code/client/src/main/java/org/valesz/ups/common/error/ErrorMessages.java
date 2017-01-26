@@ -17,6 +17,11 @@ public class ErrorMessages {
     public static final String SERVER_FULL = "Server je plný.";
     public static final String NICK_ALREADY_EXISTS = "Hráč s tímto nickem již existuje.";
     public static final String COMMUNICATION_BREAKDOWN = "Chyba při komunikaci se serverem.";
+    public static final String SERVER_STOPPED_RESPONDING = "Server přestal odpovídat.";
+
+
+    public static final String MAX_TIMEOUT_REACHED_PATTERN  = "Při čekání na %s vypršel čas.";
+    public static final String MAX_ATTEMPTS_REACHED_PATTERN = "Dosažen maximální počet pokusů na %s.";
 
     public static String getErrorForCode(ErrorCode errorCode) {
         switch (errorCode) {

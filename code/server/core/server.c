@@ -128,7 +128,7 @@ void server_validate_turn(int my_game_id, int turn, char* p1_new_tw, char* p2_ne
 void server_print_player(int game_id, int player_id, char* buffer, int new_line) {
     pthread_mutex_lock(&mutex_get_player);
 
-    if(is_game_id_ok(game_id) == OK && player_id == PLAYER_1 || player_id == PLAYER_2) {
+    if(is_game_id_ok(game_id) == OK && (player_id == PLAYER_1 || player_id == PLAYER_2)) {
         print_player(&(games[game_id].players[player_id]), buffer, new_line);
     }
 
@@ -1340,7 +1340,6 @@ int main(int argc, char *argv[])
     int thread_err = 0;
     char log_msg[255];
     int tmp_curr_conn = 0;
-    int tmp = 0;
     int port = SRV_PORT;
     thread_arg* player_thread_arg;
 

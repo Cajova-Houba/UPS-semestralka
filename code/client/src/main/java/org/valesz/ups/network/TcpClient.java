@@ -47,8 +47,6 @@ public class TcpClient {
 
     private LoginData lastSuccessfulConnection;
     private Socket socket;
-    private NickService nickService;
-    private ReceivingService receivingService;
     private ConnectionService connectionService;
 
     private PreStartReceiverService preStartReceiverService;
@@ -76,10 +74,7 @@ public class TcpClient {
             this.socket = connectionService.getValue();
             try {
                 socket.setReuseAddress(true);
-//                socket.getKeepAlive();
                 socket.setSoTimeout(MAX_WAITING_TIMEOUT);
-                nickService = new NickService();
-                receivingService = new ReceivingService();
                 preStartReceiverService = new PreStartReceiverService();
                 postStartReceiverService = new PostStartReceiverService();
 
@@ -153,14 +148,6 @@ public class TcpClient {
 
         DataOutputStream dos = new DataOutputStream(socket.getOutputStream());
         dos.write(Message.createOKMessage().toBytes());
-    }
-
-    public NickService getNickService() {
-        return nickService;
-    }
-
-    public ReceivingService getReceivingService() {
-        return receivingService;
     }
 
     public Socket getSocket() {

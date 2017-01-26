@@ -3,17 +3,6 @@
 
 #define SRV_PORT				65000
 #define MAX_TXT_LENGTH			50
-/*
- * Nick is expected to be delivered after connection in this time.
- * In ms.
- */
-#define MAX_NICK_TIMEOUT      10000
-
-/*
- * Waiting for turn - 2 minutes and 5 seconds (in client it's just 2 minutes), after that it is assumed, that player
- * has disconnected and the waiting process starts.
- */
-#define MAX_TURN_WAITING_TIMEOUT     125000
 
 #include <stdio.h>
 #include <string.h>
@@ -26,6 +15,7 @@
 #include "common.h"
 #include "slog.h"
 #include "seneterror.h"
+#include "../core/limits.h"
 
 /*
  * Receives byte_count of bytes and stores them to the buffer.

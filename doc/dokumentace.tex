@@ -119,7 +119,7 @@
 
 
 	\subsection{Tahové slovo}
-	Tahové slovo uchovává informaci o tahu. Jedná se o pole 5 čísel, kde každé představuje současnou pozici hráčova kamene. V protokolu je tahové slovo implementováno polem 10 znaků, kde každé dva znaky představují číslo v dvojciferné podobně (1 je tedy '0','1').
+	Tahové slovo uchovává informaci o momentálních pozicích hráčovo kamenů. Jedná se o pole 5 čísel, kde každé představuje současnou pozici hráčova kamene. V protokolu je tahové slovo implementováno polem 10 znaků, kde každé dva znaky představují číslo v dvojciferné podobně (1 je tedy '0','1').
 	
 	Příklad tahového slova:
 	
@@ -147,11 +147,11 @@
 	
 	\subsubsection{Hra}
 	
-	Hra je na serveru naimplementována strukturou \verb|Game_struct| a příslušnými funkcemi v souboru \verb|game.h| (\verb|game.c|). Tento soubor neobsahuje žádný výkonný kód, pouze herní data a funkce, která tyto herní data podle pravidel mění. Obslužné vlánko hráče pak tyto funkce volá.
+	Hra je na serveru implementována strukturou \verb|Game_struct| a příslušnými funkcemi v souboru \verb|game.h| (\verb|game.c|). Tento soubor neobsahuje žádný výkonný kód, pouze herní data a funkce, která tyto herní data podle pravidel mění. Obslužné vlákno hráče pak tyto funkce volá.
 	
 	Na serveru je pět herních slotů, každý po dvou hráčích. Pokud je všech 5 slotů plně obsazených, server po validaci nicku odešle chybovou zprávu(\verb|ERR43|).
 	
-	Systém přidělování volných herních slotů funguje na jednoduchém principu - herní slot je volný, pokud má hra nastaven příznak \verb|FREE| a alespoň jeden hráč ještě není inicializován. Po přihlášení druhého hráče je přínak \verb|FREE| vynulován. Pokud hra skončí a opouštějící hráč je poslední, hra si opět nastaví příznak \verb|FREE| a je možné ji znovu přidělit.
+	Systém přidělování volných herních slotů funguje na jednoduchém principu - herní slot je volný, pokud má hra nastaven příznak \verb|FREE| a alespoň jeden hráč ještě není inicializován. Po přihlášení druhého hráče je příznak \verb|FREE| vynulován. Pokud hra skončí a opouštějící hráč je poslední, hra si opět nastaví příznak \verb|FREE| a je možné ji znovu přidělit.
 	
 	\subsubsection{Obslužné vlákno}
 	Server vytvoří obslužné vlákno pro každé příchozí spojení (nebo vyčerpání limitu příchozích spojení). Obslužné vlákno je popsáno následujícím diagramem:
@@ -159,7 +159,7 @@
 	\begin{figure} [H]
 		\centering
 		\includegraphics[height=12cm]{obsluha.eps}
-		\caption{Diagram stavů obslužného vlánka}
+		\caption{Diagram stavů obslužného vlákna}
 	\end{figure}
 
 	\paragraph{Přijmi nick}
@@ -172,7 +172,7 @@
 	Server čeká, až se do herního slotu připojí druhý hráč. Během toho odpovídá na všechny zprávy chybou 37 s výjimkou zpráv \verb|EXIT| a \verb|ALIVE|. Server se v tomto stavu periodicky dotazuje na životnost klienta a pokud klient neodpoví v časovém limitu, je odpojen.
 
 	\paragraph{Start hry}
-	Server nastaví herní slot na začátek hry a pošle oboum klientům zprávu o začátku hry. Pak je spuštěna herní smyčka
+	Server nastaví herní slot na začátek hry a pošle oběma klientům zprávu o začátku hry. Pak je spuštěna herní smyčka
 	
 	\paragraph{Herní smyčka}
 	Herní smyčka je detailně popsaná níže.
@@ -184,16 +184,22 @@
 	Herní smyčka z pohledu serveru je popsána následujícím diagramem:
 	
 	\paragraph{Inicializace smyčky}
+	Podle pořadí hráče se rozhodne o vstupním stavu smyčky. Pokud hráč začíná, přejde se do stavu \verb|Konec tahu|. Jinak do stavu \verb|Čekej na nový tah|.
 	
 	\paragraph{Čekej na nový tah}
+	Herní smyčka čeká, dokud druhý klient nedokončí svůj tah a na současného nepřijde řada. Server na všechny zprávy odpovídá chybou 42. Výjimku tvoří zpráva \verb|ALIVE|, na kterou server standardně odpoví \verb|OK| a zpráva \verb|EXIT|, která značí odpojení klienta. Server se v tomto stavu periodicky dotazuje klienta na životnost. Pokud klient ve stanovené lhůtě neodpoví, server nastaví druhého klienta jako vítěze, současného odpojí a přeruší herní smyčku.
 	
 	\paragraph{Konec tahu}
+	Herní smyčka čeká, než klient dokončí svůj tah a pošle zprávu o konci tahu. Na ostatní zprávy od klienta reaguje chybou 37. Výjimku tvoří zprávy \verb|EXIT| a \verb|ALIVE|. Pokud klient nepošle zprávu o konci tahu do časového limitu, server nastaví druhého klienta jako vítěze, současného odpojí a přeruší herní smyčku.
 	
 	\paragraph{Validace tahu}
+	Obě tahová slova jsou validována a pokud je tah vyhodnocen jako validní, klientovi je odeslána zpráva \verb|OK|. V opačném případě je klientovi odeslána chyba 40 a jeho tah je ignorován (klient ale zůstává ve hře).
 	
 	\paragraph{Kontrola vítězství}
+	Po validaci tahu jsou tahová slova obou hráčku zkontrolována a pokud je jedeno z nich vyhodnoceno jako vítězné, hráč je nastaven jako vítěz a herní smyčka je přerušena.
 	
 	\paragraph{Konec smyčky}
+	Smyčka může být ukončena standardní cestou (jeden hráč vyhraje, případě se odpojí zprávou \verb|EXIT|), nebo výjimečným stavem - dojde k timeoutu, vyčerpání možných pokusů na přijetí zprávy, nebo k přerušení TCP spojení (konec streamu).
 	
 	\begin{figure}[H]
 		\centering
@@ -203,7 +209,7 @@
 	
 	\subsection{Klient}
 	\subsubsection{Architektura}
-	Klient je řešen architekturou MVC. Obsahuje hlavní vlákno a vytváří vlákna pro přijetí zpráv od serveru. Kontrolery se nachází v balíku \verb|org.valesz.ups.controller|, UI v balíku \verb|org.valesz.ups.ui|. Zbytek aplikace je tvořen modelovými třídami a pomocnými třídami (pro komunikaci přes tcp, konstanty...).
+	Klient je řešen architekturou MVC. Obsahuje hlavní vlákno a vytváří vlákna pro přijetí zpráv od serveru. Kontroléry se nachází v balíku \verb|org.valesz.ups.controller|, UI v balíku \verb|org.valesz.ups.ui|. Zbytek aplikace je tvořen modelovými třídami a pomocnými třídami (pro komunikaci přes TCP, konstanty...).
 	
 	\subsubsection{Zprávy}
 	Zprávy jsou implementovány třídami v balíku \verb|org.valesz.ups.common.message|. Implementace je rozdělena mezi příchozí a odchozí zprávy. Různé příchozí zprávy jsou odděděny od třídy \verb|AbstractReceivedMessage|, odchozí zprávy jsou tvořeny pouze třídou \verb|Message|. Obě mají podobnou strukturu (typ + obsah). \verb|AbstractReceivedMessage| má ale obsah genericky typovaný - kvůli lepšímu pozdějšímu zpracování v programu. \verb|Message| má obsah pevně typovaný na string.
@@ -211,15 +217,41 @@
 	Možné typy zpráv jsou v enumu \verb|MessageType|. Tento enum je používán oběma typy zpráv.
 	
 	\subsubsection{Hra}
-	Hra je naimplementována v balíku \verb|org.valesz.ups.model.game|. Třída \verb|Game| obsahuje herní principy (posun kamene, hod dřívky...), které jsou volané herním kontrolerem (třída \verb|GameController|). Herní kontroler také odpovídá za update pozic kamenů hráčů (vždy po obdržení zprávy o nvém tahu) a přepínání tahů.
+	Hra je naimplementována v balíku \verb|org.valesz.ups.model.game|. Třída \verb|Game| obsahuje herní principy (posun kamene, hod dřívky...), které jsou volané herním kontrolérem (třída \verb|GameController|). Herní kontrolér také odpovídá za update pozic kamenů hráčů (vždy po obdržení zprávy o novém tahu) a přepínání tahů.
 	
 	Třída sama o sobě tedy pouze obsahuje herní data a metody, které je mohou měnit, ale sama nic nevykonává.
 	
 		
 	\subsubsection{Herní smyčka}
-	Herní smyčka z pohledu klienta je zobrazena na následujícím diagramu:
+	Herní smyčka z pohledu klienta je zobrazena na diagramu níže. Pro lepší přehlednost jsou vynechány chybové skoky mezi stavy.
 	
-	\paragraph{Popis stavů}
+	\begin{figure}[h]
+		\centering
+		\includegraphics[height=12cm]{klient_h_smycka.eps}
+		\caption{Diagram stavů herní smyčky}
+	\end{figure}
+
+	\paragraph{Připojení na server}
+	Klient se připojí na server a odešle na něj svůj nick. Pokud je nick serverem uznán, obdrží klient zprávu \verb|OK| a bude čekat na protihráče (případě rovnou začne hru). V opačném případě obdrží chybovou zprávu s patřičným chybovým kódem a spojení bude přerušeno.
+	
+	V tomto stavu klient odpovídá pouze na \verb|ALIVE| zprávy. Jakákoliv jiná zpráva je počítána jako neplatný pokus a po dosažení maxima pokusů se klient od serveru odpojí. Klient v určitých intervalech posílá na server zprávy \verb|ALIVE|. Pokud na ně v časovém limitu nepřijde odpověď, klient se odpojí.
+	
+	\paragraph{Start hry}
+	Klient po přihlášení na server (a po přihlášení spoluhráče) obdrží zprávu oznamující start hry. Pokud klient začíná (jeho nick je ve zprávě první), může ihned začít svůj tah. V opačném případě čeká až dohraje protihráč.
+	
+	\paragraph{Start tahu}
+	Klient začíná hru, nebo obdržel zprávu o začátku tahu. Provede se update kamenů na hrací ploše a hráč může provést svůj tah. Tah je časově omezen a pokud hráč svůj tah v tomto limitu neukončí, bude ukončen automaticky (v opačném případě by server klienta odpojil).
+	
+	V tomto stavu klient na zprávy nereaguje a pokud se druhý hráč například odpojí, současný hráč se o svém vítězství dozví až po ukončení tahu.
+	
+	\paragraph{Čekání na tah}
+	Klient svůj tah ukončil, nebo nezačíná hru a čeká na pokyn k tahu od serveru. V tomto stavu klient odpovídá pouze na \verb|ALIVE| zprávy. Jakákoliv jiná zpráva je počítána jako neplatný pokus a po dosažení maxima pokusů se klient od serveru odpojí.
+	
+	\paragraph{Konec tahu}
+	Klient ukončil svůj tah a odeslal je na server. Server tah validuje a odpoví buď \verb|OK|,  nebo chybovou zprávou. Ve druhém případě je klientovi zobrazena hláška o ignorování jeho tahu. 
+	
+	\paragraph{Konec hry}
+	Pokud dojde ke konci hry (a k němu dojde), zobrazí se klientovi dialog oznamující vítěze. Z dialogu lze pak klienta zavřít, znovu se připojit na server, nebo se přihlásit na jiný. Pokud je konec hry způsoben výjimečným stavem (server zničehonic přeruší spojení, server přestane odpovídat), klient se přepne do přihlašovacího okna a zobrazí chybovou zprávu.
 	
 
 		
@@ -234,9 +266,13 @@
 	v adresáři \verb|code/client|. Vyexportovaný jar pak lze spustit příkazem
 	\begin{lstlisting}
 		java -jar target/*.jar
-	\end{lstlisting} v adresáři \verb|code/client|. Seznam závislostí se náchází v souboru \verb|code/client/pom.ml|.
+	\end{lstlisting} v adresáři \verb|code/client|. Seznam závislostí se nachází v souboru \verb|code/client/pom.ml|.
 		
 	\section{Závěr}
+	Jak server tak aplikace jsou schopny korektně dohrát hru a mají ošetřenou většinu výjimečných stavů. 
 	
+	Zároveň existuje spousta vylepšení, která by se dala do-implementovat - například validace tahu korektnosti tahu (kámen se nepohnul o víc než 5, prohození kamenů je správné) jak při jednom tak při více hodech. Tyto změny by také vyžadovali drobnou úpravu protokolu. 
+	
+	Jako další by se protokol mohl více sjednotit - nekombinovat techniky koncového znaku, danou délku zprávy a délku poslanou se zprávou.
 	
 \end{document}

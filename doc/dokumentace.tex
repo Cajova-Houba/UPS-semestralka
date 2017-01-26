@@ -7,7 +7,7 @@
 \usepackage{amsmath}
 \usepackage{listings}
 \usepackage{longtable}
-\graphicspath{{.}}
+\graphicspath{{./img/}}
 
 \begin{document}
 	\title{Semestrální práce z předmětu KIV/UPS}
@@ -153,14 +153,57 @@
 	
 	Systém přidělování volných herních slotů funguje na jednoduchém principu - herní slot je volný, pokud má hra nastaven příznak \verb|FREE| a alespoň jeden hráč ještě není inicializován. Po přihlášení druhého hráče je přínak \verb|FREE| vynulován. Pokud hra skončí a opouštějící hráč je poslední, hra si opět nastaví příznak \verb|FREE| a je možné ji znovu přidělit.
 	
-	\subsubsection{Obslužné vlákno a herní smyčka}
-	Obslužné vlákno a herní smyčka z pohledu server jsou popsány následujícícm diagramem:
+	\subsubsection{Obslužné vlákno}
+	Server vytvoří obslužné vlákno pro každé příchozí spojení (nebo vyčerpání limitu příchozích spojení). Obslužné vlákno je popsáno následujícím diagramem:
 	
-	\paragraph{Popis stavů}
+	\begin{figure} [H]
+		\centering
+		\includegraphics[height=12cm]{obsluha.eps}
+		\caption{Diagram stavů obslužného vlánka}
+	\end{figure}
+
+	\paragraph{Přijmi nick}
+	Přijetí a validace nicku. Délka nicku musí být minimálně 3, maximálně 8. Nick může obsahovat pouze znaky a čísla. První znak nicku nesmí být číslo. Nick musí být unikátní v rámci celého serveru (ne jedné herní instance). Pokud je vyčerpán maximální počet pokusů na získání nicku, klient je odpojen.
+	
+	\paragraph{Vyber hru}
+	Server vybere volný herní slot a přidělí jej hráči. Ve volném herním slotu dojde k inicializaci hráče. Pokud je hráč ve slotu první, bude čekat na dalšího. Pokud je druhý, začne hra. Pokud žádný volný slot není, server pošle chybu (\verb|ERR43|) a klient je odpojen.
+
+	\paragraph{Čekej na spoluhráče}	
+	Server čeká, až se do herního slotu připojí druhý hráč. Během toho odpovídá na všechny zprávy chybou 37 s výjimkou zpráv \verb|EXIT| a \verb|ALIVE|. Server se v tomto stavu periodicky dotazuje na životnost klienta a pokud klient neodpoví v časovém limitu, je odpojen.
+
+	\paragraph{Start hry}
+	Server nastaví herní slot na začátek hry a pošle oboum klientům zprávu o začátku hry. Pak je spuštěna herní smyčka
+	
+	\paragraph{Herní smyčka}
+	Herní smyčka je detailně popsaná níže.
+	
+	\paragraph{Konec hry}
+	Server pošle hráčům zprávu o vítězi a pak hráče odpojí z herního slotu. Pokud je odpojený hráč poslední, nastaví hernímu slotu příznak \verb|FREE|, aby mohl být znovu přidělen.
+	
+	\subsubsection{Herní smyčka}
+	Herní smyčka z pohledu serveru je popsána následujícím diagramem:
+	
+	\paragraph{Inicializace smyčky}
+	
+	\paragraph{Čekej na nový tah}
+	
+	\paragraph{Konec tahu}
+	
+	\paragraph{Validace tahu}
+	
+	\paragraph{Kontrola vítězství}
+	
+	\paragraph{Konec smyčky}
+	
+	\begin{figure}[H]
+		\centering
+		\includegraphics[height=12cm]{server_h_smycka.eps}
+		\caption{Diagram stavů herní smyčky}
+	\end{figure}
 	
 	\subsection{Klient}
 	\subsubsection{Architektura}
-	Klient je řešen architekturou MVC. Kontrolery se nachází v balíku \verb|org.valesz.ups.controller|, UI v balíku \verb|org.valesz.ups.ui|. Zbytek aplikace je tvořen modelovými třídami a pomocnými třídami (pro komunikaci přes tcp, konstanty...).
+	Klient je řešen architekturou MVC. Obsahuje hlavní vlákno a vytváří vlákna pro přijetí zpráv od serveru. Kontrolery se nachází v balíku \verb|org.valesz.ups.controller|, UI v balíku \verb|org.valesz.ups.ui|. Zbytek aplikace je tvořen modelovými třídami a pomocnými třídami (pro komunikaci přes tcp, konstanty...).
 	
 	\subsubsection{Zprávy}
 	Zprávy jsou implementovány třídami v balíku \verb|org.valesz.ups.common.message|. Implementace je rozdělena mezi příchozí a odchozí zprávy. Různé příchozí zprávy jsou odděděny od třídy \verb|AbstractReceivedMessage|, odchozí zprávy jsou tvořeny pouze třídou \verb|Message|. Obě mají podobnou strukturu (typ + obsah). \verb|AbstractReceivedMessage| má ale obsah genericky typovaný - kvůli lepšímu pozdějšímu zpracování v programu. \verb|Message| má obsah pevně typovaný na string.

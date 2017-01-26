@@ -1131,6 +1131,7 @@ void *player_thread(void *arg) {
 	sinfo(PLAYER_THREAD_NAME, log_msg);
 
     // wait for nick
+    // TODO: pass all nicks to validation
     tmp = wait_for_nick(my_game_id, socket, buffer);
     if(tmp != OK) {
         clean_up(args);

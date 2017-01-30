@@ -111,6 +111,8 @@ void* timer_thread(void* args) {
     // clean itself
     free(tt_args);
     cleaning_function(t_number);
+
+    return NULL;
 }
 
 /*

@@ -32,7 +32,7 @@
 	\section{Popis řešení}
 	
 	\subsection{Protokol}
-	Protokol je textově-binární a každá zpráva se skládá ze dvou částí: typ zprávy a obsah zprávy. Typ zprávy je řetězec o právě třech znacích, obsah zprávy má různou délku.
+	Protokol je textový a každá zpráva se skládá ze dvou částí: typ zprávy a obsah zprávy. Typ zprávy je řetězec o právě třech znacích, obsah zprávy má různou délku. Protokol není case sensitive.
 	
 	Jednotlivé zprávy jsou uvedeny v následující tabulce:
 	
@@ -154,7 +154,7 @@
 	Systém přidělování volných herních slotů funguje na jednoduchém principu - herní slot je volný, pokud má hra nastaven příznak \verb|FREE| a alespoň jeden hráč ještě není inicializován. Po přihlášení druhého hráče je příznak \verb|FREE| vynulován. Pokud hra skončí a opouštějící hráč je poslední, hra si opět nastaví příznak \verb|FREE| a je možné ji znovu přidělit.
 	
 	\subsubsection{Obslužné vlákno}
-	Server vytvoří obslužné vlákno pro každé příchozí spojení (nebo vyčerpání limitu příchozích spojení). Obslužné vlákno je popsáno následujícím diagramem:
+	Server vytvoří obslužné vlákno pro každé příchozí spojení (nebo vyčerpání limitu příchozích spojení). Obslužné vlákno je popsáno následujícím diagramem. Pro přehlednost jsou uvedeny pouze korektní přechody mezi stavy:
 	
 	\begin{figure} [H]
 		\centering

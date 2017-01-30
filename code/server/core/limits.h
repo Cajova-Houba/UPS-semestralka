@@ -5,6 +5,9 @@
 #ifndef SERVER_LIMITS_H
 #define SERVER_LIMITS_H
 
+/*
+ * Max number of games.
+ */
 #define MAX_GAMES               5
 
 /*

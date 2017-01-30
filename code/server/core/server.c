@@ -845,6 +845,7 @@ int handle_message_waiting(int socket, int timeout, int my_player) {
     Message received_message;
     char log_msg[255];
 
+
     recv_status = recv_message(socket, &received_message, timeout);
     switch (recv_status) {
         case OK:
@@ -878,7 +879,6 @@ int handle_message_waiting(int socket, int timeout, int my_player) {
                 sdebug(PLAYER_THREAD_NAME, log_msg);
                 return STOP_GAME_LOOP;
             }
-
             // receive ok
             recv_status = recv_message(socket, &received_message, ALIVE_TIMEOUT);
             if(recv_status != OK || !is_ok(&received_message)) {

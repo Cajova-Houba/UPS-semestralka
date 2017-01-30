@@ -57,12 +57,16 @@ pthread_t timer_threads[MAX_TIMER_THREADS];
  */ 
 int cleaner_index;
 
-/*
- * Game instance.
- */
-//Game_struct game;
 
+/*
+ * Games.
+ */
 Game_struct games[MAX_GAMES];
+
+/*
+ * Index to games. Indicating waiting game with just one player.
+ */
+int waiting_game;
 
 /*
  * Returns OK if the game id is ok.
@@ -165,10 +169,20 @@ void get_free_game_bind_player(int* game_id, int* my_player, char* nick, uint32_
     int game_found = -1;
     pthread_mutex_lock(&mutex_game);
 
-    for(i = 0; i < MAX_GAMES; i++) {
+    // first, check waiting game
+    if(waiting_game != -1) {
         if(is_game_free(&games[i]) == OK) {
-            game_found = i;
-            break;
+            game_found = waiting_game;
+        }
+    }
+
+    // no waiting game, find first free
+    if(game_found == -1) {
+        for(i = 0; i < MAX_GAMES; i++) {
+            if(is_game_free(&games[i]) == OK) {
+                game_found = i;
+                break;
+            }
         }
     }
 
@@ -179,10 +193,12 @@ void get_free_game_bind_player(int* game_id, int* my_player, char* nick, uint32_
             // initialize as the first player
             initialize_player(&(games[game_found].players[PLAYER_1]), 0, nick, socket, 1, addr, port);
             *my_player = PLAYER_1;
+            waiting_game = game_found;
         } else {
             // initialize as the second player
             initialize_player(&(games[game_found].players[PLAYER_2]), 1, nick, socket, 0, addr, port);
             *my_player = PLAYER_2;
+            waiting_game = -1;
         }
 
         *game_id = game_found;
@@ -515,7 +531,7 @@ void server_check_nick(int my_game_id, char *nick, char *err_msg, int* res)
     int check_res;
     pthread_mutex_lock(&mutex_game);
 
-    check_res = check_nickname(nick, NULL, games[my_game_id].players);
+    check_res = check_nickname(nick, NULL, games, MAX_GAMES);
 
     switch(check_res) {
 //		case ERR_NICK_TOO_SHORT:
@@ -533,12 +549,15 @@ void server_check_nick(int my_game_id, char *nick, char *err_msg, int* res)
         case ERR_NICKNAME:
             sprintf(err_msg,"Nick '%s' is too short or contains bad characters.\n", nick);
             *res = ERR_NICKNAME;
+            break;
         case ERR_NICK_EXISTS:
             sprintf(err_msg,"Nick '%s' already exists.\n",nick);
             *res = ERR_NICK_EXISTS;
+            break;
+        default:
+            *res = OK;
+            break;
     }
-
-    *res = OK;
 
     pthread_mutex_unlock(&mutex_game);
 }
@@ -1342,6 +1361,7 @@ int main(int argc, char *argv[])
     int tmp_curr_conn = 0;
     int port = SRV_PORT;
     thread_arg* player_thread_arg;
+    waiting_game = -1;
 
     // initialize arrays
     initialize();

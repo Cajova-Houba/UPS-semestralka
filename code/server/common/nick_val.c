@@ -1,4 +1,5 @@
 #include "nick_val.h"
+#include "../core/game.h"
 
 /*
  * Checks, if the length is > 0 and <= MAX_NICK_LENGTH.
@@ -71,15 +72,19 @@ int check_characters(char* nickname) {
  * 
  * It is expected that length and character has already been checked.
  */
-int check_nick_duplicity(char *nickname, Player *players) {
+int check_nick_duplicity(char *nickname, Game_struct* all_games, int games_len) {
+	int i = 0;
 
-	if(strcmp(players[0].nick, nickname) == 0) {
-		return 1;
+	for(i = 0; i < games_len; i++) {
+		if(strcmp(all_games[i].players[0].nick, nickname) == 0) {
+			return 1;
+		}
+
+		if (strcmp(all_games[i].players[1].nick, nickname) == 0) {
+			return 1;
+		}
 	}
 
-	if (strcmp(players[1].nick, nickname) == 0) {
-		return 1;
-	}
 
 	return 0;
 }
@@ -97,7 +102,7 @@ int check_nick_duplicity(char *nickname, Player *players) {
  * 		CONTAINS_INV_CHAR - nick contains invalid chars
  * 		NICK_ALREADY_EXISTS - nick already exists
  */ 
-int check_nickname(char* nickname, char *errmsg, Player* players) {
+int check_nickname(char* nickname, char *errmsg, Game_struct* all_games, int games_len) {
 	
 	int check_res = 0;
 	
@@ -113,7 +118,7 @@ int check_nickname(char* nickname, char *errmsg, Player* players) {
 		case 2: return ERR_NICKNAME;
 	}
 	
-	check_res = check_nick_duplicity(nickname, players);
+	check_res = check_nick_duplicity(nickname, all_games, games_len);
 	switch(check_res) {
 		case 1: return ERR_NICK_EXISTS;
 	}
